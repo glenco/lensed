@@ -1,0 +1,33 @@
+Things left to do
+=================
+
+The following is a list of things that we still have to implement, grouped by
+the complexity of the task.
+
+
+Major things
+------------
+
+These require quite a lot of thought and care, and most likely profound changes
+to the way the program works. Typically, such a change will result in a new
+major version.
+
+- [ ] Multiple lensing planes and foregrounds.
+
+
+Minor things
+------------
+
+These can be implemented with a moderate effort and without changing the
+internal structure of the code. These changes will typically result in a new
+minor version.
+
+
+Patch things
+------------
+
+Small changes that can be implemented quickly and do not affect other parts of
+the code. An item from this list will typically only increase the patch level
+of the program.
+
+- [ ] More config options.
