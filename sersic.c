@@ -19,12 +19,16 @@ struct sersic
     double m;
 };
 
-void sersic_func(const source_ptr src_, int n, const double x[], double v[])
+void sersic_func(const source_ptr src_, int n, const double xx[], double vv[])
 {
     const struct sersic* src = src_;
     
-    for(int i = 0; i < n; ++i)
-        v[i] += exp(src->log0 - exp(src->log1 + src->m*log(src->cxx*x[2*i+0]*x[2*i+0] + src->cyy*x[2*i+1]*x[2*i+1] + src->cx*x[2*i+0] + src->cy*x[2*i+1] + src->cxy*x[2*i+0]*x[2*i+1] + src->c)));
+    const double* x = xx;
+    const double* y = xx+1;
+    double* v = vv;
+    
+    for(int i = 0; i < n; ++i, x += 2, y += 2, v += 1)
+        (*v) += exp(src->log0 - exp(src->log1 + src->m*log(src->cxx*(*x)*(*x) + src->cyy*(*y)*(*y) + src->cx*(*x) + src->cy*(*y) + src->cxy*(*x)*(*y) + src->c)));
 }
 
 void sersic_set(source_ptr src_, const double P[])

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include "lensed.h"
 #include "config.h"
@@ -89,6 +90,9 @@ void read_input(const struct config* config, struct data* data)
         /* next pixel */
         data->size += 1;
     }
+    
+    /* set the normalisation */
+    data->norm = -0.5*data->size*(LOG_2PI + 2*log(config->gain));
     
     /* free image and mask arrays */
     free(image);

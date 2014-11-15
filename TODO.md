@@ -22,6 +22,9 @@ These can be implemented with a moderate effort and without changing the
 internal structure of the code. These changes will typically result in a new
 minor version.
 
+- [ ] MPI integration.
+- [ ] DS9 mode with direct visualisation.
+
 
 Patch things
 ------------
@@ -30,4 +33,8 @@ Small changes that can be implemented quickly and do not affect other parts of
 the code. An item from this list will typically only increase the patch level
 of the program.
 
+- [ ] Guideline for default MultiNest options.
 - [ ] More config options.
+- [ ] Update dumper to work with MultiNest > 3.6.
+- [ ] Simplify internal angle representation.
+

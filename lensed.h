@@ -67,6 +67,7 @@ struct source
     params_wrap wrap;
 };
 
+
 /****************
  * program data *
  ****************/
@@ -75,36 +76,11 @@ struct source
 struct data
 {
     int size;
+    double norm;
     double* model;
     double* error;
     double* image;
     double* variance;
     double* xmin;
     double* xmax;
-};
-
-/* context for sampling */
-struct context
-{
-    /* input data */
-    struct data data;
-    
-    /* integration settings */
-    int maxevals;
-    double abstol;
-    
-    /* array of lenses */
-    int nlenses;
-    struct lens* lenses;
-    
-    /* array of sources */
-    int nsources;
-    struct source* sources;
-    
-    /* parameter space */
-    int npspace;
-    struct parametrizable* pspace;
-    
-    /* scratch space for calculations */
-    double* z;
 };

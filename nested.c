@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include "lensed.h"
+#include "nested.h"
 #include "cubature/cubature.h"
 
 /* TODO dynamic prior selection */
@@ -84,15 +85,15 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* context_)
     {
         double x = data->model[i] - data->image[i];
         double s2 = data->variance[i] + data->error[i]*data->error[i];
-        sum += -0.5*x*x/s2 - 0.5*(LOG_2PI + log(s2));
+        sum += -0.5*x*x/s2 - 0.5*log(s2);
     }
     
     /* set likelihood */
-    *lnew = sum;
+    *lnew = sum + data->norm;
 }
 
 void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
             double** posterior, double** constraints, double* maxloglike,
-            double* logz, double* inslogz, double* logzerr, void* context)
+            double* logz, /* double* inslogz, */ double* logzerr, void* context_)
 {
 }

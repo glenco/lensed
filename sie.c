@@ -17,20 +17,20 @@ struct sie
     double d;
 };
 
-void sie_func(lens_ptr sie_, int n, const double xl[], double xs[])
+void sie_func(lens_ptr sie_, int n, const double x[], double y[])
 {
     struct sie* sie = sie_;
     double y1, y2, y3;
     
     for(int i = 0; i < n; ++i)
     {
-        y1 = (xl[2*i+0] - sie->x)*sie->c - (xl[2*i+1] - sie->y)*sie->s;
-        y2 = (xl[2*i+1] - sie->y)*sie->c + (xl[2*i+0] - sie->x)*sie->s;
+        y1 = (x[2*i+0] - sie->x)*sie->c - (x[2*i+1] - sie->y)*sie->s;
+        y2 = (x[2*i+1] - sie->y)*sie->c + (x[2*i+0] - sie->x)*sie->s;
         y3 = sie->e/sqrt(sie->f2*y1*y1 + y2*y2);
         y1 = sie->d*atan(y1*y3);
         y2 = sie->d*atanh(y2*y3);
-        xs[2*i+0] = xl[2*i+0] - (y1*sie->c + y2*sie->s);
-        xs[2*i+1] = xl[2*i+1] - (y2*sie->c - y1*sie->s);
+        y[2*i+0] = x[2*i+0] - (y1*sie->c + y2*sie->s);
+        y[2*i+1] = x[2*i+1] - (y2*sie->c - y1*sie->s);
     }
 }
 

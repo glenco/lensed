@@ -18,4 +18,5 @@ struct config
     int ins;
     int mmodal;
     int ceff;
+    int updint;
 };

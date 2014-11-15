@@ -114,6 +114,12 @@ struct config_option OPTIONS[] = {
         "Constant efficiency mode.",
         config_optional(bool, 0),
         config_field(ceff)
+    },
+    {
+        "updint",
+        "Update interval for output.",
+        config_optional(int, 1000),
+        config_field(updint)
     }
 };
 

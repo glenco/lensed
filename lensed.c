@@ -6,6 +6,7 @@
 
 #include "lensed.h"
 #include "config.h"
+#include "nested.h"
 #include "log.h"
 
 /* lens constructors */
@@ -19,11 +20,6 @@ extern void read_config(int argc, char* argv[], struct config*);
 
 /* read input from config */
 extern void read_input(const struct config*, struct data*);
-
-/* nested sampling callbacks */
-extern void loglike(double[], int*, int*, double*, void*);
-extern void dumper(int*, int*, int*, double**, double**, double**, double*,
-                   double*, double*, double*, void*);
 
 int main(int argc, char* argv[])
 {
@@ -91,19 +87,18 @@ int main(int argc, char* argv[])
     /* allocate scratch space for calculations */
     context.z = malloc(400*sizeof(double));
     
-    /* TODO dynamic MultiNest options */
+    /* gather MultiNest options */
     double tol = 0.5;
-    double efr = 0.8;
+    double efr = 1.0;
     int npar = ndim;
     int nclspar = ndim;
     int maxmodes = 100;
-    int updint = 1000;
     double ztol = -1E90;
     char root[100] = {0};
     strncpy(root, config.root, 99);
     int seed = -1;
     int fb = 1;
-    int resume = 0;
+    int resume = 1;
     int outfile = 1;
     int initmpi = 1;
     double logzero = -DBL_MAX;
@@ -113,8 +108,8 @@ int main(int argc, char* argv[])
     
     /* run MultiNest */
     run(config.ins, config.mmodal, config.ceff, config.nlive, tol, efr, ndim,
-        npar, nclspar, maxmodes, updint, ztol, root, seed, wrap, fb, resume,
-        outfile, initmpi, logzero, maxiter, loglike, dumper, &context);
+        npar, nclspar, maxmodes, config.updint, ztol, root, seed, wrap, fb,
+        resume, outfile, initmpi, logzero, maxiter, loglike, dumper, &context);
     
     /* free config */
     free(config.image);
