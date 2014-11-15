@@ -12,6 +12,7 @@ These require quite a lot of thought and care, and most likely profound changes
 to the way the program works. Typically, such a change will result in a new
 major version.
 
+- [ ] Multiple lenses and sources.
 - [ ] Multiple lensing planes and foregrounds.
 
 
@@ -22,6 +23,8 @@ These can be implemented with a moderate effort and without changing the
 internal structure of the code. These changes will typically result in a new
 minor version.
 
+- [ ] Prior definition.
+- [ ] Dynamic selection of lens and source types.
 - [ ] MPI integration.
 - [ ] DS9 mode with direct visualisation.
 
@@ -34,7 +37,7 @@ the code. An item from this list will typically only increase the patch level
 of the program.
 
 - [ ] Guideline for default MultiNest options.
-- [ ] More config options.
+- [x] More config options.
 - [ ] Update dumper to work with MultiNest > 3.6.
 - [ ] Simplify internal angle representation.
 

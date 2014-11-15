@@ -72,6 +72,36 @@ struct source
  * program data *
  ****************/
 
+/* configuration */
+struct config
+{
+    /* input */
+    char* image;
+    char* mask;
+    double gain;
+    double offset;
+    
+    /* integration */
+    double abstol;
+    int maxevals;
+    
+    /* MultiNest */
+    char* root;
+    int nlive;
+    int ins;
+    int mmodal;
+    int ceff;
+    double evitol;
+    double efr;
+    int maxmodes;
+    int updint;
+    int seed;
+    int fb;
+    int resume;
+    int outfile;
+    int maxiter;
+};
+
 /* input data */
 struct data
 {
@@ -83,4 +113,29 @@ struct data
     double* variance;
     double* xmin;
     double* xmax;
+};
+
+/* the program */
+struct lensed
+{
+    /* configuration options */
+    struct config config;
+    
+    /* input data */
+    struct data data;
+    
+    /* array of lenses */
+    int nlenses;
+    struct lens* lenses;
+    
+    /* array of sources */
+    int nsources;
+    struct source* sources;
+    
+    /* parameter space */
+    int npspace;
+    struct parametrizable* pspace;
+    
+    /* scratch space for calculations */
+    double* z;
 };

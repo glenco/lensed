@@ -1,22 +1,4 @@
 #pragma once
 
-struct config
-{
-    /* input */
-    char* image;
-    char* mask;
-    double gain;
-    double offset;
-    
-    /* integration */
-    double abstol;
-    int maxevals;
-    
-    /* MultiNest */
-    char* root;
-    int nlive;
-    int ins;
-    int mmodal;
-    int ceff;
-    int updint;
-};
+void read_config(int argc, char* argv[], struct config*);
+void print_config(const struct config*);

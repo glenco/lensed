@@ -43,40 +43,41 @@ void priors(double cube[])
 }
 
 int surface_brightness(unsigned ndim, size_t npt, const double x[],
-                       void* context_, unsigned fdim, double fval[])
+                       void* lensed_, unsigned fdim, double fval[])
 {
-    const struct context* context = (struct context*)context_;
+    const struct lensed* lensed = lensed_;
     
     /* lens points */
-    for(int i = 0; i < context->nlenses; ++i)
-        context->lenses[i].func(context->lenses[i].ptr, npt, x, context->z);
+    for(int i = 0; i < lensed->nlenses; ++i)
+        lensed->lenses[i].func(lensed->lenses[i].ptr, npt, x, lensed->z);
     
     /* calculate surface brightness */
     memset(fval, 0, fdim*npt*sizeof(double));
-    for(int i = 0; i < context->nsources; ++i)
-        context->sources[i].func(context->sources[i].ptr, npt, context->z, fval);
+    for(int i = 0; i < lensed->nsources; ++i)
+        lensed->sources[i].func(lensed->sources[i].ptr, npt, lensed->z, fval);
     
     /* continue integration */
     return 0;
 }
 
-void loglike(double cube[], int* ndim, int* npar, double* lnew, void* context_)
+void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
 {
-    const struct context* context = context_;
-    const struct data* data = &context->data;
+    const struct lensed* lensed = lensed_;
+    const struct config* config = &lensed->config;
+    const struct data* data = &lensed->data;
     
     /* transform from unit cube to physical */
     priors(cube);
     
     /* set parameters */
-    for(int i = 0, p = 0; i < context->npspace; p += context->pspace[i].ndim, ++i)
-        context->pspace[i].set(context->pspace[i].ptr, &cube[p]);
+    for(int i = 0, p = 0; i < lensed->npspace; p += lensed->pspace[i].ndim, ++i)
+        lensed->pspace[i].set(lensed->pspace[i].ptr, &cube[p]);
     
     /* pixel by pixel integration */
     for(int i = 0; i < data->size; ++i)
-        hcubature_v(1, surface_brightness, context_, 2, &data->xmin[2*i],
-                    &data->xmax[2*i], context->maxevals, context->abstol,
-                    DBL_EPSILON, ERROR_INDIVIDUAL,
+        hcubature_v(1, surface_brightness, lensed_, 2,
+                    &data->xmin[2*i], &data->xmax[2*i],
+                    config->maxevals, config->abstol, DBL_EPSILON, 0,
                     &data->model[i], &data->error[i]);
     
     /* sum likelihood */
@@ -94,6 +95,6 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* context_)
 
 void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
             double** posterior, double** constraints, double* maxloglike,
-            double* logz, /* double* inslogz, */ double* logzerr, void* context_)
+            double* logz, /* double* inslogz, */ double* logzerr, void* lensed_)
 {
 }

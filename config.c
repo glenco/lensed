@@ -52,75 +52,123 @@ declare_type(real)
 struct config_option OPTIONS[] = {
     {
         "image",
-        "Input image, FITS file in counts/sec.",
+        "Input image, FITS file in counts/sec",
         config_required(string),
         config_field(image)
     },
     {
-        "mask",
-        "Input mask, FITS file, pixel value 0 is excluded.",
-        config_optional(string, NULL),
-        config_field(mask)
-    },
-    {
         "gain",
-        "Conversion factor to counts.",
+        "Conversion factor to counts",
         config_required(real),
         config_field(gain)
     },
     {
         "offset",
-        "Subtracted flat-field offset.",
+        "Subtracted flat-field offset",
         config_required(real),
         config_field(offset)
     },
     {
+        "root",
+        "Root element for all output paths",
+        config_required(string),
+        config_field(root)
+    },
+    {
+        "mask",
+        "Input mask, FITS file",
+        config_optional(string, NULL),
+        config_field(mask)
+    },
+    {
         "abstol",
-        "Absolute tolerance in counts/sec for integration.",
+        "Absolute tolerance for integration",
         config_optional(real, 0.01),
         config_field(abstol)
     },
     {
         "maxevals",
-        "Maximum function evaluations per pixel.",
+        "Maximum function evaluations per pixel",
         config_optional(int, 200),
         config_field(maxevals)
     },
     {
-        "root",
-        "Root element for all output paths.",
-        config_required(string),
-        config_field(root)
-    },
-    {
         "nlive",
-        "Number of live points.",
+        "Number of live points",
         config_optional(int, 1000),
         config_field(nlive)
     },
     {
         "ins",
-        "Use importance nested sampling.",
+        "Use importance nested sampling",
         config_optional(bool, 1),
         config_field(ins)
     },
     {
         "mmodal",
-        "Multi-modal posterior (only if ins == false).",
+        "Multi-modal posterior (if ins = false)",
         config_optional(bool, 1),
         config_field(mmodal)
     },
     {
         "ceff",
-        "Constant efficiency mode.",
+        "Constant efficiency mode",
         config_optional(bool, 0),
         config_field(ceff)
     },
     {
+        "evitol",
+        "Tolerance for evidence",
+        config_optional(real, 0.5),
+        config_field(evitol)
+    },
+    {
+        "efr",
+        "Sampling efficiency",
+        config_optional(real, 1.0),
+        config_field(efr)
+    },
+    {
+        "maxmodes",
+        "Maximum number of expected modes",
+        config_optional(int, 100),
+        config_field(maxmodes)
+    },
+    {
         "updint",
-        "Update interval for output.",
+        "Update interval for output",
         config_optional(int, 1000),
         config_field(updint)
+    },
+    {
+        "seed",
+        "Random number seed for sampling",
+        config_optional(int, -1),
+        config_field(seed)
+    },
+    {
+        "fb",
+        "Show MultiNest feedback",
+        config_optional(bool, 0),
+        config_field(fb)
+    },
+    {
+        "resume",
+        "Resume from last checkpoint",
+        config_optional(bool, 0),
+        config_field(resume),
+    },
+    {
+        "outfile",
+        "Output MultiNest files",
+        config_optional(bool, 0),
+        config_field(outfile)
+    },
+    {
+        "maxiter",
+        "Maximum number of iterations",
+        config_optional(int, 0),
+        config_field(maxiter)
     }
 };
 
@@ -146,7 +194,7 @@ void usage(int help)
     }
     
     printf("Usage:\n");
-    printf("  lensed [-vq] (<file> | [options])...\n");
+    printf("  lensed ([<file>] | [options])...\n");
     printf("  lensed -h | --help\n");
     
     if(help)
@@ -162,8 +210,15 @@ void usage(int help)
         for(int i = 0; i < NOPTIONS; ++i)
         {
             char opt[50];
+            char def[100];
             sprintf(opt, "--%.20s=<%s>", OPTIONS[i].name, OPTIONS[i].type);
-            printf("  %-16s  %s\n", opt, OPTIONS[i].help);
+            printf("  %-16s  %s", opt, OPTIONS[i].help);
+            if(!OPTIONS[i].required)
+            {
+                OPTIONS[i].write(def, &OPTIONS[i].default_value);
+                printf(" [default: %s]", def);
+            }
+            printf(".\n");
         }
     }
     
@@ -219,9 +274,9 @@ struct handler_data
     int* options;
 };
 
-int ini_handler(void* user, const char* section, const char* name, const char* value)
+int ini_handler(void* data_, const char* section, const char* name, const char* value)
 {
-    struct handler_data* data = (struct handler_data*)user;
+    struct handler_data* data = data_;
     
     int opt;
     
@@ -348,8 +403,10 @@ void read_config(int argc, char* argv[], struct config* config)
     for(int i = 0; i < NOPTIONS; ++i)
         if(OPTIONS[i].required && !options[i])
             error("required option \"%s\" not set", OPTIONS[i].name);
-    
-    /* print options */
+}
+
+void print_config(const struct config* config)
+{
     if(LOG_LEVEL <= LOG_VERBOSE)
     {
         char value[100];
@@ -364,7 +421,7 @@ void read_config(int argc, char* argv[], struct config* config)
 
 int read_string(const char* in, void* out)
 {
-    char** out_str = (char**)out;
+    char** out_str = out;
     *out_str = malloc(strlen(in) + 1);
     strcpy(*out_str, in);
     return 0;
@@ -372,14 +429,14 @@ int read_string(const char* in, void* out)
 
 int write_string(char* out, const void* in)
 {
-    char** in_str = (char**)in;
+    char* const* in_str = in;
     sprintf(out, "%.99s", *in_str ? *in_str : "(none)");
     return 0;
 }
 
 int read_bool(const char* in, void* out)
 {
-    int* out_bool = (int*)out;
+    int* out_bool = out;
     if(
         strcmp(in, "true") == 0 ||
         strcmp(in, "TRUE") == 0 ||
@@ -399,14 +456,14 @@ int read_bool(const char* in, void* out)
 
 int write_bool(char* out, const void* in)
 {
-    int* in_bool = (int*)in;
+    const int* in_bool = in;
     sprintf(out, "%.99s", *in_bool ? "true" : "false");
     return 0;
 }
 
 int read_int(const char* in, void* out)
 {
-    int* out_int = (int*)out;
+    int* out_int = out;
     char* end;
     long l = strtol(in, &end, 10);
     if(l < INT_MIN || l > INT_MAX)
@@ -417,14 +474,14 @@ int read_int(const char* in, void* out)
 
 int write_int(char* out, const void* in)
 {
-    int* in_int = (int*)in;
+    const int* in_int = in;
     sprintf(out, "%d", *in_int);
     return 0;
 }
 
 int read_real(const char* in, void* out)
 {
-    double* out_double = (double*)out;
+    double* out_double = out;
     char* end;
     *out_double = strtod(in, &end);
     return end != in + strlen(in);
@@ -432,7 +489,7 @@ int read_real(const char* in, void* out)
 
 int write_real(char* out, const void* in)
 {
-    double* in_double = (double*)in;
-    sprintf(out, "%f", *in_double);
+    const double* in_double = in;
+    sprintf(out, "%g", *in_double);
     return 0;
 }
