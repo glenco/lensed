@@ -7,6 +7,7 @@
 #include "lensed.h"
 #include "config.h"
 #include "log.h"
+#include "version.h"
 #include "inih/ini.h"
 
 /* config option meta */
@@ -136,10 +137,10 @@ void default_options(struct config* config)
 /* print usage help */
 void usage(int help)
 {
-    printf("\n");
-    
     if(help)
     {
+        printf("lensed %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        printf("\n");
         printf("Reconstruct lenses and sources from observations.\n");
         printf("\n");
     }
@@ -147,26 +148,33 @@ void usage(int help)
     printf("Usage:\n");
     printf("  lensed [-vq] (<file> | [options])...\n");
     printf("  lensed -h | --help\n");
-    printf("\n");
     
     if(help)
     {
+        printf("\n");
         printf("Options:\n");
         printf("  %-16s  %s\n", "-h, --help", "Show this help message.");
         printf("  %-16s  %s\n", "-v, --verbose", "Verbose output.");
         printf("  %-16s  %s\n", "--warn", "Show only warnings and errors.");
         printf("  %-16s  %s\n", "--error", "Show only errors.");
         printf("  %-16s  %s\n", "-q, --quiet", "Suppress all output.");
+        printf("  %-16s  %s\n", "--version", "Show version number.");
         for(int i = 0; i < NOPTIONS; ++i)
         {
             char opt[50];
             sprintf(opt, "--%.20s=<%s>", OPTIONS[i].name, OPTIONS[i].type);
             printf("  %-16s  %s\n", opt, OPTIONS[i].help);
         }
-        printf("\n");
     }
     
     exit(EXIT_FAILURE);
+}
+
+/* show version number */
+void version()
+{
+    printf("lensed %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    exit(EXIT_SUCCESS);
 }
 
 void read_arg(const char* arg, struct config* config, int options[])
@@ -181,10 +189,6 @@ void read_arg(const char* arg, struct config* config, int options[])
         if(arg[sep] == '=')
             break;
     
-    /* error if no equal sign was found */
-    if(sep == end)
-        error("option \"%.*s\" should be given as \"%.*s\"=<value>", sep, arg, sep, arg);
-    
     /* find option */
     for(opt = 0; opt < NOPTIONS; ++opt)
         if(strncmp(arg, OPTIONS[opt].name, sep) == 0)
@@ -193,6 +197,10 @@ void read_arg(const char* arg, struct config* config, int options[])
     /* error if option was not found */
     if(opt == NOPTIONS)
         error("invalid option \"%.*s\"", sep, arg);
+    
+    /* error if no equal sign was found */
+    if(sep == end)
+        error("option \"%.*s\" should be given as \"%.*s\"=<value>", sep, arg, sep, arg);
     
     /* get value */
     val = arg + sep + 1;
@@ -298,6 +306,8 @@ void read_config(int argc, char* argv[], struct config* config)
                     log_level(LOG_ERROR);
                 else if(strcmp(argv[i]+2, "quiet") == 0)
                     log_level(LOG_QUIET);
+                else if(strcmp(argv[i]+2, "version") == 0)
+                    version();
                 else
                     read_arg(argv[i]+2, config, options);
             }

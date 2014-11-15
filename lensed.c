@@ -8,6 +8,7 @@
 #include "config.h"
 #include "nested.h"
 #include "log.h"
+#include "version.h"
 
 /* lens constructors */
 extern void make_sie(struct lens*);
@@ -38,6 +39,9 @@ int main(int argc, char* argv[])
     /* read config file */
     read_config(argc, argv, &config);
     
+    /* main engine on */
+    info("lensed %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    
     /* create input from config */
     read_input(&config, &context.data);
     
@@ -51,8 +55,11 @@ int main(int argc, char* argv[])
     if(context.nsources < 0)
         error("invalid number (%d) of sources", context.nsources);
     
+    /* print number of sources and number of lenses */
+    /* not yet meaningful
     info("number of lenses: %d", context.nlenses);
     info("number of sources: %d", context.nsources);
+    */
     
     /* create parameter space */
     context.npspace = context.nlenses + context.nsources;
