@@ -56,6 +56,12 @@ void warn(const char* msg, ...)
         fprintf(stderr, "\n");
         
         va_end(args);
+        
+        fprintf(stderr, "Enter 'x' to abort or nothing to continue: ");
+        fflush(stderr);
+        char c = getchar();
+        if(c == 'x')
+            exit(1);
     }
 }
 

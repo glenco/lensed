@@ -4,7 +4,6 @@
 #include <string.h>
 #include <limits.h>
 
-#include "lensed.h"
 #include "config.h"
 #include "log.h"
 #include "version.h"
@@ -81,18 +80,6 @@ struct config_option OPTIONS[] = {
         config_field(mask)
     },
     {
-        "abstol",
-        "Absolute tolerance for integration",
-        config_optional(real, 0.01),
-        config_field(abstol)
-    },
-    {
-        "maxevals",
-        "Maximum function evaluations per pixel",
-        config_optional(int, 200),
-        config_field(maxevals)
-    },
-    {
         "nlive",
         "Number of live points",
         config_optional(int, 1000),
@@ -125,7 +112,7 @@ struct config_option OPTIONS[] = {
     {
         "efr",
         "Sampling efficiency",
-        config_optional(real, 1.0),
+        config_optional(real, 0.8),
         config_field(efr)
     },
     {

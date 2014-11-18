@@ -1,141 +1,55 @@
 #pragma once
 
-
-/*************
- * constants *
- *************/
-
-/* we define our own pi */
-#ifdef PI
-#undef PI
-#endif
-
-/* common constants */
-#define PI      3.1415926535897932384626433832795028841971693993751
-#define LOG_10  2.3025850929940456840179914546843642076011014886288
-#define LOG_PI  1.1447298858494001741434273513530587116472948129153
-#define LOG_2PI 1.8378770664093454835606594728112352797227949472756
-
-
-/******************
- * parametrizable *
- ******************/
-
-typedef void (*params_set)(void*, const double[]);
-typedef void (*params_wrap)(int[]);
-
-struct parametrizable
-{
-    void* ptr;
-    void* func;
-    int ndim;
-    params_set set;
-    params_wrap wrap;
-};
-
-
-/********
- * lens *
- ********/
-
-typedef void* lens_ptr;
-typedef void (*lens_func)(lens_ptr, int, const double[], double[]);
-
-struct lens
-{
-    lens_ptr ptr;
-    lens_func func;
-    int ndim;
-    params_set set;
-    params_wrap wrap;
-};
-
-
-/**********
- * source *
- **********/
-
-typedef void* source_ptr;
-typedef void (*source_func)(source_ptr, int, const double[], double[]);
-
-struct source
-{
-    source_ptr ptr;
-    source_func func;
-    int ndim;
-    params_set set;
-    params_wrap wrap;
-};
-
-
-/****************
- * program data *
- ****************/
-
-/* configuration */
-struct config
-{
-    /* input */
-    char* image;
-    char* mask;
-    double gain;
-    double offset;
-    
-    /* integration */
-    double abstol;
-    int maxevals;
-    
-    /* MultiNest */
-    char* root;
-    int nlive;
-    int ins;
-    int mmodal;
-    int ceff;
-    double evitol;
-    double efr;
-    int maxmodes;
-    int updint;
-    int seed;
-    int fb;
-    int resume;
-    int outfile;
-    int maxiter;
-};
-
-/* input data */
-struct data
-{
-    int size;
-    double norm;
-    double* model;
-    double* error;
-    double* image;
-    double* variance;
-    double* xmin;
-    double* xmax;
-};
-
-/* the program */
 struct lensed
 {
-    /* configuration options */
-    struct config config;
+    // worker queue
+    cl_command_queue queue;
     
-    /* input data */
-    struct data data;
+    // input data
+    size_t width;
+    size_t height;
+    size_t size;
+    cl_uint2* indices;
     
-    /* array of lenses */
-    int nlenses;
-    struct lens* lenses;
+    // loglike arrays
+    size_t nd;
+    cl_mem model;
+    cl_mem error;
+    cl_mem mean;
+    cl_mem variance;
+    cl_mem chi_sq;
+    cl_mem log_norm;
     
-    /* array of sources */
-    int nsources;
-    struct source* sources;
+    // global log-likelihood normalisation from gain
+    double log_norm_glob;
     
-    /* parameter space */
-    int npspace;
-    struct parametrizable* pspace;
+    // worker arrays
+    size_t nq;
+    size_t np;
+    cl_mem xx;
+    cl_mem aa;
+    cl_mem yy;
+    cl_mem ff;
+    cl_mem ww;
+    cl_mem ee;
     
-    /* scratch space for calculations */
-    double* z;
+    // objects for lenses and sources
+    size_t nobjects;
+    cl_mem* objects;
+    
+    // worker kernels
+    size_t nkernels;
+    cl_kernel* kernels;
+    
+    // reduce kernels
+    size_t nreduce;
+    cl_kernel* reduce;
+    
+    // parameter space
+    size_t ndim;
+    cl_mem pspace;
+    cl_kernel* setters;
+    
+    // dumper settings
+    char* fits;
 };
