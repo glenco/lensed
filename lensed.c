@@ -152,14 +152,6 @@ int main(int argc, char* argv[])
             " -cl-fast-relaxed-math";
         
         err = clBuildProgram(program, 1, &device, options, NULL, NULL);
-        if(LOG_LEVEL <= LOG_VERBOSE)
-        {
-            char buf[65536];
-            size_t siz;
-            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buf), buf, &siz);
-            if(buf[0])
-                verbose("%s", buf);
-        }
         if(err != CL_SUCCESS)
             error("failed to build program%s", LOG_LEVEL > LOG_VERBOSE ? " (use --verbose to see build log)" : "");
         
