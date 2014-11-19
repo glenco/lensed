@@ -16,6 +16,11 @@
 #include "log.h"
 #include "version.h"
 
+void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
+{
+    verbose("%s", errinfo);
+}
+
 int main(int argc, char* argv[])
 {
     /* program data */
@@ -112,7 +117,7 @@ int main(int argc, char* argv[])
         if(err != CL_SUCCESS)
             error("failed to get device");
         
-        context = clCreateContext(0, 1, &device, NULL, NULL, &err);
+        context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
         if(!context || err != CL_SUCCESS)
             error("failed to create device context");
         
