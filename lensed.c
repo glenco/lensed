@@ -7,7 +7,7 @@
 
 #include "multinest.h"
 
-#include "config.h"
+#include "options.h"
 #include "data.h"
 #include "lensed.h"
 #include "kernel.h"
@@ -32,16 +32,16 @@ int main(int argc, char* argv[])
      * configuration *
      *****************/
     
-    struct config config;
+    struct options options;
     
-    /* read config file */
-    read_config(argc, argv, &config);
+    /* read options */
+    read_options(argc, argv, &options);
     
     /* main engine on */
     info("lensed %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
     
-    /* print config file */
-    print_config(&config);
+    /* print options */
+    print_options(&options);
     
     
     /**************
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
      **************/
     
     struct data data;
-    read_data(config.image, config.mask, &data);
+    read_data(options.image, options.mask, &data);
     
     // data
     lensed.width = data.width;
@@ -207,7 +207,7 @@ int main(int argc, char* argv[])
         for(size_t i = 0; i < lensed.size; ++i)
         {
             mean[i] = data.data[i];
-            variance[i] = (data.data[i] + config.offset)/config.gain;
+            variance[i] = (data.data[i] + options.offset)/options.gain;
         }
         
         // unmap arrays
@@ -215,7 +215,7 @@ int main(int argc, char* argv[])
         clEnqueueUnmapMemObject(lensed.queue, lensed.variance, variance, 0, NULL, NULL);
         
         // set global log-likelihood normalisation
-        lensed.log_norm_glob = -log(config.gain);
+        lensed.log_norm_glob = -log(options.gain);
     }
     
     // allocate device memory for points
@@ -600,11 +600,11 @@ int main(int argc, char* argv[])
         const char fits[] = "dump.fits";
         
         // allocate space for filename
-        lensed.fits = malloc(strlen(config.root) + strlen(fits) + 2);
+        lensed.fits = malloc(strlen(options.root) + strlen(fits) + 2);
         
         // create model file name
         strcpy(lensed.fits, "!");
-        strcat(lensed.fits, config.root);
+        strcat(lensed.fits, options.root);
         strcat(lensed.fits, fits);
     }
     
@@ -619,17 +619,18 @@ int main(int argc, char* argv[])
     int nclspar = ndim;
     double ztol = -1E90;
     char root[100] = {0};
-    strncpy(root, config.root, 99);
+    strncpy(root, options.root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
     
     info("start MultiNest");
     
     /* run MultiNest */
-    run(config.ins, config.mmodal, config.ceff, config.nlive, config.evitol,
-        config.efr, ndim, npar, nclspar, config.maxmodes, config.updint, ztol,
-        root, config.seed, wrap, config.fb, config.resume, config.outfile,
-        initmpi, logzero, config.maxiter, loglike, dumper, &lensed);
+    run(options.ins, options.mmodal, options.ceff, options.nlive,
+        options.evitol, options.efr, ndim, npar, nclspar, options.maxmodes,
+        options.updint, ztol, root, options.seed, wrap, options.fb,
+        options.resume, options.outfile, initmpi, logzero, options.maxiter,
+        loglike, dumper, &lensed);
     
     // free dumper settings
     free(lensed.fits);
@@ -680,10 +681,10 @@ int main(int argc, char* argv[])
     free(sources);
     free(objnames);
     
-    /* free config */
-    free(config.image);
-    free(config.mask);
-    free(config.root);
+    /* free options */
+    free(options.image);
+    free(options.mask);
+    free(options.root);
     
     /* free input */
     free(data.data);

@@ -1,7 +1,7 @@
 #pragma once
 
-/* configuration */
-struct config
+/* configuration options */
+struct options
 {
     /* input */
     char* image;
@@ -26,5 +26,5 @@ struct config
     int maxiter;
 };
 
-void read_config(int argc, char* argv[], struct config*);
-void print_config(const struct config*);
+void read_options(int argc, char* argv[], struct options*);
+void print_options(const struct options*);

@@ -2,17 +2,18 @@
 # input files
 ####
 
-HEADERS = lensed.h config.h kernel.h data.h nested.h quadrature.h log.h \
-          version.h constants.h inih/ini.h
-SOURCES = lensed.c config.c kernel.c data.c nested.c quadrature.c log.c \
+HEADERS = lensed.h options.h kernel.h data.h nested.h quadrature.h log.h \
+          inih/ini.h config.h version.h constants.h
+SOURCES = lensed.c options.c kernel.c data.c nested.c quadrature.c log.c \
           inih/ini.c
 
 
 ####
-# definitions
+# config
 ####
 
-KERNEL_PATH = \"$(PWD)/kernel/\"
+KERNEL_PATH = $(shell pwd)/kernel
+KERNEL_EXT = .cl
 
 
 ####
@@ -20,8 +21,8 @@ KERNEL_PATH = \"$(PWD)/kernel/\"
 ####
 
 # general settings
-CFLAGS = -std=c99 -Wall -O0 -pedantic -g
-CPPFLAGS = -DKERNEL_PATH=$(KERNEL_PATH)
+CFLAGS = -std=c99 -Wall -O3 -pedantic
+CPPFLAGS = 
 LDFLAGS = -lm -lcfitsio -lmultinest
 
 # detect OS
@@ -54,7 +55,19 @@ lensed: $(HEADERS) $(OBJECTS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
 
 clean:
-	$(RM) lensed $(OBJECTS)
+	$(RM) lensed $(OBJECTS) config.h
+
+
+####
+# configuration header
+####
+
+config.h: Makefile
+	$(RM) config.h
+	echo "#pragma once" >> config.h
+	echo "" >> config.h
+	echo "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> config.h
+	echo "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> config.h
 
 
 ####

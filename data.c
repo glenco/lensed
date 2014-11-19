@@ -4,9 +4,7 @@
 
 #include "fitsio.h"
 
-#include "config.h"
 #include "data.h"
-#include "constants.h"
 #include "log.h"
 
 void fits_error(const char* filename, int status)

@@ -4,13 +4,13 @@
 #include <string.h>
 #include <limits.h>
 
-#include "config.h"
+#include "options.h"
 #include "log.h"
 #include "version.h"
 #include "inih/ini.h"
 
-/* config option meta */
-struct config_option
+/* option meta */
+struct option
 {
     const char* name;
     const char* help;
@@ -30,132 +30,132 @@ struct config_option
 };
 
 /* required or optional fields */
-#define config_required(type) 1, #type, read_##type, write_##type, { .default_null = NULL }
-#define config_optional(type, value) 0, #type, read_##type, write_##type, { .default_##type = value }
+#define option_required(type) 1, #type, read_##type, write_##type, { .default_null = NULL }
+#define option_optional(type, value) 0, #type, read_##type, write_##type, { .default_##type = value }
 
-/* get offset of field in config */
-#define config_field(field) offsetof(struct config, field), sizeof(((struct config*)0)->field)
+/* get offset of field in options */
+#define option_field(field) offsetof(struct options, field), sizeof(((struct options*)0)->field)
 
 /* declare a new type */
 #define declare_type(type) \
     int read_##type(const char*, void*); \
     int write_##type(char*, const void*);
 
-/* config option types */
+/* option types */
 declare_type(string)
 declare_type(bool)
 declare_type(int)
 declare_type(real)
 
-/* list of known config options */
-struct config_option OPTIONS[] = {
+/* list of known options */
+struct option OPTIONS[] = {
     {
         "image",
         "Input image, FITS file in counts/sec",
-        config_required(string),
-        config_field(image)
+        option_required(string),
+        option_field(image)
     },
     {
         "gain",
         "Conversion factor to counts",
-        config_required(real),
-        config_field(gain)
+        option_required(real),
+        option_field(gain)
     },
     {
         "offset",
         "Subtracted flat-field offset",
-        config_required(real),
-        config_field(offset)
+        option_required(real),
+        option_field(offset)
     },
     {
         "root",
         "Root element for all output paths",
-        config_required(string),
-        config_field(root)
+        option_required(string),
+        option_field(root)
     },
     {
         "mask",
         "Input mask, FITS file",
-        config_optional(string, NULL),
-        config_field(mask)
+        option_optional(string, NULL),
+        option_field(mask)
     },
     {
         "nlive",
         "Number of live points",
-        config_optional(int, 1000),
-        config_field(nlive)
+        option_optional(int, 1000),
+        option_field(nlive)
     },
     {
         "ins",
         "Use importance nested sampling",
-        config_optional(bool, 1),
-        config_field(ins)
+        option_optional(bool, 1),
+        option_field(ins)
     },
     {
         "mmodal",
         "Multi-modal posterior (if ins = false)",
-        config_optional(bool, 1),
-        config_field(mmodal)
+        option_optional(bool, 1),
+        option_field(mmodal)
     },
     {
         "ceff",
         "Constant efficiency mode",
-        config_optional(bool, 0),
-        config_field(ceff)
+        option_optional(bool, 0),
+        option_field(ceff)
     },
     {
         "evitol",
         "Tolerance for evidence",
-        config_optional(real, 0.5),
-        config_field(evitol)
+        option_optional(real, 0.5),
+        option_field(evitol)
     },
     {
         "efr",
         "Sampling efficiency",
-        config_optional(real, 0.8),
-        config_field(efr)
+        option_optional(real, 0.8),
+        option_field(efr)
     },
     {
         "maxmodes",
         "Maximum number of expected modes",
-        config_optional(int, 100),
-        config_field(maxmodes)
+        option_optional(int, 100),
+        option_field(maxmodes)
     },
     {
         "updint",
         "Update interval for output",
-        config_optional(int, 1000),
-        config_field(updint)
+        option_optional(int, 1000),
+        option_field(updint)
     },
     {
         "seed",
         "Random number seed for sampling",
-        config_optional(int, -1),
-        config_field(seed)
+        option_optional(int, -1),
+        option_field(seed)
     },
     {
         "fb",
         "Show MultiNest feedback",
-        config_optional(bool, 0),
-        config_field(fb)
+        option_optional(bool, 0),
+        option_field(fb)
     },
     {
         "resume",
         "Resume from last checkpoint",
-        config_optional(bool, 0),
-        config_field(resume),
+        option_optional(bool, 0),
+        option_field(resume),
     },
     {
         "outfile",
         "Output MultiNest files",
-        config_optional(bool, 0),
-        config_field(outfile)
+        option_optional(bool, 0),
+        option_field(outfile)
     },
     {
         "maxiter",
         "Maximum number of iterations",
-        config_optional(int, 0),
-        config_field(maxiter)
+        option_optional(int, 0),
+        option_field(maxiter)
     }
 };
 
@@ -163,10 +163,10 @@ struct config_option OPTIONS[] = {
 #define NOPTIONS (sizeof(OPTIONS)/sizeof(OPTIONS[0]))
 
 /* default options */
-void default_options(struct config* config)
+void default_options(struct options* options)
 {
     for(int i = 0; i < NOPTIONS; ++i)
-        memcpy((char*)config + OPTIONS[i].offset, &OPTIONS[i].default_value, OPTIONS[i].size);
+        memcpy((char*)options + OPTIONS[i].offset, &OPTIONS[i].default_value, OPTIONS[i].size);
 }
 
 /* print usage help */
@@ -219,7 +219,7 @@ void version()
     exit(EXIT_SUCCESS);
 }
 
-void read_arg(const char* arg, struct config* config, int options[])
+void read_arg(const char* arg, struct options* options, int resolved[])
 {
     size_t end = strlen(arg);
     size_t sep;
@@ -248,17 +248,17 @@ void read_arg(const char* arg, struct config* config, int options[])
     val = arg + sep + 1;
     
     /* try to read option */
-    if(OPTIONS[opt].read(val, (char*)config + OPTIONS[opt].offset))
+    if(OPTIONS[opt].read(val, (char*)options + OPTIONS[opt].offset))
         error("invalid value \"%s\" for option \"%.*s\"", val, sep, arg);
     
-    /* mark option as set */
-    options[opt] = 1;
+    /* mark option as resolved */
+    resolved[opt] = 1;
 }
 
 struct handler_data
 {
-    struct config* config;
-    int* options;
+    struct options* options;
+    int* resolved;
 };
 
 int ini_handler(void* data_, const char* section, const char* name, const char* value)
@@ -281,19 +281,19 @@ int ini_handler(void* data_, const char* section, const char* name, const char* 
         return 0;
     
     /* try to read option */
-    if(OPTIONS[opt].read(value, (char*)data->config + OPTIONS[opt].offset))
+    if(OPTIONS[opt].read(value, (char*)data->options + OPTIONS[opt].offset))
         return 0;
     
-    /* mark option as set */
-    data->options[opt] = 1;
+    /* mark option as resolved */
+    data->resolved[opt] = 1;
     
     /* success */
     return 1;
 }
 
-void read_ini(const char* ini, struct config* config, int options[])
+void read_ini(const char* ini, struct options* options, int resolved[])
 {
-    struct handler_data data = { config, options };
+    struct handler_data data = { options, resolved };
     
     int status = ini_parse(ini, ini_handler, &data);
     
@@ -313,20 +313,20 @@ void read_ini(const char* ini, struct config* config, int options[])
     }
 }
 
-void read_config(int argc, char* argv[], struct config* config)
+void read_options(int argc, char* argv[], struct options* options)
 {
-    /* track which options are set */
-    int options[NOPTIONS] = { 0 };
+    /* track which options are resolved */
+    int resolved[NOPTIONS] = { 0 };
     
-    /* print usage if no config is given */
+    /* print usage if no options are given */
     if(argc < 2)
         usage(0);
     
     /* zero options */
-    memset(config, 0, sizeof(struct config));
+    memset(options, 0, sizeof(struct options));
     
     /* default options */
-    default_options(config);
+    default_options(options);
     
     /* go through arguments */
     for(int i = 1; i < argc; ++i)
@@ -351,7 +351,7 @@ void read_config(int argc, char* argv[], struct config* config)
                 else if(strcmp(argv[i]+2, "version") == 0)
                     version();
                 else
-                    read_arg(argv[i]+2, config, options);
+                    read_arg(argv[i]+2, options, resolved);
             }
             else
             {
@@ -382,25 +382,25 @@ void read_config(int argc, char* argv[], struct config* config)
         else
         {
             /* parse *.ini file */
-            read_ini(argv[i], config, options);
+            read_ini(argv[i], options, resolved);
         }
     }
     
-    /* make sure all required options are set */
+    /* make sure all required options are resolved */
     for(int i = 0; i < NOPTIONS; ++i)
-        if(OPTIONS[i].required && !options[i])
+        if(OPTIONS[i].required && !resolved[i])
             error("required option \"%s\" not set", OPTIONS[i].name);
 }
 
-void print_config(const struct config* config)
+void print_options(const struct options* options)
 {
     if(LOG_LEVEL <= LOG_VERBOSE)
     {
         char value[100];
-        verbose("config:");
+        verbose("options");
         for(int i = 0; i < NOPTIONS; ++i)
         {
-            OPTIONS[i].write(value, (char*)config + OPTIONS[i].offset);
+            OPTIONS[i].write(value, (char*)options + OPTIONS[i].offset);
             verbose("  %s = %s", OPTIONS[i].name, value);
         }
     }

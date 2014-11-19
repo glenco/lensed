@@ -2,16 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "config.h"
 #include "kernel.h"
 #include "log.h"
-
-#ifndef KERNEL_PATH
-#define KERNEL_PATH "kernel/"
-#endif
-
-#ifndef KERNEL_EXT
-#define KERNEL_EXT ".cl"
-#endif
 
 static const char* SYSTEM_KERNELS[] = {
     "constants",
