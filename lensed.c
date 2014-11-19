@@ -3,6 +3,7 @@
 #include <float.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -627,12 +628,27 @@ int main(int argc, char* argv[])
     
     info("start MultiNest");
     
-    /* run MultiNest */
+    // take start time
+    time_t start = time(0);
+    
+    // run MultiNest
     run(options.ins, options.mmodal, options.ceff, options.nlive,
         options.tol, options.efr, ndim, npar, nclspar, options.maxmodes,
         options.updint, ztol, root, options.seed, wrap, options.fb,
         options.resume, options.outfile, initmpi, logzero, options.maxiter,
         loglike, dumper, &lensed);
+    
+    // take end time
+    time_t end = time(0);
+    
+    // duration
+    double dur = difftime(end, start);
+    
+    // output duration
+    info("run took %02d:%02d:%02d",
+         (int)(dur/3600),
+         (int)(fmod(dur, 3600)/60),
+         (int)fmod(dur, 60));
     
     // free dumper settings
     free(lensed.fits);
