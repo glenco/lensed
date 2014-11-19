@@ -627,7 +627,7 @@ int main(int argc, char* argv[])
     
     /* run MultiNest */
     run(options.ins, options.mmodal, options.ceff, options.nlive,
-        options.evitol, options.efr, ndim, npar, nclspar, options.maxmodes,
+        options.tol, options.efr, ndim, npar, nclspar, options.maxmodes,
         options.updint, ztol, root, options.seed, wrap, options.fb,
         options.resume, options.outfile, initmpi, logzero, options.maxiter,
         loglike, dumper, &lensed);

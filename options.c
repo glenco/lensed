@@ -104,10 +104,10 @@ struct option OPTIONS[] = {
         option_field(ceff)
     },
     {
-        "evitol",
+        "tol",
         "Tolerance for evidence",
         option_optional(real, 0.5),
-        option_field(evitol)
+        option_field(tol)
     },
     {
         "efr",
