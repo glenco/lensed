@@ -55,27 +55,21 @@ static const double QUAD_ERRW[QUAD_N] = {
     -0.04126984126984126984
 };
 
-int quad_points()
+size_t quad_points()
 {
     return QUAD_N*QUAD_N;
 }
 
-void quad_rule(size_t n, const cl_uint2 indices[],
-               cl_float2 xx[], cl_float ww[], cl_float ee[])
+void quad_rule(cl_float2 xx[], cl_float ww[], cl_float ee[])
 {
-    size_t m = 0;
-    for(size_t i = 0; i < n; ++i)
+    for(size_t i = 0, j = 0; j < QUAD_N; ++j)
     {
-        for(size_t j = 0; j < QUAD_N; ++j)
+        for(size_t k = 0; k < QUAD_N; ++k, ++i)
         {
-            for(size_t k = 0; k < QUAD_N; ++k)
-            {
-                xx[m].s[0] = indices[i].s[0] + QUAD_ABSC[k];
-                xx[m].s[1] = indices[i].s[1] + QUAD_ABSC[j];
-                ww[m] = QUAD_WEIG[j]*QUAD_WEIG[k];
-                ee[m] = QUAD_ERRW[j]*QUAD_ERRW[k];
-                m += 1;
-            }
+            xx[i].s[0] = QUAD_ABSC[k];
+            xx[i].s[1] = QUAD_ABSC[j];
+            ww[i] = QUAD_WEIG[j]*QUAD_WEIG[k];
+            ee[i] = QUAD_ERRW[j]*QUAD_ERRW[k];
         }
     }
 }

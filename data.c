@@ -9,6 +9,7 @@
 
 #include "fitsio.h"
 
+#include "options.h"
 #include "data.h"
 #include "log.h"
 
@@ -114,7 +115,7 @@ void write_fits(const char* filename, size_t width, size_t height,
         fits_error(filename, status);
 }
 
-void read_data(const char* imagefile, const char* maskfile, struct data* data)
+void read_data(const struct options* options, struct data* data)
 {
     // image and mask arrays
     double* image;
@@ -125,7 +126,7 @@ void read_data(const char* imagefile, const char* maskfile, struct data* data)
     size_t ntot, nact;
     
     /* read image */
-    read_fits(imagefile, &data->width, &data->height, &image);
+    read_fits(options->image, &data->width, &data->height, &image);
     
     info("image");
     info("  dimensions = (%zu, %zu)", data->width, data->height);
@@ -136,10 +137,10 @@ void read_data(const char* imagefile, const char* maskfile, struct data* data)
     info("  total pixels = %zu", ntot);
     
     /* use mask if given */
-    if(maskfile)
+    if(options->mask)
     {
         /* read mask */
-        read_fits(maskfile, &mx, &my, &mask);
+        read_fits(options->mask, &mx, &my, &mask);
         
         /* make sure mask and image dimensions match if given */
         if(mask && (mx != data->width || my != data->height))
@@ -165,7 +166,8 @@ void read_data(const char* imagefile, const char* maskfile, struct data* data)
     info("  active pixels = %zu", nact);
     
     /* allocate arrays for data */
-    data->data = malloc(nact*sizeof(double));
+    data->mean = malloc(nact*sizeof(cl_float));
+    data->variance = malloc(nact*sizeof(cl_float));
     data->indices = malloc(nact*sizeof(cl_int2));
     
     /* set data pixels */
@@ -176,8 +178,11 @@ void read_data(const char* imagefile, const char* maskfile, struct data* data)
         if(mask && !mask[i])
             continue;
         
-        /* pixel value */
-        data->data[data->size] = image[i];
+        /* mean value */
+        data->mean[data->size] = image[i];
+        
+        /* variance */
+        data->variance[data->size] = (image[i] + options->offset)/options->gain;
         
         /* pixel indices */
         data->indices[data->size].s[0] = 1 + i%data->width;
@@ -193,7 +198,7 @@ void read_data(const char* imagefile, const char* maskfile, struct data* data)
 }
 
 void write_data(const char* filename, size_t width, size_t height,
-                cl_uint2 indices[], size_t num, size_t size, cl_float* data[])
+                size_t size, size_t num, cl_float* data[], cl_uint2 indices[])
 {
     double** images = malloc(num*sizeof(double*));
     

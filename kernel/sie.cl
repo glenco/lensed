@@ -10,27 +10,20 @@ struct sie
     float d;
 };
 
-kernel void sie(global const struct sie* sie,
-                global const float2* xx, global float2* aa)
+static float2 sie(constant object* obj, float2 x)
 {
-    float x, y, r;
+    constant struct sie* sie = (constant struct sie*)obj;
     
-    size_t i = get_global_id(0);
+    float u, v, r;
     
-    x = (xx[i].x - sie->x)*sie->c - (xx[i].y - sie->y)*sie->s;
-    y = (xx[i].y - sie->y)*sie->c + (xx[i].x - sie->x)*sie->s;
+    u = (x.x - sie->x)*sie->c - (x.y - sie->y)*sie->s;
+    v = (x.y - sie->y)*sie->c + (x.x - sie->x)*sie->s;
     
-    r = sie->e/sqrt(sie->f2*x*x + y*y);
-    x = sie->d*atan(x*r);
-    y = sie->d*atanh(y*r);
+    r = sie->e/sqrt(sie->f2*u*u + v*v);
+    u = sie->d*atan(u*r);
+    v = sie->d*atanh(v*r);
     
-    aa[i].x += x*sie->c + y*sie->s;
-    aa[i].y += y*sie->c - x*sie->s;
-}
-
-kernel void size_sie(global size_t* size)
-{
-    *size = sizeof(struct sie);
+    return (float2)( u*sie->c + v*sie->s, v*sie->c - u*sie->s );
 }
 
 kernel void ndim_sie(global size_t* ndim)
@@ -38,11 +31,11 @@ kernel void ndim_sie(global size_t* ndim)
     *ndim = 5;
 }
 
-kernel void set_sie(global struct sie* sie, global const float* params, size_t off)
+static void set_sie(global object* obj, constant float* P)
 {
     enum { X, Y, R_E, F, PA };
     
-    global const float* P = params + off;
+    global struct sie* sie = (global struct sie*)obj;
     
     sie->x = P[X];
     sie->y = P[Y];

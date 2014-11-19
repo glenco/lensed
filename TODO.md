@@ -45,5 +45,7 @@ of the program.
 - [ ] Simplify internal angle representation.
 - [ ] Link MultiNest feedback to verbosity level.
 - [ ] Cut rectangular region from FITS file.
-- [ ] Configurable build options.
+- [ ] Configurable build options for OpenCL.
+- [ ] Do not use external library for config-file parsing.
+- [ ] Dumper output.
 

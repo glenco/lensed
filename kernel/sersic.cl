@@ -10,22 +10,16 @@ struct sersic
     float m;
 };
 
-kernel void sersic(global const struct sersic* src,
-                   global float2* yy, global float* ff)
+static float sersic(constant object* obj, float2 y)
 {
-    size_t i = get_global_id(0);
+    constant struct sersic* src = (constant struct sersic*)obj;
     
-    float x = (yy[i].x - src->x)*src->cos - (yy[i].y - src->y)*src->sin;
-    float y = (yy[i].y - src->y)*src->cos + (yy[i].x - src->x)*src->sin;
+    float u = (y.x - src->x)*src->cos - (y.y - src->y)*src->sin;
+    float v = (y.y - src->y)*src->cos + (y.x - src->x)*src->sin;
     
-    float r2 = x*x + y*y/src->q/src->q;
+    float r2 = u*u + v*v/src->q/src->q;
     
-    ff[i] += exp(src->log0 - exp(src->log1 + src->m*log(r2)));
-}
-
-kernel void size_sersic(global size_t* size)
-{
-    *size = sizeof(struct sersic);
+    return exp(src->log0 - exp(src->log1 + src->m*log(r2)));
 }
 
 kernel void ndim_sersic(global size_t* ndim)
@@ -33,11 +27,11 @@ kernel void ndim_sersic(global size_t* ndim)
     *ndim = 7;
 }
 
-kernel void set_sersic(global struct sersic* src, global const float* params, size_t off)
+static void set_sersic(global object* obj, constant float* P)
 {
     enum { X, Y, R_EFF, MAG, N, Q, PA };
     
-    global const float* P = params + off;
+    global struct sersic* src = (global struct sersic*)obj;
     
     float b = 1.9992f*P[N] - 0.3271f; // approximation valid for 0.5 < n < 8
     

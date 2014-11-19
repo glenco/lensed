@@ -6,11 +6,13 @@
 #include "kernel.h"
 #include "log.h"
 
-static const char* SYSTEM_KERNELS[] = {
-    "constants",
-    "deflect",
-    "quadrature",
-    "loglike"
+static const char* BEFORE[] = {
+    "object",
+    "constants"
+};
+
+static const char* AFTER[] = {
+    "lensed"
 };
 
 static const char* load_kernel(const char* name)
@@ -70,19 +72,20 @@ void load_kernels(size_t nobjects, const char* objects[],
     }
     
     // number of system kernels
-    size_t nsystem = sizeof(SYSTEM_KERNELS)/sizeof(SYSTEM_KERNELS[0]);
+    size_t nbefore = sizeof(BEFORE)/sizeof(BEFORE[0]);
+    size_t nafter = sizeof(AFTER)/sizeof(AFTER[0]);
     
     // create kernel array with space for object and system kernels
-    *nkernels = nsystem + nunique;
+    *nkernels = nbefore + nunique + nafter;
     *kernels = malloc((*nkernels)*sizeof(const char*));
     
     const char** k = *kernels;
     
     // load system kernels
-    for(size_t i = 0; i < nsystem; ++i)
+    for(size_t i = 0; i < nbefore; ++i)
     {
-        verbose("  load %s", SYSTEM_KERNELS[i]);
-        *(k++) = load_kernel(SYSTEM_KERNELS[i]);
+        verbose("  load %s", BEFORE[i]);
+        *(k++) = load_kernel(BEFORE[i]);
     }
     
     // load kernels for objects
@@ -90,6 +93,13 @@ void load_kernels(size_t nobjects, const char* objects[],
     {
         verbose("  load %s", unique[i]);
         *(k++) = load_kernel(unique[i]);
+    }
+    
+    // load system kernels
+    for(size_t i = 0; i < nafter; ++i)
+    {
+        verbose("  load %s", AFTER[i]);
+        *(k++) = load_kernel(AFTER[i]);
     }
     
     // free array of unique object names

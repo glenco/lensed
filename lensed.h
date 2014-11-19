@@ -5,51 +5,27 @@ struct lensed
     // worker queue
     cl_command_queue queue;
     
-    // input data
-    size_t width;
-    size_t height;
-    size_t size;
-    cl_uint2* indices;
-    
     // loglike arrays
+    size_t size;
     size_t nd;
-    cl_mem model;
-    cl_mem error;
+    cl_mem indices;
     cl_mem mean;
     cl_mem variance;
-    cl_mem chi_sq;
-    cl_mem log_norm;
+    cl_mem loglike;
     
     // global log-likelihood normalisation from gain
-    double log_norm_glob;
+    double lognorm;
     
-    // worker arrays
-    size_t nq;
-    size_t np;
-    cl_mem xx;
-    cl_mem aa;
-    cl_mem yy;
-    cl_mem ff;
+    // quadrature rule
+    cl_mem qq;
     cl_mem ww;
     cl_mem ee;
     
-    // objects for lenses and sources
-    size_t nobjects;
-    cl_mem* objects;
-    
-    // worker kernels
-    size_t nkernels;
-    cl_kernel* kernels;
-    
-    // reduce kernels
-    size_t nreduce;
-    cl_kernel* reduce;
+    // main kernels
+    cl_kernel kernel;
     
     // parameter space
     size_t ndim;
     cl_mem pspace;
-    cl_kernel* setters;
-    
-    // dumper settings
-    char* fits;
+    cl_kernel set;
 };
