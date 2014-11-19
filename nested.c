@@ -3,7 +3,12 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
+
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 
 #include "lensed.h"
 #include "nested.h"

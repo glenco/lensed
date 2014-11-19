@@ -3,7 +3,12 @@
 #include <float.h>
 #include <string.h>
 #include <math.h>
+
+#ifdef __APPLE__
 #include <OpenCL/opencl.h>
+#else
+#include <CL/cl.h>
+#endif
 
 #include "multinest.h"
 
