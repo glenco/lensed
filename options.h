@@ -16,7 +16,7 @@ struct options
     int mmodal;
     int ceff;
     double tol;
-    double efr;
+    double eff;
     int maxmodes;
     int updint;
     int seed;

@@ -82,7 +82,7 @@ struct option OPTIONS[] = {
     {
         "nlive",
         "Number of live points",
-        option_optional(int, 1000),
+        option_optional(int, 300),
         option_field(nlive)
     },
     {
@@ -100,20 +100,20 @@ struct option OPTIONS[] = {
     {
         "ceff",
         "Constant efficiency mode",
-        option_optional(bool, 0),
+        option_optional(bool, 1),
         option_field(ceff)
     },
     {
         "tol",
         "Tolerance for evidence",
-        option_optional(real, 0.5),
+        option_optional(real, 0.1),
         option_field(tol)
     },
     {
-        "efr",
+        "eff",
         "Sampling efficiency",
-        option_optional(real, 0.8),
-        option_field(efr)
+        option_optional(real, 0.05),
+        option_field(eff)
     },
     {
         "maxmodes",
