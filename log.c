@@ -20,9 +20,10 @@ void verbose(const char* msg, ...)
     {
         va_list args;
         va_start(args, msg);
-        
+
+        fprintf(stdout, LOG_DARK);
         vfprintf(stdout, msg, args);
-        fprintf(stdout, "\n");
+        fprintf(stdout, LOG_RESET "\n");
         
         va_end(args);
     }

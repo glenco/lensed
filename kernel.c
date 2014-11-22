@@ -84,21 +84,21 @@ void load_kernels(size_t nobjects, const char* objects[],
     // load system kernels
     for(size_t i = 0; i < nbefore; ++i)
     {
-        verbose("  load %s", BEFORE[i]);
+        verbose("    load %s", BEFORE[i]);
         *(k++) = load_kernel(BEFORE[i]);
     }
     
     // load kernels for objects
     for(size_t i = 0; i < nunique; ++i)
     {
-        verbose("  load %s", unique[i]);
+        verbose("    load %s", unique[i]);
         *(k++) = load_kernel(unique[i]);
     }
     
     // load system kernels
     for(size_t i = 0; i < nafter; ++i)
     {
-        verbose("  load %s", AFTER[i]);
+        verbose("    load %s", AFTER[i]);
         *(k++) = load_kernel(AFTER[i]);
     }
     

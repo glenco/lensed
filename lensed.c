@@ -64,8 +64,14 @@ int main(int argc, char* argv[])
     /* read options */
     read_options(argc, argv, &options);
     
-    /* main engine on */
-    info("lensed %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    // print banner
+    info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
+    info(LOG_BOLD " | |                       | |" LOG_DARK "/   \\" LOG_RESET);
+    info(LOG_BOLD " | | ___ _ __  ___  ___  __| |" LOG_DARK "  A  \\" LOG_RESET "  " LOG_BOLD "lensed" LOG_RESET " %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    info(LOG_BOLD " | |/ _ \\ '_ \\/ __|/ _ \\/ _` |" LOG_DARK " < > |" LOG_RESET);
+    info(LOG_BOLD " | |  __/ | | \\__ \\  __/ (_| |" LOG_DARK "  V  /" LOG_RESET);
+    info(LOG_BOLD " |_|\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
+    info(LOG_BOLD "                              " LOG_RESET);
     
     /* print options */
     print_options(&options);
@@ -407,6 +413,8 @@ int main(int argc, char* argv[])
      * ready to go *
      ***************/
     
+    info("run MultiNest");
+    
     // gather MultiNest options
     int ndim = lensed.ndim;
     int npar = ndim;
@@ -416,8 +424,6 @@ int main(int argc, char* argv[])
     strncpy(root, options.root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
-    
-    info("start MultiNest");
     
     // take start time
     time_t start = time(0);

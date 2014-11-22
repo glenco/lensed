@@ -128,13 +128,13 @@ void read_data(const struct options* options, struct data* data)
     /* read image */
     read_fits(options->image, &data->width, &data->height, &image);
     
-    info("image");
-    info("  dimensions = (%zu, %zu)", data->width, data->height);
+    verbose("image");
+    verbose("  dimensions = (%zu, %zu)", data->width, data->height);
     
     /* total number of pixels */
     ntot = data->width*data->height;
     
-    info("  total pixels = %zu", ntot);
+    verbose("  total pixels = %zu", ntot);
     
     /* use mask if given */
     if(options->mask)
@@ -146,7 +146,7 @@ void read_data(const struct options* options, struct data* data)
         if(mask && (mx != data->width || my != data->height))
             error("mask dimensions (%zu, %zu) should match image dimensions (%zu, %zu)", mx, my, data->width, data->height);
         
-        info("  masked");
+        verbose("  masked");
         
         /* count active pixels */
         nact = 0;
@@ -163,7 +163,7 @@ void read_data(const struct options* options, struct data* data)
         nact = ntot;
     }
     
-    info("  active pixels = %zu", nact);
+    verbose("  active pixels = %zu", nact);
     
     /* allocate arrays for data */
     data->mean = malloc(nact*sizeof(cl_float));
