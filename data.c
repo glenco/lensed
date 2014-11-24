@@ -9,7 +9,7 @@
 
 #include "fitsio.h"
 
-#include "options.h"
+#include "input.h"
 #include "data.h"
 #include "log.h"
 
@@ -115,7 +115,7 @@ void write_fits(const char* filename, size_t width, size_t height,
         fits_error(filename, status);
 }
 
-void read_data(const struct options* options, struct data* data)
+void read_data(const struct input* input, struct data* data)
 {
     // image and mask arrays
     double* image;
@@ -126,7 +126,7 @@ void read_data(const struct options* options, struct data* data)
     size_t ntot, nact;
     
     /* read image */
-    read_fits(options->image, &data->width, &data->height, &image);
+    read_fits(input->image, &data->width, &data->height, &image);
     
     verbose("image");
     verbose("  dimensions = (%zu, %zu)", data->width, data->height);
@@ -137,10 +137,10 @@ void read_data(const struct options* options, struct data* data)
     verbose("  total pixels = %zu", ntot);
     
     /* use mask if given */
-    if(options->mask)
+    if(input->mask)
     {
         /* read mask */
-        read_fits(options->mask, &mx, &my, &mask);
+        read_fits(input->mask, &mx, &my, &mask);
         
         /* make sure mask and image dimensions match if given */
         if(mask && (mx != data->width || my != data->height))
@@ -182,7 +182,7 @@ void read_data(const struct options* options, struct data* data)
         data->mean[data->size] = image[i];
         
         /* variance */
-        data->variance[data->size] = (image[i] + options->offset)/options->gain;
+        data->variance[data->size] = (image[i] + input->offset)/input->gain;
         
         /* pixel indices */
         data->indices[data->size].s[0] = 1 + i%data->width;

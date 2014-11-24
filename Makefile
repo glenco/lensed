@@ -2,10 +2,10 @@
 # input files
 ####
 
-HEADERS = lensed.h options.h kernel.h data.h nested.h quadrature.h log.h \
-          inih/ini.h config.h version.h constants.h
-SOURCES = lensed.c options.c kernel.c data.c nested.c quadrature.c log.c \
-          inih/ini.c
+HEADERS = lensed.h input.h kernel.h data.h nested.h quadrature.h log.h \
+          input/options.h input/ini.h config.h version.h constants.h
+SOURCES = lensed.c input.c kernel.c data.c nested.c quadrature.c log.c \
+          input/options.c input/ini.c
 
 
 ####
@@ -71,20 +71,3 @@ config.h: Makefile
 	echo "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> config.h
 	echo "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> config.h
 
-
-####
-# dependencies
-####
-
-MKDIR = mkdir -p
-CD = cd
-CURL = curl -O
-UNZIP = unzip
-TOUCH = touch
-
-inih/ini.h:
-	$(MKDIR) inih
-	$(CD) inih && \
-		$(CURL) https://inih.googlecode.com/files/inih_r29.zip && \
-		$(UNZIP) inih_r29.zip
-	$(TOUCH) $@

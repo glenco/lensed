@@ -12,7 +12,7 @@ struct data
 };
 
 // read image from file, with optional mask
-void read_data(const struct options* options, struct data*);
+void read_data(const struct input* input, struct data*);
 
 // write data to FITS file
 void write_data(const char* filename, size_t width, size_t height,

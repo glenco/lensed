@@ -13,7 +13,7 @@
 
 #include "multinest.h"
 
-#include "options.h"
+#include "input.h"
 #include "data.h"
 #include "lensed.h"
 #include "kernel.h"
@@ -59,10 +59,10 @@ int main(int argc, char* argv[])
      * configuration *
      *****************/
     
-    struct options options;
+    struct input input;
     
-    /* read options */
-    read_options(argc, argv, &options);
+    // read input
+    read_input(argc, argv, &input);
     
     // print banner
     info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
@@ -73,8 +73,8 @@ int main(int argc, char* argv[])
     info(LOG_BOLD " |_|\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
     info(LOG_BOLD "                              " LOG_RESET);
     
-    /* print options */
-    print_options(&options);
+    // print input
+    print_input(&input);
     
     
     /**************
@@ -82,7 +82,7 @@ int main(int argc, char* argv[])
      **************/
     
     struct data data;
-    read_data(&options, &data);
+    read_data(&input, &data);
     
     
     /**********************
@@ -214,7 +214,7 @@ int main(int argc, char* argv[])
             error("failed to write data buffers");
         
         // set global log-likelihood normalisation
-        lensed.lognorm = -log(options.gain);
+        lensed.lognorm = -log(input.gain);
     }
     
     // generate quadrature rule
@@ -421,7 +421,7 @@ int main(int argc, char* argv[])
     int nclspar = ndim;
     double ztol = -1E90;
     char root[100] = {0};
-    strncpy(root, options.root, 99);
+    strncpy(root, input.root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
     
@@ -429,11 +429,10 @@ int main(int argc, char* argv[])
     time_t start = time(0);
     
     // run MultiNest
-    run(options.ins, options.mmodal, options.ceff, options.nlive,
-        options.tol, options.eff, ndim, npar, nclspar, options.maxmodes,
-        options.updint, ztol, root, options.seed, wrap, options.fb,
-        options.resume, options.outfile, initmpi, logzero, options.maxiter,
-        loglike, dumper, &lensed);
+    run(input.ins, input.mmodal, input.ceff, input.nlive, input.tol, input.eff,
+        ndim, npar, nclspar, input.maxmodes, input.updint, ztol, root,
+        input.seed, wrap, input.fb, input.resume, input.outfile, initmpi,
+        logzero, input.maxiter, loglike, dumper, &lensed);
     
     // take end time
     time_t end = time(0);
@@ -477,10 +476,10 @@ int main(int argc, char* argv[])
     free(sources);
     free(objnames);
     
-    /* free options */
-    free(options.image);
-    free(options.mask);
-    free(options.root);
+    /* free input */
+    free(input.image);
+    free(input.mask);
+    free(input.root);
     
     /* free input */
     free(data.mean);
