@@ -47,6 +47,8 @@ LDFLAGS += $(LDFLAGS_$(OS))
 # build rules
 ####
 
+.PHONY: all clean
+
 OBJECTS = $(SOURCES:.c=.o)
 
 all: lensed
