@@ -1,3 +1,5 @@
+OBJECT(sie) = LENS;
+
 struct sie
 {
     float x;
@@ -8,6 +10,14 @@ struct sie
     float f2;
     float e;
     float d;
+};
+
+PARAMS(sie) = {
+    { "x" },
+    { "y" },
+    { "r_E" },
+    { "f" },
+    { "pa", true }
 };
 
 static float2 sie(constant object* obj, float2 x)
@@ -26,11 +36,6 @@ static float2 sie(constant object* obj, float2 x)
     return (float2)( u*sie->c + v*sie->s, v*sie->c - u*sie->s );
 }
 
-kernel void ndim_sie(global size_t* ndim)
-{
-    *ndim = 5;
-}
-
 static void set_sie(global object* obj, constant float* P)
 {
     enum { X, Y, R_E, F, PA };
@@ -44,15 +49,4 @@ static void set_sie(global object* obj, constant float* P)
     sie->f2 = P[F]*P[F];
     sie->e = sqrt(1.0f - sie->f2);
     sie->d = P[R_E]*sqrt(P[F])/sie->e;
-}
-
-kernel void wrap_sie(global int* wrap)
-{
-    enum { X, Y, R_E, F, PA };
-    
-    wrap[X] = 0;
-    wrap[Y] = 0;
-    wrap[R_E] = 0;
-    wrap[F] = 0;
-    wrap[PA] = 1;
 }

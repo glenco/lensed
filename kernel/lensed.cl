@@ -1,7 +1,21 @@
-kernel void params(
-    constant float*  params,
-    global   object* objects
-)
+kernel void get_nparams(global ulong* nparams)
+{
+    nparams[0] = NPARAMS(sie);
+    nparams[1] = NPARAMS(sersic);
+}
+
+kernel void get_params(global struct param* params)
+{
+    size_t offset = 0;
+    
+    for(size_t n = 0; n < NPARAMS(sie); ++n, ++offset)
+        parcpy(&params[offset], &PARAM(sie, n));
+    
+    for(size_t n = 0; n < NPARAMS(sersic); ++n, ++offset)
+        parcpy(&params[offset], &PARAM(sersic, n));
+}
+
+kernel void set_params(constant float* params, global object* objects)
 {
     set_sie(&objects[0], &params[0]);
     set_sersic(&objects[1], &params[5]);
@@ -10,7 +24,7 @@ kernel void params(
 kernel void lensed(
     constant object* objects,
     constant int2*   indices,
-    private  size_t  nq,
+    private  ulong   nq,
     constant float2* aa,
     constant float*  ww,
     constant float*  ee,
@@ -47,14 +61,14 @@ kernel void lensed(
         // initial deflection is zero
         a = 0;
         
+        // initial surface brightness is zero
+        f = 0;
+        
         // sum deflection
         a += sie(&objects[0], y);
         
         // apply deflection to ray
         y -= a;
-        
-        // initial surface brightness is zero
-        f = 0;
         
         // sum surface brightness at ray position
         f += sersic(&objects[1], y);

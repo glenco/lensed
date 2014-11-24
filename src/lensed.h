@@ -25,7 +25,7 @@ struct lensed
     cl_kernel kernel;
     
     // parameter space
-    size_t ndim;
-    cl_mem pspace;
-    cl_kernel set;
+    size_t nparams;
+    cl_mem params;
+    cl_kernel set_params;
 };

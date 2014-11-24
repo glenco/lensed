@@ -8,7 +8,8 @@
 
 static const char* BEFORE[] = {
     "object",
-    "constants"
+    "constants",
+    "params"
 };
 
 static const char* AFTER[] = {

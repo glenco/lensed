@@ -1,3 +1,5 @@
+OBJECT(sersic) = SOURCE;
+
 struct sersic
 {
     float x;
@@ -10,6 +12,16 @@ struct sersic
     float m;
 };
 
+PARAMS(sersic) = {
+    { "x" },
+    { "y" },
+    { "R_eff" },
+    { "mag" },
+    { "n" },
+    { "f" },
+    { "pa", true },
+};
+
 static float sersic(constant object* obj, float2 y)
 {
     constant struct sersic* src = (constant struct sersic*)obj;
@@ -20,11 +32,6 @@ static float sersic(constant object* obj, float2 y)
     float r2 = u*u + v*v/src->q/src->q;
     
     return exp(src->log0 - exp(src->log1 + src->m*log(r2)));
-}
-
-kernel void ndim_sersic(global size_t* ndim)
-{
-    *ndim = 7;
 }
 
 static void set_sersic(global object* obj, constant float* P)
@@ -44,17 +51,4 @@ static void set_sersic(global object* obj, constant float* P)
     src->log0 = 0.4f*P[MAG]*LOG_10 + 2*P[N]*log(b) - LOG_PI - log(P[Q]) - 2*log(P[R_EFF]) - log(tgamma(2*P[N]+1));
     src->log1 = log(b) - log(P[R_EFF])/P[N];
     src->m = 0.5f/P[N];
-}
-
-kernel void wrap_sersic(global int* wrap)
-{
-    enum { X, Y, R_EFF, MAG, N, F, PA };
-    
-    wrap[X] = 0;
-    wrap[Y] = 0;
-    wrap[R_EFF] = 0;
-    wrap[MAG] = 0;
-    wrap[N] = 0;
-    wrap[F] = 0;
-    wrap[PA] = 1;
 }

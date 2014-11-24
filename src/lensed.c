@@ -24,6 +24,14 @@
 
 #define OBJECT_SIZE 64
 
+#pragma pack(push, 4)
+struct param
+{
+    cl_char name[32];
+    cl_int  wrap;
+};
+#pragma pack(pop)
+
 void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
     verbose("%s", errinfo);
@@ -31,11 +39,11 @@ void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, vo
 
 int main(int argc, char* argv[])
 {
-    /* program data */
+    // program data
     struct lensed lensed;
     
-    /* parameter wrapping */
-    int* wrap;
+    // parameters
+    struct param* params;
     
     // OpenCL error code
     cl_int err;
@@ -52,7 +60,7 @@ int main(int argc, char* argv[])
     cl_mem object_mem;
     
     // size of quadrature rule
-    size_t nq;
+    cl_ulong nq;
     
     
     /*****************
@@ -273,7 +281,7 @@ int main(int argc, char* argv[])
     err = 0;
     err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &object_mem);
     err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &lensed.indices);
-    err |= clSetKernelArg(lensed.kernel, 2, sizeof(size_t), &nq);
+    err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
     err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
     err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &lensed.ww);
     err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.ee);
@@ -290,120 +298,108 @@ int main(int argc, char* argv[])
     
     verbose("parameter space");
     
-    lensed.ndim = 0;
-    
     {
-        // array of dimensions
-        size_t* ndims = malloc(nobjects*sizeof(size_t));
+        // array for number of parameters of each object
+        cl_ulong* nparams = malloc(nobjects*sizeof(cl_ulong));
         
-        // get dimensions for each object
-        for(size_t i = 0; i < nobjects; ++i)
+        // get number of parameters for all objects
         {
-            // memory for object info
-            cl_mem objndim_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(size_t), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to allocate memory for object dimensions");
+            verbose("  get number of parameters");
             
-            // setup the kernel that will deliver dimensions
-            char* kernname = kernel_name("ndim_", objnames[i]);
-            cl_kernel objndim_kernel = clCreateKernel(program, kernname, &err);
+            // buffer for number of parameters
+            cl_mem nparams_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, nobjects*sizeof(cl_ulong), NULL, &err);
             if(err != CL_SUCCESS)
-                error("failed to create kernel for object dimensions");
-            free(kernname);
+                error("failed to create buffer for number of parameters");
             
-            err = clSetKernelArg(objndim_kernel, 0, sizeof(cl_mem), &objndim_mem);
+            // setup and run kernel to get number of parameters
+            cl_kernel nparams_kernel = clCreateKernel(program, "get_nparams", &err);
             if(err != CL_SUCCESS)
-                error("failed to set object dimensions kernel arguments");
-            
-            // run kernel
-            err = clEnqueueTask(lensed.queue, objndim_kernel, 0, NULL, NULL);
+                error("failed to create kernel for number of parameters");
+            err = clSetKernelArg(nparams_kernel, 0, sizeof(cl_mem), &nparams_mem);
             if(err != CL_SUCCESS)
-                error("failed to run object dimensions kernel");
+                error("failed to set kernel arguments for number of parameters");
+            err = clEnqueueTask(lensed.queue, nparams_kernel, 0, NULL, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to run kernel for number of parameters");
             clFinish(lensed.queue);
             
-            // get object dimensions from memory
-            err = clEnqueueReadBuffer(lensed.queue, objndim_mem, CL_TRUE, 0, sizeof(size_t), &ndims[i], 0, NULL, NULL);
+            // get number of parameters from buffer
+            err = clEnqueueReadBuffer(lensed.queue, nparams_mem, CL_TRUE, 0, nobjects*sizeof(cl_ulong), nparams, 0, NULL, NULL);
             if(err != CL_SUCCESS)
-                error("failed to get object dimensions");
-            
-            // add to total number of dimensions
-            lensed.ndim += ndims[i];
+                error("failed to get number of parameter");
             
             // clean up
             clFinish(lensed.queue);
-            clReleaseKernel(objndim_kernel);
-            clReleaseMemObject(objndim_mem);
+            clReleaseKernel(nparams_kernel);
+            clReleaseMemObject(nparams_mem);
         }
         
-        verbose("  number of dimensions: %d", lensed.ndim);
-        
-        verbose("  create parameter space buffer");
-        
-        // create the memory containing physical parameters on the device
-        lensed.pspace = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.ndim*sizeof(cl_float), NULL, &err);
-        if(err != CL_SUCCESS)
-            error("failed to allocate parameter space");
-        
-        // params kernel
-        lensed.set = clCreateKernel(program, "params", &err);
-        if(err != CL_SUCCESS)
-            error("failed to create params kernel");
-        
-        // params kernel arguments
-        err = 0;
-        err |= clSetKernelArg(lensed.set, 0, sizeof(cl_mem), &lensed.pspace);
-        err |= clSetKernelArg(lensed.set, 1, sizeof(cl_mem), &object_mem);
-        if(err != CL_SUCCESS)
-            error("failed to set params kernel arguments");
-        
-        verbose("  gather parameter info");
-        
-        // array for wrap
-        wrap = malloc(lensed.ndim*sizeof(int));
-        
-        // fill wrap array from device
-        size_t offset = 0;
+        // sum number of parameters
+        lensed.nparams = 0;
         for(size_t i = 0; i < nobjects; ++i)
+            lensed.nparams += nparams[i];
+        
+        verbose("  number of parameters: %d", lensed.nparams);
+        
+        // allocate parameters array
+        params = malloc(lensed.nparams*sizeof(struct param));
+        
+        // get parameters for all objects
         {
-            // device memory for wrap array
-            cl_mem wrap_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, ndims[i]*sizeof(cl_int), NULL, &err);
+            verbose("  get parameters");
+            
+            // buffer for parameters
+            cl_mem params_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, lensed.nparams*sizeof(struct param), NULL, &err);
             if(err != CL_SUCCESS)
-                error("failed to allocate memory for wrap array");
+                error("failed to create buffer for parameters");
             
-            char* kernname = kernel_name("wrap_", objnames[i]);
-            cl_kernel kern = clCreateKernel(program, kernname, &err);
+            // setup and run kernel to get parameters
+            cl_kernel params_kernel = clCreateKernel(program, "get_params", &err);
             if(err != CL_SUCCESS)
-                error("failed to create kernel `%s()`", kernname);
-            
-            err = 0;
-            err |= clSetKernelArg(kern, 0, sizeof(cl_mem), &wrap_mem);
+                error("failed to create kernel for parameters");
+            err = clSetKernelArg(params_kernel, 0, sizeof(cl_mem), &params_mem);
             if(err != CL_SUCCESS)
-                error("failed to set arguments for kernel `%s()`", kernname);
-            
-            err = clEnqueueTask(lensed.queue, kern, 0, NULL, NULL);
+                error("failed to set kernel arguments for parameters");
+            err = clEnqueueTask(lensed.queue, params_kernel, 0, NULL, NULL);
             if(err != CL_SUCCESS)
-                error("failed to run kernel `%s()`", kernname);
-            
-            // map wrap array from memory
-            cl_int* wrap_dev = clEnqueueMapBuffer(lensed.queue, wrap_mem, CL_TRUE, CL_MAP_READ, 0, lensed.ndim*sizeof(cl_int), 0, NULL, NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to get wrap array");
-            
-            // copy wrap array
-            for(int i = 0; i < ndims[i]; ++i)
-                wrap[offset+i] = wrap_dev[i];
-            offset += ndims[i];
-            
-            // done with oject
-            clEnqueueUnmapMemObject(lensed.queue, wrap_mem, wrap_dev, 0, NULL, NULL);
+                error("failed to run kernel for parameters");
             clFinish(lensed.queue);
-            clReleaseMemObject(wrap_mem);
-            clReleaseKernel(kern);
-            free(kernname);
+            
+            // get parameters from buffer
+            err = clEnqueueReadBuffer(lensed.queue, params_mem, CL_TRUE, 0, lensed.nparams*sizeof(struct param), params, 0, NULL, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get parameters");
+            
+            // clean up
+            clFinish(lensed.queue);
+            clReleaseKernel(params_kernel);
+            clReleaseMemObject(params_mem);
         }
         
-        // done with dimensions
-        free(ndims);
+        // create the buffer that will pass parameter values to objects
+        {
+            verbose("  create parameter space");
+            
+            // create the memory containing physical parameters on the device
+            lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nparams*sizeof(cl_float), NULL, &err);
+            if(err != CL_SUCCESS)
+                error("failed to create buffer for parameter space");
+            
+            // create kernel
+            lensed.set_params = clCreateKernel(program, "set_params", &err);
+            if(err != CL_SUCCESS)
+                error("failed to create kernel for parameter space");
+            
+            // set kernel arguments
+            err = 0;
+            err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &lensed.params);
+            err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &object_mem);
+            if(err != CL_SUCCESS)
+                error("failed to set kernel arguments for parameter space");
+        }
+        
+        // done with parameter counts
+        free(nparams);
     }
     
     
@@ -413,8 +409,13 @@ int main(int argc, char* argv[])
     
     info("run MultiNest");
     
+    // create array for parameter wrapping
+    int* wrap = malloc(lensed.nparams*sizeof(int));
+    for(size_t i = 0; i < lensed.nparams; ++i)
+        wrap[i] = params[i].wrap;
+    
     // gather MultiNest options
-    int ndim = lensed.ndim;
+    int ndim = lensed.nparams;
     int npar = ndim;
     int nclspar = ndim;
     double ztol = -1E90;
@@ -446,9 +447,9 @@ int main(int argc, char* argv[])
          (int)fmod(dur, 60));
     
     // free parameter space
-    clReleaseMemObject(lensed.pspace);
-    clReleaseKernel(lensed.set);
     free(wrap);
+    clReleaseMemObject(lensed.params);
+    clReleaseKernel(lensed.set_params);
     
     // free kernel
     clReleaseKernel(lensed.kernel);

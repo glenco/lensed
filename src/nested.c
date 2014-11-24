@@ -62,17 +62,17 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     cl_int err = 0;
     
     // map parameter space on device
-    cl_float* pspace = clEnqueueMapBuffer(lensed->queue, lensed->pspace, CL_TRUE, CL_MAP_WRITE, 0, lensed->ndim*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->nparams*sizeof(cl_float), 0, NULL, NULL, &err);
     
     // copy parameters to device
-    for(int i = 0; i < lensed->ndim; ++i)
-        pspace[i] = cube[i];
+    for(int i = 0; i < lensed->nparams; ++i)
+        params[i] = cube[i];
     
     // done with parameter space
-    clEnqueueUnmapMemObject(lensed->queue, lensed->pspace, pspace, 0, NULL, NULL);
+    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, NULL);
     
     // set parameters
-    err |= clEnqueueTask(lensed->queue, lensed->set, 0, NULL, NULL);
+    err |= clEnqueueTask(lensed->queue, lensed->set_params, 0, NULL, NULL);
     
     // run kernel
     err |= clEnqueueNDRangeKernel(lensed->queue, lensed->kernel, 1, NULL, &lensed->nd, NULL, 0, NULL, NULL);
