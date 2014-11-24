@@ -83,3 +83,26 @@ void error(const char* msg, ...)
     
     exit(EXIT_FAILURE);
 }
+
+/* log file error and exit */
+void errorf(const char* file, size_t line, const char* msg, ...)
+{
+    if(LOG_LEVEL <= LOG_ERROR)
+    {
+        fprintf(stderr, "%s:", file);
+        if(line)
+            fprintf(stderr, "%zu:", line);
+        fprintf(stderr, " ");
+        
+        va_list args;
+        va_start(args, msg);
+        
+        fprintf(stderr, "ERROR: ");
+        vfprintf(stderr, msg, args);
+        fprintf(stderr, "\n");
+        
+        va_end(args);
+    }
+    
+    exit(EXIT_FAILURE);
+}

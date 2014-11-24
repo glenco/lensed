@@ -1,15 +1,15 @@
 #pragma once
 
-/* configuration options */
-struct options
+// all input settings
+struct input
 {
-    /* input */
+    // data
     char* image;
     char* mask;
     double gain;
     double offset;
     
-    /* MultiNest */
+    // MultiNest
     char* root;
     int nlive;
     int ins;
@@ -26,5 +26,5 @@ struct options
     int maxiter;
 };
 
-void read_options(int argc, char* argv[], struct options*);
-void print_options(const struct options*);
+void read_input(int argc, char* argv[], struct input*);
+void print_input(const struct input*);
