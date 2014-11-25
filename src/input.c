@@ -192,7 +192,25 @@ void print_input(const input* inp)
         
         verbose("objects");
         for(size_t i = 0; i < inp->nobjs; ++i)
+        {
             verbose("  %s = %s", inp->objs[i].name, inp->objs[i].type);
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+            {
+                size_t args = 0;
+                if(inp->objs[i].pars[j].label)
+                    args += 1;
+                if(inp->objs[i].pars[j].prior)
+                    args += 1;
+                if(args == 0)
+                    verbose("    %s", inp->objs[i].pars[j].name);
+                else if(args == 1 && inp->objs[i].pars[j].label)
+                    verbose("    %s, label = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label);
+                else if(args == 1 && inp->objs[i].pars[j].prior)
+                    verbose("    %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].prior);
+                else if(args == 2)
+                    verbose("    %s, label = %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label, inp->objs[i].pars[j].prior);
+            }
+        }
     }
 }
 

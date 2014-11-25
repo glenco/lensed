@@ -21,6 +21,9 @@ static const char* ASSIGN = "=:";
 // line-ending characters
 static const char* EOL = ";#\n";
 
+// identifier separator
+static const char* SEP = ".";
+
 // trim characters from beginning of string
 static void ltrim(char* str, const char* trim)
 {
@@ -53,13 +56,17 @@ static char* split(char* str, const char* spl)
 enum
 {
     GRP_OPTIONS,
-    GRP_OBJECTS
+    GRP_OBJECTS,
+    GRP_PRIORS,
+    GRP_LABELS
 };
 
 // assign group id to group name
 static const struct { const char* name; const int grp; } GROUPS[] = {
     { "options", GRP_OPTIONS },
-    { "objects", GRP_OBJECTS }
+    { "objects", GRP_OBJECTS },
+    { "priors", GRP_PRIORS },
+    { "labels", GRP_LABELS }
 };
 
 // find group id by name
@@ -80,6 +87,9 @@ void read_ini(const char* ini, input* inp)
     size_t len, line;
     char* name;
     char* value;
+    char* sub;
+    object* obj;
+    param* par;
     int grp;
     int err;
     
@@ -141,7 +151,7 @@ void read_ini(const char* ini, input* inp)
             
             // make sure group is valid
             if(grp < 0)
-                errorf(ini, line, "unknown group \"%s\"", name);
+                errorf(ini, line, "unknown group: %s", name);
             
             // done changing group
             continue;
@@ -161,6 +171,24 @@ void read_ini(const char* ini, input* inp)
         rtrim(name, WS);
         ltrim(value, WS);
         
+        // if group requires it, get object and parameter from name
+        if(grp == GRP_PRIORS || grp == GRP_LABELS)
+        {
+            sub = split(name, SEP);
+            if(!sub)
+                errorf(ini, line, "invalid parameter name (should be <object>.<param>)");
+            rtrim(name, WS);
+            ltrim(sub, WS);
+            if(!*sub)
+                errorf(ini, line, "object %s: no parameter given (should be %s.<param>)", name, name);
+            obj = find_object(inp, name);
+            if(!obj)
+                errorf(ini, line, "unknown object: %s (check [objects] group)", name);
+            par = get_param(obj, sub);
+            if(!par)
+                errorf(ini, line, "internal error: could not get parameter %s.%s (should not happen, please file a bug report)", name, sub);
+        }
+        
         // use name and value according to current group
         switch(grp)
         {
@@ -171,9 +199,18 @@ void read_ini(const char* ini, input* inp)
             break;
             
         case GRP_OBJECTS:
-            err = add_object(inp, name, value);
-            if(err)
-                errorf(ini, line, "%s", objects_error());
+            obj = find_object(inp, name);
+            if(obj)
+                errorf(ini, line, "duplicate object name: %s", name);
+            add_object(inp, name, value);
+            break;
+            
+        case GRP_PRIORS:
+            set_param_prior(par, value);
+            break;
+            
+        case GRP_LABELS:
+            set_param_label(par, value);
             break;
         }
     }

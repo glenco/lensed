@@ -211,6 +211,13 @@ int read_option_n(input* inp, const char* name, int n, const char* value)
 {
     int opt;
     
+    // error if no name was given
+    if(n == 0)
+    {
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "no option given");
+        return 1;
+    }
+    
     // find option
     for(opt = 0; opt < NOPTIONS; ++opt)
         if(strncmp(name, OPTIONS[opt].name, n) == 0)
@@ -219,21 +226,21 @@ int read_option_n(input* inp, const char* name, int n, const char* value)
     // error if option was not found
     if(opt == NOPTIONS)
     {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "invalid option \"%.*s\"", n, name);
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "invalid option: %.*s", n, name);
         return 1;
     }
     
     // error if no value was given
     if(!value || !*value)
     {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "no value given for option \"%.*s\"", n, name);
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "option %.*s: no value given", n, name);
         return 1;
     }
     
     // try to read option and return eventual errors
     if(OPTIONS[opt].read(value, (char*)inp->opts + OPTIONS[opt].offset))
     {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "invalid value \"%s\" for option \"%.*s\"", value, n, name);
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "option %.*s: invalid value: %s (should be %s)", n, name, value, OPTIONS[opt].type);
         return 1;
     }
     

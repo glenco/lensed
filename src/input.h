@@ -26,11 +26,31 @@ typedef struct
     int maxiter;
 } options;
 
+// parameters for objects
+typedef struct
+{
+    // name of parameter, used as identifier
+    const char* name;
+    
+    // label, used for output
+    const char* label;
+    
+    // prior definition
+    const char* prior;
+} param;
+
 // definition of objects
 typedef struct
 {
+    // name of object, used as unique identifier
     const char* name;
+    
+    // type of object, used in kernel
     const char* type;
+    
+    // parameters for object
+    size_t npars;
+    param* pars;
 } object;
 
 // all input settings

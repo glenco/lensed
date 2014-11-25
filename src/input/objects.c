@@ -7,26 +7,9 @@
 #include "objects.h"
 #include "../log.h"
 
-// buffer for last error message
-static char ERROR_MSG[1024] = {0};
-
-int add_object(input* inp, const char* name, const char* type)
+void add_object(input* inp, const char* name, const char* type)
 {
     object* obj;
-    
-    // make sure object does not yet exist
-    if(find_object(inp, name))
-    {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "duplicate object name \"%s\"", name);
-        return 1;
-    }
-    
-    // make sure that a type is given
-    if(!type || !*type)
-    {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "missing type for object \"%s\"", name);
-        return 1;
-    }
     
     // realloc space for one more object
     inp->nobjs += 1;
@@ -45,8 +28,9 @@ int add_object(input* inp, const char* name, const char* type)
     strcpy((char*)obj->name, name);
     strcpy((char*)obj->type, type);
     
-    // success
-    return 0;
+    // no parameters
+    obj->npars = 0;
+    obj->pars = NULL;
 }
 
 object* find_object(const input* inp, const char* name)
@@ -69,9 +53,77 @@ void free_object(object* obj)
 {
     free((char*)obj->name);
     free((char*)obj->type);
+    for(size_t i = 0; i < obj->npars; ++i)
+        free_param(&obj->pars[i]);
+    free(obj->pars);
 }
 
-const char* objects_error()
+param* get_param(object* obj, const char* name)
 {
-    return ERROR_MSG;
+    param* par;
+    
+    // position of found param
+    size_t pos;
+    
+    // look for name in each param
+    for(pos = 0; pos < obj->npars; ++pos)
+        if(strcmp(name, obj->pars[pos].name) == 0)
+            break;
+    
+    // return param if found
+    if(pos < obj->npars)
+        return &obj->pars[pos];
+    
+    // not found, make new
+    obj->npars += 1;
+    obj->pars = realloc(obj->pars, obj->npars*sizeof(param));
+    if(!obj->pars)
+        error("could not add parameter \"%s.%s\": %s", obj->name, name, strerror(errno));
+    
+    // realloc was successful, get new object
+    par = &obj->pars[obj->npars-1];
+    
+    // allocate space and copy name into param
+    par->name = malloc(strlen(name) + 1);
+    if(!par->name)
+        error("could not allocate space for parameter \"%s.%s\": %s", obj->name, name, strerror(errno));
+    strcpy((char*)par->name, name);
+    
+    // no label is set
+    par->label = NULL;
+    
+    // no prior is set
+    par->prior = NULL;
+    
+    // done, return the new param
+    return par;
+}
+
+void free_param(param* par)
+{
+    free((char*)par->name);
+    free((char*)par->label);
+    free((char*)par->prior);
+}
+
+void set_param_label(param* par, const char* label)
+{
+    // allocate space for string
+    par->label = realloc((char*)par->label, strlen(label) + 1);
+    if(!par->label)
+        error("could not set parameter label \"%s\": %s", label, strerror(errno));
+    
+    // copy label to param
+    strcpy((char*)par->label, label);
+}
+
+void set_param_prior(param* par, const char* prior)
+{
+    // allocate space for string
+    par->prior = realloc((char*)par->prior, strlen(prior) + 1);
+    if(!par->prior)
+        error("could not set parameter prior \"%s\": %s", prior, strerror(errno));
+    
+    // copy prior to param
+    strcpy((char*)par->prior, prior);
 }
