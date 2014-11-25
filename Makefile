@@ -2,10 +2,26 @@
 # input files
 ####
 
-HEADERS = lensed.h input.h kernel.h data.h nested.h quadrature.h log.h \
-          input/options.h input/ini.h config.h version.h constants.h
-SOURCES = lensed.c input.c kernel.c data.c nested.c quadrature.c log.c \
-          input/options.c input/ini.c
+HEADERS = lensed.h \
+          input.h \
+          kernel.h \
+          data.h \
+          nested.h \
+          quadrature.h \
+          log.h \
+          version.h \
+          constants.h \
+          input/options.h \
+          input/ini.h
+SOURCES = lensed.c \
+          input.c \
+          kernel.c \
+          data.c \
+          nested.c \
+          quadrature.c \
+          log.c \
+          input/options.c \
+          input/ini.c
 
 
 ####
@@ -49,25 +65,40 @@ LDFLAGS += $(LDFLAGS_$(OS))
 
 .PHONY: all clean
 
-OBJECTS = $(SOURCES:.c=.o)
+SOURCE_DIR = src
+BUILD_DIR = build
+BIN_DIR = bin
+CONFIG = $(BUILD_DIR)/config.h
+OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
+LENSED = $(BIN_DIR)/lensed
 
-all: lensed
+MKDIR = mkdir -p
 
-lensed: $(HEADERS) $(OBJECTS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+all: $(LENSED)
 
 clean:
-	$(RM) lensed $(OBJECTS) config.h
+	$(RM) $(CONFIG) $(OBJECTS) $(LENSED)
+
+$(LENSED): $(OBJECTS)
+	@$(MKDIR) $(@D)
+	$(CC) $(LDFLAGS) -o $@ $^
+
+$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG)
+	@$(MKDIR) $(@D)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
 
 
 ####
 # configuration header
 ####
 
-config.h: Makefile
-	$(RM) config.h
-	echo "#pragma once" >> config.h
-	echo "" >> config.h
-	echo "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> config.h
-	echo "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> config.h
+ECHO = echo
 
+$(CONFIG): Makefile
+	@$(ECHO) "generate config.h"
+	@$(RM) $@
+	@$(MKDIR) $(@D)
+	@$(ECHO) "#pragma once" >> $@
+	@$(ECHO) "" >> $@
+	@$(ECHO) "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> $@
+	@$(ECHO) "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> $@
