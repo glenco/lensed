@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #include "../input.h"
+#include "objects.h"
 #include "options.h"
 #include "ini.h"
 #include "../log.h"
@@ -51,12 +52,14 @@ static char* split(char* str, const char* spl)
 // known groups in ini file
 enum
 {
-    GRP_OPTIONS
+    GRP_OPTIONS,
+    GRP_OBJECTS
 };
 
 // assign group id to group name
 static const struct { const char* name; const int grp; } GROUPS[] = {
-    { "options", GRP_OPTIONS }
+    { "options", GRP_OPTIONS },
+    { "objects", GRP_OBJECTS }
 };
 
 // find group id by name
@@ -70,7 +73,7 @@ int findgrp(const char* name)
     return -1;
 }
 
-void read_ini(const char* ini, struct input_options* options)
+void read_ini(const char* ini, input* inp)
 {
     FILE* file;
     char buf[LINE_LEN];
@@ -162,9 +165,15 @@ void read_ini(const char* ini, struct input_options* options)
         switch(grp)
         {
         case GRP_OPTIONS:
-            err = read_option(name, value, options);
-            if(err != OPTION_OK)
-                errorf(ini, line, "%s", options_error(options));
+            err = read_option(inp, name, value);
+            if(err)
+                errorf(ini, line, "%s", options_error());
+            break;
+            
+        case GRP_OBJECTS:
+            err = add_object(inp, name, value);
+            if(err)
+                errorf(ini, line, "%s", objects_error());
             break;
         }
     }

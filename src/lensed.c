@@ -59,10 +59,8 @@ int main(int argc, char* argv[])
      * configuration *
      *****************/
     
-    struct input input;
-    
     // read input
-    read_input(argc, argv, &input);
+    input* inp = read_input(argc, argv);
     
     // print banner
     info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
@@ -74,15 +72,15 @@ int main(int argc, char* argv[])
     info(LOG_BOLD "                              " LOG_RESET);
     
     // print input
-    print_input(&input);
+    print_input(inp);
     
     
     /**************
      * input data *
      **************/
     
-    struct data data;
-    read_data(&input, &data);
+    // read data given in input
+    data* dat = read_data(inp);
     
     
     /**********************
@@ -186,7 +184,7 @@ int main(int argc, char* argv[])
     // allocate device memory for data
     {
         // number of pixels
-        lensed.size = data.size;
+        lensed.size = dat->size;
         
         // number of work-items
         lensed.nd = lensed.size;
@@ -207,14 +205,14 @@ int main(int argc, char* argv[])
         
         // write data buffers
         err = 0;
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), data.indices, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), data.mean, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), data.variance, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), dat->indices, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->mean, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->variance, 0, NULL, NULL);
         if(err != CL_SUCCESS)
             error("failed to write data buffers");
         
         // set global log-likelihood normalisation
-        lensed.lognorm = -log(input.gain);
+        lensed.lognorm = -log(inp->opts->gain);
     }
     
     // generate quadrature rule
@@ -421,7 +419,7 @@ int main(int argc, char* argv[])
     int nclspar = ndim;
     double ztol = -1E90;
     char root[100] = {0};
-    strncpy(root, input.root, 99);
+    strncpy(root, inp->opts->root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
     
@@ -429,10 +427,11 @@ int main(int argc, char* argv[])
     time_t start = time(0);
     
     // run MultiNest
-    run(input.ins, input.mmodal, input.ceff, input.nlive, input.tol, input.eff,
-        ndim, npar, nclspar, input.maxmodes, input.updint, ztol, root,
-        input.seed, wrap, input.fb, input.resume, input.outfile, initmpi,
-        logzero, input.maxiter, loglike, dumper, &lensed);
+    run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff, inp->opts->nlive,
+        inp->opts->tol, inp->opts->eff, ndim, npar, nclspar,
+        inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
+        wrap, inp->opts->fb, inp->opts->resume, inp->opts->outfile, initmpi,
+        logzero, inp->opts->maxiter, loglike, dumper, &lensed);
     
     // take end time
     time_t end = time(0);
@@ -476,15 +475,11 @@ int main(int argc, char* argv[])
     free(sources);
     free(objnames);
     
-    /* free input */
-    free(input.image);
-    free(input.mask);
-    free(input.root);
+    // free input
+    free_input(inp);
     
-    /* free input */
-    free(data.mean);
-    free(data.variance);
-    free(data.indices);
+    // free data
+    free_data(dat);
     
     return EXIT_SUCCESS;
 }

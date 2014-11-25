@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -115,8 +116,13 @@ void write_fits(const char* filename, size_t width, size_t height,
         fits_error(filename, status);
 }
 
-void read_data(const struct input* input, struct data* data)
+data* read_data(const input* inp)
 {
+    // try to allocate memory for data
+    data* d = malloc(sizeof(data));
+    if(!d)
+        error("could not create data: %s", strerror(errno));
+    
     // image and mask arrays
     double* image;
     size_t mx, my;
@@ -126,25 +132,25 @@ void read_data(const struct input* input, struct data* data)
     size_t ntot, nact;
     
     /* read image */
-    read_fits(input->image, &data->width, &data->height, &image);
+    read_fits(inp->opts->image, &d->width, &d->height, &image);
     
     verbose("image");
-    verbose("  dimensions = (%zu, %zu)", data->width, data->height);
+    verbose("  dimensions = %zux%zu)", d->width, d->height);
     
     /* total number of pixels */
-    ntot = data->width*data->height;
+    ntot = d->width*d->height;
     
     verbose("  total pixels = %zu", ntot);
     
     /* use mask if given */
-    if(input->mask)
+    if(inp->opts->mask)
     {
         /* read mask */
-        read_fits(input->mask, &mx, &my, &mask);
+        read_fits(inp->opts->mask, &mx, &my, &mask);
         
         /* make sure mask and image dimensions match if given */
-        if(mask && (mx != data->width || my != data->height))
-            error("mask dimensions (%zu, %zu) should match image dimensions (%zu, %zu)", mx, my, data->width, data->height);
+        if(mask && (mx != d->width || my != d->height))
+            error("mask dimensions %zux%zu should match image dimensions %zux%zu)", mx, my, d->width, d->height);
         
         verbose("  masked");
         
@@ -166,12 +172,12 @@ void read_data(const struct input* input, struct data* data)
     verbose("  active pixels = %zu", nact);
     
     /* allocate arrays for data */
-    data->mean = malloc(nact*sizeof(cl_float));
-    data->variance = malloc(nact*sizeof(cl_float));
-    data->indices = malloc(nact*sizeof(cl_int2));
+    d->mean = malloc(nact*sizeof(cl_float));
+    d->variance = malloc(nact*sizeof(cl_float));
+    d->indices = malloc(nact*sizeof(cl_int2));
     
     /* set data pixels */
-    data->size = 0;
+    d->size = 0;
     for(size_t i = 0; i < ntot; ++i)
     {
         /* skip masked */
@@ -179,22 +185,25 @@ void read_data(const struct input* input, struct data* data)
             continue;
         
         /* mean value */
-        data->mean[data->size] = image[i];
+        d->mean[d->size] = image[i];
         
         /* variance */
-        data->variance[data->size] = (image[i] + input->offset)/input->gain;
+        d->variance[d->size] = (image[i] + inp->opts->offset)/inp->opts->gain;
         
         /* pixel indices */
-        data->indices[data->size].s[0] = 1 + i%data->width;
-        data->indices[data->size].s[1] = 1 + i/data->width;
+        d->indices[d->size].s[0] = 1 + i%d->width;
+        d->indices[d->size].s[1] = 1 + i/d->width;
         
         /* next pixel */
-        data->size += 1;
+        d->size += 1;
     }
     
     /* free image and mask arrays */
     free(image);
     free(mask);
+    
+    // done
+    return d;
 }
 
 void write_data(const char* filename, size_t width, size_t height,
@@ -218,4 +227,11 @@ void write_data(const char* filename, size_t width, size_t height,
     for(size_t n = 0; n < num; ++n)
         free(images[n]);
     free(images);
+}
+
+void free_data(data* d)
+{
+    free(d->mean);
+    free(d->variance);
+    free(d->indices);
 }

@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <limits.h>
 
 #include "../input.h"
 #include "options.h"
+#include "../log.h"
 
 // information about input option
 struct option
@@ -32,7 +34,7 @@ struct option
 #define OPTION_OPTIONAL(type, value) 0, #type, read_##type, write_##type, { .default_##type = value }
 
 // get offset of option field in input
-#define OPTION_FIELD(field) offsetof(struct input, field), sizeof(((struct input*)0)->field)
+#define OPTION_FIELD(field) offsetof(options, field), sizeof(((options*)0)->field)
 
 // macro to declare a new type
 #define DECLARE_TYPE(type) \
@@ -160,60 +162,52 @@ struct option OPTIONS[] = {
 // number of known options
 #define NOPTIONS (sizeof(OPTIONS)/sizeof(struct option))
 
-// struct containing data about options for input
-struct input_options
-{
-    struct input* input;
-    char resolved[NOPTIONS];
-    char message[255];
-};
+// last error message
+static char ERROR_MSG[1024] = {0};
 
-struct input_options* get_options(struct input* input)
+options* create_options()
 {
-    struct input_options* options = malloc(sizeof(struct input_options));
-    options->input = input;
-    memset(options->resolved, 0, NOPTIONS);
-    options->message[0] = 0;
-    return options;
+    options* opts = malloc(sizeof(options));
+    if(!opts)
+        error("could not create options: %s", strerror(errno));
+    memset(opts, 0, sizeof(options));
+    return opts;
 }
 
-size_t check_options(const struct input_options* options)
+void free_options(options* opts)
+{
+    free(opts->image);
+    free(opts->mask);
+    free(opts->root);
+}
+
+size_t check_options(const input* inp)
 {
     for(size_t i = 0; i < NOPTIONS; ++i)
-        if(!options->resolved[i])
+        if(inp->reqs[i])
             return i;
     return -1;
 }
 
-void free_options(struct input_options* options)
-{
-    free(options);
-}
-
-void default_options(struct input_options* options)
+void default_options(input* inp)
 {
     for(int i = 0; i < NOPTIONS; ++i)
     {
         // copy default value to input
-        memcpy((char*)options->input + OPTIONS[i].offset, &OPTIONS[i].default_value, OPTIONS[i].size);
+        memcpy((char*)inp->opts + OPTIONS[i].offset, &OPTIONS[i].default_value, OPTIONS[i].size);
         
-        // mark options that are not required as resolved
-        options->resolved[i] = !OPTIONS[i].required;
+        // set required flag for option
+        inp->reqs[i] = OPTIONS[i].required;
     }
 }
 
-const char* options_error(const struct input_options* options)
-{
-    return options->message;
-}
-
-int read_option(const char* name, const char* value, struct input_options* options)
+int read_option(input* inp, const char* name, const char* value)
 {
     // read all chars in name
-    return read_option_n(name, strlen(name), value, options);
+    return read_option_n(inp, name, strlen(name), value);
 }
 
-int read_option_n(const char* name, int n, const char* value, struct input_options* options)
+int read_option_n(input* inp, const char* name, int n, const char* value)
 {
     int opt;
     
@@ -225,29 +219,34 @@ int read_option_n(const char* name, int n, const char* value, struct input_optio
     // error if option was not found
     if(opt == NOPTIONS)
     {
-        snprintf(options->message, sizeof(options->message), "invalid option \"%.*s\"", n, name);
-        return ERR_OPTION_NAME;
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "invalid option \"%.*s\"", n, name);
+        return 1;
     }
     
     // error if no value was given
     if(!value || !*value)
     {
-        snprintf(options->message, sizeof(options->message), "no value given for option \"%.*s\"", n, name);
-        return ERR_OPTION_VALUE;
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "no value given for option \"%.*s\"", n, name);
+        return 1;
     }
     
     // try to read option and return eventual errors
-    if(OPTIONS[opt].read(value, (char*)options->input + OPTIONS[opt].offset))
+    if(OPTIONS[opt].read(value, (char*)inp->opts + OPTIONS[opt].offset))
     {
-        snprintf(options->message, sizeof(options->message), "invalid value \"%s\" for option \"%.*s\"", value, n, name);
-        return ERR_OPTION_VALUE;
+        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "invalid value \"%s\" for option \"%.*s\"", value, n, name);
+        return 1;
     }
     
-    // mark option as resolved
-    options->resolved[opt] = 1;
+    // option is no longer required
+    inp->reqs[opt] = 0;
     
     // report success
-    return OPTION_OK;
+    return 0;
+}
+
+const char* options_error()
+{
+    return ERROR_MSG;
 }
 
 size_t noptions()
@@ -280,9 +279,9 @@ int option_default_value(char* buf, size_t buf_size, size_t n)
     return OPTIONS[n].write(buf, buf_size, &OPTIONS[n].default_value);
 }
 
-int option_value(char* buf, size_t buf_size, const struct input* input, size_t n)
+int option_value(char* buf, size_t buf_size, const input* inp, size_t n)
 {
-    return OPTIONS[n].write(buf, buf_size, (char*)input + OPTIONS[n].offset);
+    return OPTIONS[n].write(buf, buf_size, (char*)inp->opts + OPTIONS[n].offset);
 }
 
 // begin implementation of option types

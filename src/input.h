@@ -1,7 +1,7 @@
 #pragma once
 
-// all input settings
-struct input
+// options
+typedef struct
 {
     // data
     char* image;
@@ -24,7 +24,29 @@ struct input
     int resume;
     int outfile;
     int maxiter;
-};
+} options;
 
-void read_input(int argc, char* argv[], struct input*);
-void print_input(const struct input*);
+// definition of objects
+typedef struct
+{
+    const char* name;
+    const char* type;
+} object;
+
+// all input settings
+typedef struct
+{
+    // all configurable options
+    options* opts;
+    
+    // keep track of required options
+    int* reqs;
+    
+    // objects on the line of sight
+    size_t nobjs;
+    object* objs;
+} input;
+
+input* read_input(int argc, char* argv[]);
+void print_input(const input* input);
+void free_input(input* input);

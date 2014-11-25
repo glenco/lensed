@@ -1,6 +1,6 @@
 #pragma once
 
-struct data
+typedef struct
 {
     size_t width;
     size_t height;
@@ -9,10 +9,13 @@ struct data
     cl_float* mean;
     cl_float* variance;
     double lognorm;
-};
+} data;
 
 // read image from file, with optional mask
-void read_data(const struct input* input, struct data*);
+data* read_data(const input* inp);
+
+// free all memory allocated by data
+void free_data(data* dat);
 
 // write data to FITS file
 void write_data(const char* filename, size_t width, size_t height,
