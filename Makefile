@@ -60,6 +60,23 @@ LDFLAGS += $(LDFLAGS_$(OS))
 
 
 ####
+# commands
+####
+
+MKDIR = mkdir -p
+ECHO = echo
+
+
+####
+# terminal styles
+####
+
+STYLE_BOLD=`tput bold`
+STYLE_DARK=`tput dim`
+STYLE_RESET=`tput sgr0`
+
+
+####
 # build rules
 ####
 
@@ -72,30 +89,23 @@ CONFIG = $(BUILD_DIR)/config.h
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
 
-MKDIR = mkdir -p
-
 all: $(LENSED)
 
 clean:
 	$(RM) $(CONFIG) $(OBJECTS) $(LENSED)
 
 $(LENSED): $(OBJECTS)
+	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
-	$(CC) $(LDFLAGS) -o $@ $^
+	@$(CC) $(LDFLAGS) -o $@ $^
 
 $(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG)
+	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
-	$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
-
-
-####
-# configuration header
-####
-
-ECHO = echo
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
 
 $(CONFIG): Makefile
-	@$(ECHO) "generate config.h"
+	@$(ECHO) "creating $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(RM) $@
 	@$(MKDIR) $(@D)
 	@$(ECHO) "#pragma once" >> $@
