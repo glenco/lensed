@@ -104,17 +104,12 @@ int main(int argc, char* argv[])
         if(!lensed.queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
-        // gather names of all objects
-        const char** objnames = malloc(inp->nobjs*sizeof(const char*));
-        for(size_t i = 0; i < inp->nobjs; ++i)
-            objnames[i] = inp->objs[i].name;
-        
         // load program
         size_t nkernels;
         const char** kernels;
         
         verbose("  load program");
-        load_kernels(inp->nobjs, objnames, &nkernels, &kernels);
+        main_program(inp->nobjs, inp->objs, &nkernels, &kernels);
         
         // create program
         verbose("  create program");
@@ -139,7 +134,6 @@ int main(int argc, char* argv[])
         // free program codes
         for(int i = 0; i < nkernels; ++i)
             free((void*)kernels[i]);
-        free(objnames);
     }
     
     // get maximum work group size

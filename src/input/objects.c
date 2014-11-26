@@ -81,7 +81,7 @@ void add_object(input* inp, const char* id, const char* name)
         error("object %s: failed to create command queue", id);
     
     // load kernel for object meta-data
-    object_kernel(name, &nkernels, &kernels);
+    object_program(name, &nkernels, &kernels);
     
     program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
     if(err != CL_SUCCESS)
