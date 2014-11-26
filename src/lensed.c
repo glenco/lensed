@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <float.h>
 #include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <time.h>
 
@@ -108,6 +109,30 @@ int main(int argc, char* argv[])
         
         verbose("  load program");
         main_program(inp->nobjs, inp->objs, &nkernels, &kernels);
+        
+        // output program
+        if(inp->opts->outfile)
+        {
+            FILE* prg;
+            char* prgname;
+            
+            prgname = malloc(strlen(inp->opts->root) + strlen("kernel.cl") + 1);
+            if(!prgname)
+                error("%s", strerror(errno));
+            
+            strcpy(prgname, inp->opts->root);
+            strcat(prgname, "kernel.cl");
+            
+            prg = fopen(prgname, "w");
+            if(!prg)
+                error("could not write %s: %s", prgname, strerror(errno));
+            
+            for(size_t i = 0; i < nkernels; ++i)
+                fputs(kernels[i], prg);
+            
+            fclose(prg);
+            free(prgname);
+        }
         
         // create program
         verbose("  create program");

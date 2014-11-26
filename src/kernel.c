@@ -9,6 +9,17 @@
 #include "kernel.h"
 #include "log.h"
 
+// marker for individual files in kernel code
+static const char FILEHEAD[] = 
+    "//----------------------------------------------------------------------------\n"
+    "// %s\n"
+    "//----------------------------------------------------------------------------\n"
+    "\n"
+;
+static const char FILEFOOT[] =
+    "\n"
+;
+
 // kernels that are needed for initialising programs
 static const char* INITKERNS[] = {
     "object",
@@ -175,7 +186,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // calculate buffer size
     d = 0;
     type = 0;
-    buf_size = sizeof(COMPHEAD);
+    buf_size = sizeof(FILEHEAD) + strlen("compute");
+    buf_size += sizeof(COMPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
     {
         if(objs[i].type != type)
@@ -197,6 +209,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         d += objs[i].size;
     }
     buf_size += sizeof(COMPFOOT);
+    buf_size += sizeof(FILEFOOT);
     
     // allocate buffer
     buf = malloc(buf_size);
@@ -211,6 +224,12 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     
     // output tracks current writing position on buffer
     out = buf;
+    
+    // write file header
+    wri = sprintf(out, FILEHEAD, "compute");
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
     
     // write header
     wri = sprintf(out, COMPHEAD);
@@ -265,6 +284,12 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         error("%s", strerror(errno));
     out += wri;
     
+    // write file footer
+    wri = sprintf(out, FILEFOOT);
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
+    
     // this is our code
     return buf;
 }
@@ -289,7 +314,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     
     // calculate buffer size
     d = p = 0;
-    buf_size = sizeof(SETPHEAD);
+    buf_size = sizeof(FILEHEAD) + strlen("set_params");
+    buf_size += sizeof(SETPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
     {
         buf_size += sizeof(SETPBODY);
@@ -300,6 +326,7 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
         p += objs[i].npars;
     }
     buf_size += sizeof(SETPFOOT);
+    buf_size += sizeof(FILEFOOT);
     
     // allocate buffer
     buf = malloc(buf_size);
@@ -311,6 +338,12 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     
     // output tracks current writing position on buffer
     out = buf;
+    
+    // write file header
+    wri = sprintf(out, FILEHEAD, "set_params");
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
     
     // write header
     wri = sprintf(out, SETPHEAD);
@@ -338,44 +371,83 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
         error("%s", strerror(errno));
     out += wri;
     
+    // write file footer
+    wri = sprintf(out, FILEFOOT);
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
+    
     // this is our code
     return buf;
 }
 
 static const char* load_kernel(const char* name)
 {
+    // file for kernel
     char* filename;
-    char* contents;
-    long size;
     FILE* f;
+    long file_size;
     
+    // buffer for kernel code
+    char* buf;
+    size_t buf_size;
+    
+    // current output position
+    char* out;
+    
+    // number of characters added
+    int wri;
+    
+    // construct filename for kernel
     filename = malloc(strlen(KERNEL_PATH) + strlen(name) + strlen(KERNEL_EXT) + 1);
     sprintf(filename, "%s%s%s", KERNEL_PATH, name, KERNEL_EXT);
     
-    f = fopen(filename, "rb");
-    
+    // try to read file
+    f = fopen(filename, "r");
     if(!f)
     {
         verbose("file not found: %s", filename);
         error("could not load kernel \"%s\"", name);
     }
     
+    // go to end of file and get its size
     fseek(f, 0, SEEK_END);
+    file_size = ftell(f);
     
-    size = ftell(f);
-    contents = malloc(size + 1);
+    // calculate size of buffer
+    buf_size = file_size + sizeof(FILEHEAD) + strlen(name) + sizeof(FILEFOOT);
     
-    if(!contents)
-        error("could not allocate memory for kernel \"%s\"", name);
+    // try to allocate buffer
+    buf = malloc(buf_size);
+    if(!buf)
+        error("kernel %s: %s", name, strerror(errno));
     
+    // start at beginning
+    out = buf;
+    
+    // write file header
+    wri = sprintf(out, FILEHEAD, name);
+    if(wri < 0)
+        error("kernel %s: %s", name, strerror(errno));
+    out += wri;
+    
+    // write file
     fseek(f, 0, SEEK_SET);
-    fread(contents, 1, size, f);
-    contents[size] = 0;
-    fclose(f);
+    fread(out, 1, file_size, f);
+    out += file_size;
     
+    // write file footer
+    wri = sprintf(out, FILEFOOT);
+    if(wri < 0)
+        error("kernel %s: %s", name, strerror(errno));
+    out += wri;
+    
+    // clean up
+    fclose(f);
     free(filename);
     
-    return contents;
+    // done
+    return buf;
 }
 
 void object_program(const char* name, size_t* nkernels, const char*** kernels)
