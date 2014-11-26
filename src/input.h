@@ -1,7 +1,7 @@
 #pragma once
 
-// all input settings
-struct input
+// options
+typedef struct
 {
     // data
     char* image;
@@ -24,7 +24,66 @@ struct input
     int resume;
     int outfile;
     int maxiter;
+} options;
+
+// parameters for objects
+typedef struct
+{
+    // name of parameter, used as identifier
+    char name[32];
+    
+    // label, used for output
+    const char* label;
+    
+    // prior definition
+    const char* prior;
+    
+    // flag for wrap-around parameters
+    int wrap;
+} param;
+
+
+// object types
+enum
+{
+    OBJ_LENS = 'L',
+    OBJ_SOURCE = 'S'
 };
 
-void read_input(int argc, char* argv[], struct input*);
-void print_input(const struct input*);
+// definition of objects
+typedef struct
+{
+    // type of object
+    int type;
+    
+    // size of object data
+    size_t size;
+    
+    // unique identifier of object
+    const char* id;
+    
+    // name of object, used in kernel
+    const char* name;
+    
+    // parameters for object
+    size_t npars;
+    param* pars;
+} object;
+
+// all input settings
+typedef struct
+{
+    // all configurable options
+    options* opts;
+    
+    // keep track of required options
+    int* reqs;
+    
+    // objects on the line of sight
+    size_t nobjs;
+    object* objs;
+} input;
+
+input* read_input(int argc, char* argv[]);
+void print_input(const input* input);
+void free_input(input* input);

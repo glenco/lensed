@@ -1,3 +1,15 @@
+OBJECT(sersic) = SOURCE;
+
+PARAMS(sersic) = {
+    { "x" },
+    { "y" },
+    { "r" },
+    { "mag" },
+    { "n" },
+    { "f" },
+    { "pa", true },
+};
+
 struct sersic
 {
     float x;
@@ -10,10 +22,8 @@ struct sersic
     float m;
 };
 
-static float sersic(constant object* obj, float2 y)
+static float sersic(constant struct sersic* src, float2 y)
 {
-    constant struct sersic* src = (constant struct sersic*)obj;
-    
     float u = (y.x - src->x)*src->cos - (y.y - src->y)*src->sin;
     float v = (y.y - src->y)*src->cos + (y.x - src->x)*src->sin;
     
@@ -22,39 +32,17 @@ static float sersic(constant object* obj, float2 y)
     return exp(src->log0 - exp(src->log1 + src->m*log(r2)));
 }
 
-kernel void ndim_sersic(global size_t* ndim)
+static void set_sersic(global struct sersic* src, float x, float y, float r, float mag, float n, float q, float pa)
 {
-    *ndim = 7;
-}
-
-static void set_sersic(global object* obj, constant float* P)
-{
-    enum { X, Y, R_EFF, MAG, N, Q, PA };
+    float b = 1.9992f*n - 0.3271f; // approximation valid for 0.5 < n < 8
     
-    global struct sersic* src = (global struct sersic*)obj;
+    src->x = x;
+    src->y = y;
+    src->q = q;
     
-    float b = 1.9992f*P[N] - 0.3271f; // approximation valid for 0.5 < n < 8
-    
-    src->x = P[X];
-    src->y = P[Y];
-    src->q = P[Q];
-    
-    src->cos = cos(P[PA]);
-    src->sin = sin(P[PA]);
-    src->log0 = 0.4f*P[MAG]*LOG_10 + 2*P[N]*log(b) - LOG_PI - log(P[Q]) - 2*log(P[R_EFF]) - log(tgamma(2*P[N]+1));
-    src->log1 = log(b) - log(P[R_EFF])/P[N];
-    src->m = 0.5f/P[N];
-}
-
-kernel void wrap_sersic(global int* wrap)
-{
-    enum { X, Y, R_EFF, MAG, N, F, PA };
-    
-    wrap[X] = 0;
-    wrap[Y] = 0;
-    wrap[R_EFF] = 0;
-    wrap[MAG] = 0;
-    wrap[N] = 0;
-    wrap[F] = 0;
-    wrap[PA] = 1;
+    src->cos = cos(pa);
+    src->sin = sin(pa);
+    src->log0 = 0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - log(q) - 2*log(r) - log(tgamma(2*n+1));
+    src->log1 = log(b) - log(r)/n;
+    src->m = 0.5f/n;
 }

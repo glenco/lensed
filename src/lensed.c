@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <float.h>
 #include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <time.h>
 
@@ -22,20 +23,15 @@
 #include "log.h"
 #include "version.h"
 
-#define OBJECT_SIZE 64
-
-void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
+static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
     verbose("%s", errinfo);
 }
 
 int main(int argc, char* argv[])
 {
-    /* program data */
+    // program data
     struct lensed lensed;
-    
-    /* parameter wrapping */
-    int* wrap;
     
     // OpenCL error code
     cl_int err;
@@ -45,24 +41,22 @@ int main(int argc, char* argv[])
     cl_context context;
     cl_program program;
     
+    // buffer for object data
+    cl_mem data_mem;
+    
     // maximum work-group size
     size_t max_wg_size;
     
-    // buffer for objects
-    cl_mem object_mem;
-    
     // size of quadrature rule
-    size_t nq;
+    cl_ulong nq;
     
     
     /*****************
      * configuration *
      *****************/
     
-    struct input input;
-    
     // read input
-    read_input(argc, argv, &input);
+    input* inp = read_input(argc, argv);
     
     // print banner
     info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
@@ -74,56 +68,22 @@ int main(int argc, char* argv[])
     info(LOG_BOLD "                              " LOG_RESET);
     
     // print input
-    print_input(&input);
+    print_input(inp);
     
     
     /**************
      * input data *
      **************/
     
-    struct data data;
-    read_data(&input, &data);
-    
-    
-    /**********************
-     * lenses and sources *
-     **********************/
-    
-    verbose("objects");
-    
-    // TODO make lenses and sources dynamic
-    size_t nlenses = 1;
-    size_t nsources = 1;
-    
-    // create arrays for lenses and sources
-    const char** lenses = malloc(nlenses*sizeof(const char*));
-    const char** sources = malloc(nsources*sizeof(const char*));
-    
-    // set lenses and sources
-    lenses[0] = "sie";
-    sources[0] = "sersic";
-    
-    verbose("  number of lenses: %zu", nlenses);
-    verbose("  number of sources: %zu", nsources);
-    
-    // total number of objects
-    size_t nobjects = nlenses + nsources;
-    
-    verbose("  number of objects: %zu", nobjects);
-    
-    // create a list with all object names
-    const char** objnames = malloc(nobjects*sizeof(const char*));
-    for(size_t i = 0; i < nlenses; ++i)
-        objnames[i] = lenses[i];
-    for(size_t i = 0; i < nsources; ++i)
-        objnames[nlenses+i] = sources[i];
+    // read data given in input
+    data* dat = read_data(inp);
     
     
     /****************
-     * OpenCL setup *
+     * kernel setup *
      ****************/
     
-    verbose("OpenCL setup");
+    verbose("kernel");
     
     {
         // TODO decide the type of worker
@@ -143,14 +103,38 @@ int main(int argc, char* argv[])
         if(!lensed.queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
-        // load program, ...
+        // load program
         size_t nkernels;
         const char** kernels;
         
         verbose("  load program");
-        load_kernels(nobjects, objnames, &nkernels, &kernels);
+        main_program(inp->nobjs, inp->objs, &nkernels, &kernels);
         
-        // create program, ...
+        // output program
+        if(inp->opts->outfile)
+        {
+            FILE* prg;
+            char* prgname;
+            
+            prgname = malloc(strlen(inp->opts->root) + strlen("kernel.cl") + 1);
+            if(!prgname)
+                error("%s", strerror(errno));
+            
+            strcpy(prgname, inp->opts->root);
+            strcat(prgname, "kernel.cl");
+            
+            prg = fopen(prgname, "w");
+            if(!prg)
+                error("could not write %s: %s", prgname, strerror(errno));
+            
+            for(size_t i = 0; i < nkernels; ++i)
+                fputs(kernels[i], prg);
+            
+            fclose(prg);
+            free(prgname);
+        }
+        
+        // create program
         verbose("  create program");
         program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
         if(!program || err != CL_SUCCESS)
@@ -186,7 +170,7 @@ int main(int argc, char* argv[])
     // allocate device memory for data
     {
         // number of pixels
-        lensed.size = data.size;
+        lensed.size = dat->size;
         
         // number of work-items
         lensed.nd = lensed.size;
@@ -207,14 +191,14 @@ int main(int argc, char* argv[])
         
         // write data buffers
         err = 0;
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), data.indices, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), data.mean, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), data.variance, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), dat->indices, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->mean, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, lensed.variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->variance, 0, NULL, NULL);
         if(err != CL_SUCCESS)
             error("failed to write data buffers");
         
         // set global log-likelihood normalisation
-        lensed.lognorm = -log(input.gain);
+        lensed.lognorm = -log(inp->opts->gain);
     }
     
     // generate quadrature rule
@@ -257,10 +241,15 @@ int main(int argc, char* argv[])
         clEnqueueUnmapMemObject(lensed.queue, lensed.ee, ee, 0, NULL, NULL);
     }
     
-    verbose("  create object buffer");
+    // collect total size of object data
+    size_t data_size = 0;
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        data_size += inp->objs[i].size;
     
-    // allocate buffer for objects
-    object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, nobjects*OBJECT_SIZE, NULL, &err);
+    verbose("  create object data buffer");
+    
+    // allocate buffer for object data
+    data_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to create object buffer");
     
@@ -273,9 +262,9 @@ int main(int argc, char* argv[])
     
     // main kernel arguments
     err = 0;
-    err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &object_mem);
+    err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &data_mem);
     err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &lensed.indices);
-    err |= clSetKernelArg(lensed.kernel, 2, sizeof(size_t), &nq);
+    err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
     err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
     err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &lensed.ww);
     err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.ee);
@@ -285,127 +274,33 @@ int main(int argc, char* argv[])
     if(err != CL_SUCCESS)
         error("failed to set kernel arguments");
     
+    // sum number of parameters
+    lensed.nparams = 0;
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        lensed.nparams += inp->objs[i].npars;
     
-    /*******************
-     * parameter space *
-     *******************/
-    
-    verbose("parameter space");
-    
-    lensed.ndim = 0;
-    
+    // create the buffer that will pass parameter values to objects
     {
-        // array of dimensions
-        size_t* ndims = malloc(nobjects*sizeof(size_t));
-        
-        // get dimensions for each object
-        for(size_t i = 0; i < nobjects; ++i)
-        {
-            // memory for object info
-            cl_mem objndim_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(size_t), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to allocate memory for object dimensions");
-            
-            // setup the kernel that will deliver dimensions
-            char* kernname = kernel_name("ndim_", objnames[i]);
-            cl_kernel objndim_kernel = clCreateKernel(program, kernname, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create kernel for object dimensions");
-            free(kernname);
-            
-            err = clSetKernelArg(objndim_kernel, 0, sizeof(cl_mem), &objndim_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set object dimensions kernel arguments");
-            
-            // run kernel
-            err = clEnqueueTask(lensed.queue, objndim_kernel, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to run object dimensions kernel");
-            clFinish(lensed.queue);
-            
-            // get object dimensions from memory
-            err = clEnqueueReadBuffer(lensed.queue, objndim_mem, CL_TRUE, 0, sizeof(size_t), &ndims[i], 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get object dimensions");
-            
-            // add to total number of dimensions
-            lensed.ndim += ndims[i];
-            
-            // clean up
-            clFinish(lensed.queue);
-            clReleaseKernel(objndim_kernel);
-            clReleaseMemObject(objndim_mem);
-        }
-        
-        verbose("  number of dimensions: %d", lensed.ndim);
-        
-        verbose("  create parameter space buffer");
+        verbose("  create parameter buffer");
         
         // create the memory containing physical parameters on the device
-        lensed.pspace = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.ndim*sizeof(cl_float), NULL, &err);
+        lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nparams*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
-            error("failed to allocate parameter space");
+            error("failed to create buffer for parameters");
         
-        // params kernel
-        lensed.set = clCreateKernel(program, "params", &err);
+        verbose("  create parameter kernel");
+        
+        // create kernel
+        lensed.set_params = clCreateKernel(program, "set_params", &err);
         if(err != CL_SUCCESS)
-            error("failed to create params kernel");
+            error("failed to create kernel for parameters");
         
-        // params kernel arguments
+        // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.set, 0, sizeof(cl_mem), &lensed.pspace);
-        err |= clSetKernelArg(lensed.set, 1, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &data_mem);
+        err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &lensed.params);
         if(err != CL_SUCCESS)
-            error("failed to set params kernel arguments");
-        
-        verbose("  gather parameter info");
-        
-        // array for wrap
-        wrap = malloc(lensed.ndim*sizeof(int));
-        
-        // fill wrap array from device
-        size_t offset = 0;
-        for(size_t i = 0; i < nobjects; ++i)
-        {
-            // device memory for wrap array
-            cl_mem wrap_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, ndims[i]*sizeof(cl_int), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to allocate memory for wrap array");
-            
-            char* kernname = kernel_name("wrap_", objnames[i]);
-            cl_kernel kern = clCreateKernel(program, kernname, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create kernel `%s()`", kernname);
-            
-            err = 0;
-            err |= clSetKernelArg(kern, 0, sizeof(cl_mem), &wrap_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set arguments for kernel `%s()`", kernname);
-            
-            err = clEnqueueTask(lensed.queue, kern, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to run kernel `%s()`", kernname);
-            
-            // map wrap array from memory
-            cl_int* wrap_dev = clEnqueueMapBuffer(lensed.queue, wrap_mem, CL_TRUE, CL_MAP_READ, 0, lensed.ndim*sizeof(cl_int), 0, NULL, NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to get wrap array");
-            
-            // copy wrap array
-            for(int i = 0; i < ndims[i]; ++i)
-                wrap[offset+i] = wrap_dev[i];
-            offset += ndims[i];
-            
-            // done with oject
-            clEnqueueUnmapMemObject(lensed.queue, wrap_mem, wrap_dev, 0, NULL, NULL);
-            clFinish(lensed.queue);
-            clReleaseMemObject(wrap_mem);
-            clReleaseKernel(kern);
-            free(kernname);
-        }
-        
-        // done with dimensions
-        free(ndims);
+            error("failed to set kernel arguments for parameters");
     }
     
     
@@ -415,13 +310,24 @@ int main(int argc, char* argv[])
     
     info("run MultiNest");
     
+    // create array for parameter wrap-around
+    int* wrap = malloc(lensed.nparams*sizeof(int));
+    
+    // collect wrap-around info from parameters
+    {
+        int* w = wrap;
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++w)
+                *w = inp->objs[i].pars[j].wrap;
+    }
+    
     // gather MultiNest options
-    int ndim = lensed.ndim;
+    int ndim = lensed.nparams;
     int npar = ndim;
     int nclspar = ndim;
     double ztol = -1E90;
     char root[100] = {0};
-    strncpy(root, input.root, 99);
+    strncpy(root, inp->opts->root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
     
@@ -429,10 +335,11 @@ int main(int argc, char* argv[])
     time_t start = time(0);
     
     // run MultiNest
-    run(input.ins, input.mmodal, input.ceff, input.nlive, input.tol, input.eff,
-        ndim, npar, nclspar, input.maxmodes, input.updint, ztol, root,
-        input.seed, wrap, input.fb, input.resume, input.outfile, initmpi,
-        logzero, input.maxiter, loglike, dumper, &lensed);
+    run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff, inp->opts->nlive,
+        inp->opts->tol, inp->opts->eff, ndim, npar, nclspar,
+        inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
+        wrap, inp->opts->fb, inp->opts->resume, inp->opts->outfile, initmpi,
+        logzero, inp->opts->maxiter, loglike, dumper, &lensed);
     
     // take end time
     time_t end = time(0);
@@ -447,15 +354,15 @@ int main(int argc, char* argv[])
          (int)fmod(dur, 60));
     
     // free parameter space
-    clReleaseMemObject(lensed.pspace);
-    clReleaseKernel(lensed.set);
     free(wrap);
+    clReleaseMemObject(lensed.params);
+    clReleaseKernel(lensed.set_params);
     
     // free kernel
     clReleaseKernel(lensed.kernel);
     
-    // free objects
-    clReleaseMemObject(object_mem);
+    // free object data buffer
+    clReleaseMemObject(data_mem);
     
     // free points
     clReleaseMemObject(lensed.qq);
@@ -471,20 +378,11 @@ int main(int argc, char* argv[])
     clReleaseCommandQueue(lensed.queue);
     clReleaseContext(context);
     
-    // free lenses and sources
-    free(lenses);
-    free(sources);
-    free(objnames);
+    // free data
+    free_data(dat);
     
-    /* free input */
-    free(input.image);
-    free(input.mask);
-    free(input.root);
-    
-    /* free input */
-    free(data.mean);
-    free(data.variance);
-    free(data.indices);
+    // free input
+    free_input(inp);
     
     return EXIT_SUCCESS;
 }

@@ -11,6 +11,7 @@ HEADERS = lensed.h \
           log.h \
           version.h \
           constants.h \
+          input/objects.h \
           input/options.h \
           input/ini.h
 SOURCES = lensed.c \
@@ -20,6 +21,7 @@ SOURCES = lensed.c \
           nested.c \
           quadrature.c \
           log.c \
+          input/objects.c \
           input/options.c \
           input/ini.c
 

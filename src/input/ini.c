@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #include "../input.h"
+#include "objects.h"
 #include "options.h"
 #include "ini.h"
 #include "../log.h"
@@ -19,6 +20,9 @@ static const char* ASSIGN = "=:";
 
 // line-ending characters
 static const char* EOL = ";#\n";
+
+// identifier separator
+static const char* SEP = ".";
 
 // trim characters from beginning of string
 static void ltrim(char* str, const char* trim)
@@ -51,12 +55,18 @@ static char* split(char* str, const char* spl)
 // known groups in ini file
 enum
 {
-    GRP_OPTIONS
+    GRP_OPTIONS,
+    GRP_OBJECTS,
+    GRP_PRIORS,
+    GRP_LABELS
 };
 
 // assign group id to group name
 static const struct { const char* name; const int grp; } GROUPS[] = {
-    { "options", GRP_OPTIONS }
+    { "options", GRP_OPTIONS },
+    { "objects", GRP_OBJECTS },
+    { "priors", GRP_PRIORS },
+    { "labels", GRP_LABELS }
 };
 
 // find group id by name
@@ -70,13 +80,16 @@ int findgrp(const char* name)
     return -1;
 }
 
-void read_ini(const char* ini, struct input_options* options)
+void read_ini(const char* ini, input* inp)
 {
     FILE* file;
     char buf[LINE_LEN];
     size_t len, line;
     char* name;
     char* value;
+    char* sub;
+    object* obj;
+    param* par;
     int grp;
     int err;
     
@@ -138,7 +151,7 @@ void read_ini(const char* ini, struct input_options* options)
             
             // make sure group is valid
             if(grp < 0)
-                errorf(ini, line, "unknown group \"%s\"", name);
+                errorf(ini, line, "unknown group: %s", name);
             
             // done changing group
             continue;
@@ -158,13 +171,46 @@ void read_ini(const char* ini, struct input_options* options)
         rtrim(name, WS);
         ltrim(value, WS);
         
+        // if group requires it, get object and parameter from name
+        if(grp == GRP_PRIORS || grp == GRP_LABELS)
+        {
+            sub = split(name, SEP);
+            if(!sub)
+                errorf(ini, line, "invalid parameter name (should be <object>.<param>)");
+            rtrim(name, WS);
+            ltrim(sub, WS);
+            if(!*sub)
+                errorf(ini, line, "object %s: no parameter given (should be %s.<param>)", name, name);
+            obj = find_object(inp, name);
+            if(!obj)
+                errorf(ini, line, "unknown object: %s (check [objects] group)", name);
+            par = find_param(obj, sub);
+            if(!par)
+                errorf(ini, line, "object %s: unknown parameter %s", name, sub);
+        }
+        
         // use name and value according to current group
         switch(grp)
         {
         case GRP_OPTIONS:
-            err = read_option(name, value, options);
-            if(err != OPTION_OK)
-                errorf(ini, line, "%s", options_error(options));
+            err = read_option(inp, name, value);
+            if(err)
+                errorf(ini, line, "%s", options_error());
+            break;
+            
+        case GRP_OBJECTS:
+            obj = find_object(inp, name);
+            if(obj)
+                errorf(ini, line, "duplicate object name: %s", name);
+            add_object(inp, name, value);
+            break;
+            
+        case GRP_PRIORS:
+            set_param_prior(par, value);
+            break;
+            
+        case GRP_LABELS:
+            set_param_label(par, value);
             break;
         }
     }

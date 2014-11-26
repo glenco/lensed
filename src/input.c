@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "input.h"
+#include "input/objects.h"
 #include "input/options.h"
 #include "input/ini.h"
 #include "log.h"
@@ -59,7 +61,7 @@ void version()
 }
 
 // parse command line argument
-void read_arg(const char* arg, struct input_options* options)
+void read_arg(const char* arg, input* inp)
 {
     size_t sep, end = strlen(arg);
     const char* val;
@@ -77,25 +79,32 @@ void read_arg(const char* arg, struct input_options* options)
     val = arg + sep + 1;
     
     // try to parse option
-    int err = read_option_n(arg, sep, val, options);
-    if(err != OPTION_OK)
-        error("%s", options_error(options));
+    int err = read_option_n(inp, arg, sep, val);
+    if(err)
+        error("%s", options_error());
 }
 
-void read_input(int argc, char* argv[], struct input* input)
+input* read_input(int argc, char* argv[])
 {
     // print usage if no options are given
     if(argc < 2)
         usage(0);
     
-    // set input to zero
-    memset(input, 0, sizeof(struct input));
+    // allocate memory for input
+    input* inp = malloc(sizeof(input));
+    if(!inp)
+        error("could not create input: %s", strerror(errno));
     
-    // options wrapper for input
-    struct input_options* options = get_options(input);
+    // create options
+    inp->opts = create_options();
+    inp->reqs = malloc(noptions()*sizeof(int));
+    
+    // create objects
+    inp->nobjs = 0;
+    inp->objs = NULL;
     
     // set default options
-    default_options(options);
+    default_options(inp);
     
     /* go through arguments */
     for(int i = 1; i < argc; ++i)
@@ -120,7 +129,7 @@ void read_input(int argc, char* argv[], struct input* input)
                 else if(strcmp(argv[i]+2, "version") == 0)
                     version();
                 else
-                    read_arg(argv[i]+2, options);
+                    read_arg(argv[i]+2, inp);
             }
             else
             {
@@ -150,31 +159,68 @@ void read_input(int argc, char* argv[], struct input* input)
         }
         else
         {
-            // parse *.ini file
-            read_ini(argv[i], options);
+            // parse ini file
+            read_ini(argv[i], inp);
         }
     }
     
     // make sure all required options are set
-    size_t err = check_options(options);
+    size_t err = check_options(inp);
     if(err != -1)
         error("required option \"%s\" not set", option_name(err));
     
-    // done with options for input
-    free_options(options);
+    // make sure that some objects are given
+    if(inp->nobjs == 0)
+        error("no objects found");
+    
+    // everything is fine
+    return inp;
 }
 
-void print_input(const struct input* input)
+void print_input(const input* inp)
 {
     // print options
     if(LOG_LEVEL <= LOG_VERBOSE)
     {
         char value[100];
+        
         verbose("options");
         for(size_t i = 0, n = noptions(); i < n; ++i)
         {
-            option_value(value, sizeof(value), input, i);
+            option_value(value, sizeof(value), inp, i);
             verbose("  %s = %s", option_name(i), value);
         }
+        
+        verbose("objects");
+        for(size_t i = 0; i < inp->nobjs; ++i)
+        {
+            verbose("  %s = %s", inp->objs[i].id, inp->objs[i].name);
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+            {
+                size_t args = 0;
+                if(inp->objs[i].pars[j].label)
+                    args += 1;
+                if(inp->objs[i].pars[j].prior)
+                    args += 1;
+                if(args == 0)
+                    verbose("    %s", inp->objs[i].pars[j].name);
+                else if(args == 1 && inp->objs[i].pars[j].label)
+                    verbose("    %s, label = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label);
+                else if(args == 1 && inp->objs[i].pars[j].prior)
+                    verbose("    %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].prior);
+                else if(args == 2)
+                    verbose("    %s, label = %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label, inp->objs[i].pars[j].prior);
+            }
+        }
     }
+}
+
+void free_input(input* inp)
+{
+    free_options(inp->opts);
+    free(inp->reqs);
+    
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        free_object(&inp->objs[i]);
+    free(inp->objs);
 }
