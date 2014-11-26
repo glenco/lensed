@@ -15,7 +15,7 @@ struct sersic
 PARAMS(sersic) = {
     { "x" },
     { "y" },
-    { "R_eff" },
+    { "r" },
     { "mag" },
     { "n" },
     { "f" },

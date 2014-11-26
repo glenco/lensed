@@ -184,9 +184,9 @@ void read_ini(const char* ini, input* inp)
             obj = find_object(inp, name);
             if(!obj)
                 errorf(ini, line, "unknown object: %s (check [objects] group)", name);
-            par = get_param(obj, sub);
+            par = find_param(obj, sub);
             if(!par)
-                errorf(ini, line, "internal error: could not get parameter %s.%s (should not happen, please file a bug report)", name, sub);
+                errorf(ini, line, "object %s: unknown parameter %s", name, sub);
         }
         
         // use name and value according to current group

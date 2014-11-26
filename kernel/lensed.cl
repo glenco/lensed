@@ -1,20 +1,3 @@
-kernel void get_nparams(global ulong* nparams)
-{
-    nparams[0] = NPARAMS(sie);
-    nparams[1] = NPARAMS(sersic);
-}
-
-kernel void get_params(global struct param* params)
-{
-    size_t offset = 0;
-    
-    for(size_t n = 0; n < NPARAMS(sie); ++n, ++offset)
-        parcpy(&params[offset], &PARAM(sie, n));
-    
-    for(size_t n = 0; n < NPARAMS(sersic); ++n, ++offset)
-        parcpy(&params[offset], &PARAM(sersic, n));
-}
-
 kernel void set_params(constant float* params, global object* objects)
 {
     set_sie(&objects[0], &params[0]);

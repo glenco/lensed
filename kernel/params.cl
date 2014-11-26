@@ -6,13 +6,13 @@ struct  __attribute__ ((aligned(4))) param
 };
 
 // macro to simplify parameter definition for object
-#define PARAMS(obj) constant struct param params_##obj[]
+#define PARAMS(obj) constant struct param parlst_##obj[]
 
 // macro to get number of parameters for object
-#define NPARAMS(obj) (sizeof(params_##obj)/sizeof(struct param))
+#define NPARAMS(obj) (sizeof(parlst_##obj)/sizeof(struct param))
 
 // macro to access specific parameter definition for object
-#define PARAM(obj, n) params_##obj[n]
+#define PARAM(obj, n) parlst_##obj[n]
 
 // copy constant param to global array
 static void parcpy(global struct param* dst, constant struct param* src)

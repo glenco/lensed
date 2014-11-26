@@ -1,16 +1,16 @@
 #pragma once
 
 // add a new object to input
-void add_object(input* inp, const char* name, const char* type);
+void add_object(input* inp, const char* id, const char* name);
 
 // find object with given name, or return NULL
-object* find_object(const input* inp, const char* name);
+object* find_object(const input* inp, const char* id);
 
 // free all memory allocated for object
 void free_object(object* obj);
 
-// get existing param, or add new param to object
-param* get_param(object* obj, const char* name);
+// find parameter with given name, or return NULL
+param* find_param(object* obj, const char* name);
 
 // free all memory allocated for param
 void free_param(param* par);

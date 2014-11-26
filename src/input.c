@@ -4,6 +4,7 @@
 #include <errno.h>
 
 #include "input.h"
+#include "input/objects.h"
 #include "input/options.h"
 #include "input/ini.h"
 #include "log.h"
@@ -193,7 +194,7 @@ void print_input(const input* inp)
         verbose("objects");
         for(size_t i = 0; i < inp->nobjs; ++i)
         {
-            verbose("  %s = %s", inp->objs[i].name, inp->objs[i].type);
+            verbose("  %s = %s", inp->objs[i].id, inp->objs[i].name);
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
             {
                 size_t args = 0;
@@ -218,4 +219,8 @@ void free_input(input* inp)
 {
     free_options(inp->opts);
     free(inp->reqs);
+    
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        free_object(&inp->objs[i]);
+    free(inp->objs);
 }

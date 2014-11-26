@@ -15,7 +15,7 @@ struct sie
 PARAMS(sie) = {
     { "x" },
     { "y" },
-    { "r_E" },
+    { "r" },
     { "f" },
     { "pa", true }
 };

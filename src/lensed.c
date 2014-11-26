@@ -24,15 +24,7 @@
 
 #define OBJECT_SIZE 64
 
-#pragma pack(push, 4)
-struct param
-{
-    cl_char name[32];
-    cl_int  wrap;
-};
-#pragma pack(pop)
-
-void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
+static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
     verbose("%s", errinfo);
 }
@@ -42,9 +34,6 @@ int main(int argc, char* argv[])
     // program data
     struct lensed lensed;
     
-    // parameters
-    struct param* params;
-    
     // OpenCL error code
     cl_int err;
     
@@ -53,11 +42,11 @@ int main(int argc, char* argv[])
     cl_context context;
     cl_program program;
     
+    // buffer for objest
+    cl_mem object_mem;
+    
     // maximum work-group size
     size_t max_wg_size;
-    
-    // buffer for objects
-    cl_mem object_mem;
     
     // size of quadrature rule
     cl_ulong nq;
@@ -91,40 +80,6 @@ int main(int argc, char* argv[])
     data* dat = read_data(inp);
     
     
-    /**********************
-     * lenses and sources *
-     **********************/
-    
-    verbose("objects");
-    
-    // TODO make lenses and sources dynamic
-    size_t nlenses = 1;
-    size_t nsources = 1;
-    
-    // create arrays for lenses and sources
-    const char** lenses = malloc(nlenses*sizeof(const char*));
-    const char** sources = malloc(nsources*sizeof(const char*));
-    
-    // set lenses and sources
-    lenses[0] = "sie";
-    sources[0] = "sersic";
-    
-    verbose("  number of lenses: %zu", nlenses);
-    verbose("  number of sources: %zu", nsources);
-    
-    // total number of objects
-    size_t nobjects = nlenses + nsources;
-    
-    verbose("  number of objects: %zu", nobjects);
-    
-    // create a list with all object names
-    const char** objnames = malloc(nobjects*sizeof(const char*));
-    for(size_t i = 0; i < nlenses; ++i)
-        objnames[i] = lenses[i];
-    for(size_t i = 0; i < nsources; ++i)
-        objnames[nlenses+i] = sources[i];
-    
-    
     /****************
      * OpenCL setup *
      ****************/
@@ -149,14 +104,19 @@ int main(int argc, char* argv[])
         if(!lensed.queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
-        // load program, ...
+        // gather names of all objects
+        const char** objnames = malloc(inp->nobjs*sizeof(const char*));
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            objnames[i] = inp->objs[i].name;
+        
+        // load program
         size_t nkernels;
         const char** kernels;
         
         verbose("  load program");
-        load_kernels(nobjects, objnames, &nkernels, &kernels);
+        load_kernels(inp->nobjs, objnames, &nkernels, &kernels);
         
-        // create program, ...
+        // create program
         verbose("  create program");
         program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
         if(!program || err != CL_SUCCESS)
@@ -179,6 +139,7 @@ int main(int argc, char* argv[])
         // free program codes
         for(int i = 0; i < nkernels; ++i)
             free((void*)kernels[i]);
+        free(objnames);
     }
     
     // get maximum work group size
@@ -266,7 +227,7 @@ int main(int argc, char* argv[])
     verbose("  create object buffer");
     
     // allocate buffer for objects
-    object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, nobjects*OBJECT_SIZE, NULL, &err);
+    object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, inp->nobjs*OBJECT_SIZE, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to create object buffer");
     
@@ -299,82 +260,12 @@ int main(int argc, char* argv[])
     verbose("parameter space");
     
     {
-        // array for number of parameters of each object
-        cl_ulong* nparams = malloc(nobjects*sizeof(cl_ulong));
-        
-        // get number of parameters for all objects
-        {
-            verbose("  get number of parameters");
-            
-            // buffer for number of parameters
-            cl_mem nparams_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, nobjects*sizeof(cl_ulong), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create buffer for number of parameters");
-            
-            // setup and run kernel to get number of parameters
-            cl_kernel nparams_kernel = clCreateKernel(program, "get_nparams", &err);
-            if(err != CL_SUCCESS)
-                error("failed to create kernel for number of parameters");
-            err = clSetKernelArg(nparams_kernel, 0, sizeof(cl_mem), &nparams_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set kernel arguments for number of parameters");
-            err = clEnqueueTask(lensed.queue, nparams_kernel, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to run kernel for number of parameters");
-            clFinish(lensed.queue);
-            
-            // get number of parameters from buffer
-            err = clEnqueueReadBuffer(lensed.queue, nparams_mem, CL_TRUE, 0, nobjects*sizeof(cl_ulong), nparams, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get number of parameter");
-            
-            // clean up
-            clFinish(lensed.queue);
-            clReleaseKernel(nparams_kernel);
-            clReleaseMemObject(nparams_mem);
-        }
-        
         // sum number of parameters
         lensed.nparams = 0;
-        for(size_t i = 0; i < nobjects; ++i)
-            lensed.nparams += nparams[i];
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            lensed.nparams += inp->objs[i].npars;
         
-        verbose("  number of parameters: %d", lensed.nparams);
-        
-        // allocate parameters array
-        params = malloc(lensed.nparams*sizeof(struct param));
-        
-        // get parameters for all objects
-        {
-            verbose("  get parameters");
-            
-            // buffer for parameters
-            cl_mem params_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, lensed.nparams*sizeof(struct param), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create buffer for parameters");
-            
-            // setup and run kernel to get parameters
-            cl_kernel params_kernel = clCreateKernel(program, "get_params", &err);
-            if(err != CL_SUCCESS)
-                error("failed to create kernel for parameters");
-            err = clSetKernelArg(params_kernel, 0, sizeof(cl_mem), &params_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set kernel arguments for parameters");
-            err = clEnqueueTask(lensed.queue, params_kernel, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to run kernel for parameters");
-            clFinish(lensed.queue);
-            
-            // get parameters from buffer
-            err = clEnqueueReadBuffer(lensed.queue, params_mem, CL_TRUE, 0, lensed.nparams*sizeof(struct param), params, 0, NULL, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get parameters");
-            
-            // clean up
-            clFinish(lensed.queue);
-            clReleaseKernel(params_kernel);
-            clReleaseMemObject(params_mem);
-        }
+        verbose("  dimension: %d", lensed.nparams);
         
         // create the buffer that will pass parameter values to objects
         {
@@ -397,9 +288,6 @@ int main(int argc, char* argv[])
             if(err != CL_SUCCESS)
                 error("failed to set kernel arguments for parameter space");
         }
-        
-        // done with parameter counts
-        free(nparams);
     }
     
     
@@ -409,10 +297,16 @@ int main(int argc, char* argv[])
     
     info("run MultiNest");
     
-    // create array for parameter wrapping
+    // create array for parameter wrap-around
     int* wrap = malloc(lensed.nparams*sizeof(int));
-    for(size_t i = 0; i < lensed.nparams; ++i)
-        wrap[i] = params[i].wrap;
+    
+    // collect wrap-around info from parameters
+    {
+        int* w = wrap;
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++w)
+                *w = inp->objs[i].pars[j].wrap;
+    }
     
     // gather MultiNest options
     int ndim = lensed.nparams;
@@ -454,7 +348,7 @@ int main(int argc, char* argv[])
     // free kernel
     clReleaseKernel(lensed.kernel);
     
-    // free objects
+    // free object buffer
     clReleaseMemObject(object_mem);
     
     // free points
@@ -471,16 +365,11 @@ int main(int argc, char* argv[])
     clReleaseCommandQueue(lensed.queue);
     clReleaseContext(context);
     
-    // free lenses and sources
-    free(lenses);
-    free(sources);
-    free(objnames);
+    // free data
+    free_data(dat);
     
     // free input
     free_input(inp);
-    
-    // free data
-    free_data(dat);
     
     return EXIT_SUCCESS;
 }

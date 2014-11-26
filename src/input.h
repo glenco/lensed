@@ -30,23 +30,37 @@ typedef struct
 typedef struct
 {
     // name of parameter, used as identifier
-    const char* name;
+    char name[32];
     
     // label, used for output
     const char* label;
     
     // prior definition
     const char* prior;
+    
+    // flag for wrap-around parameters
+    int wrap;
 } param;
+
+
+// object types
+enum
+{
+    OBJ_LENS = 'L',
+    OBJ_SOURCE = 'S'
+};
 
 // definition of objects
 typedef struct
 {
-    // name of object, used as unique identifier
-    const char* name;
+    // type of object
+    int type;
     
-    // type of object, used in kernel
-    const char* type;
+    // unique identifier of object
+    const char* id;
+    
+    // name of object, used in kernel
+    const char* name;
     
     // parameters for object
     size_t npars;
