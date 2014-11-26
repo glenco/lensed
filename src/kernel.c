@@ -23,8 +23,7 @@ static const char FILEFOOT[] =
 // kernels that are needed for initialising programs
 static const char* INITKERNS[] = {
     "object",
-    "constants",
-    "params"
+    "constants"
 };
 static const size_t NINITKERNS = sizeof(INITKERNS)/sizeof(INITKERNS[0]);
 
@@ -49,7 +48,12 @@ static const char PARSKERN[] =
     "kernel void params_<name>(global struct param* params)\n"
     "{\n"
     "    for(size_t i = 0; i < NPARAMS(<name>); ++i)\n"
-    "        parcpy(&params[i], &PARAM(<name>, i));\n"
+    "    {\n"
+    "        for(size_t j = 0; j < sizeof(params[i].name); ++j)\n"
+    "            params[i].name[j] = PARAM(<name>, i).name[j];\n"
+    "        \n"
+    "        params[i].wrap = PARAM(<name>, i).wrap;\n"
+    "    }\n"
     "}\n"
 ;
 
@@ -97,9 +101,9 @@ static const char SETPHEAD[] =
     "kernel void set_params(global char* data, constant float* params)\n"
     "{\n"
 ;
-static const char SETPBODY[] =
-    "    set_%s((global void*)(data + %zu), params + %zu);\n"
-;
+static const char SETPLEFT[] = "    set_%s((global void*)(data + %zu)";
+static const char SETPARGS[] = ", params[%zu]";
+static const char SETPRGHT[] = ");\n";
 static const char SETPFOOT[] =
     "}\n"
 ;
@@ -318,10 +322,12 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     buf_size += sizeof(SETPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
     {
-        buf_size += sizeof(SETPBODY);
+        buf_size += sizeof(SETPLEFT);
         buf_size += strlen(objs[i].name);
         buf_size += log10(1+d);
-        buf_size += log10(1+p);
+        for(size_t j = 0; j < objs[i].npars; ++j)
+            buf_size += sizeof(SETPARGS) + log10(1+p+j);
+        buf_size += sizeof(SETPRGHT);
         d += objs[i].size;
         p += objs[i].npars;
     }
@@ -354,8 +360,23 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // write body
     for(size_t i = 0; i < nobjs; ++i)
     {
-        // write line for current object
-        wri = sprintf(out, SETPBODY, objs[i].name, d, p);
+        // write left side of line
+        wri = sprintf(out, SETPLEFT, objs[i].name, d);
+        if(wri < 0)
+            error("%s", strerror(errno));
+        out += wri;
+        
+        // write arguments
+        for(size_t j = 0; j < objs[i].npars; ++j)
+        {
+            wri = sprintf(out, SETPARGS, p+j);
+            if(wri < 0)
+                error("%s", strerror(errno));
+            out += wri;
+        }
+        
+        // write left side of line
+        wri = sprintf(out, SETPRGHT);
         if(wri < 0)
             error("%s", strerror(errno));
         out += wri;
