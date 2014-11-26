@@ -401,24 +401,20 @@ void object_program(const char* name, size_t* nkernels, const char*** kernels)
 void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** kernels)
 {
     // create an array of unique object names
-    size_t nunique = nobjs;
-    const char** unique = malloc(nobjs*sizeof(const char*));
+    size_t nuniq = 0;
+    const char** uniq = malloc(nobjs*sizeof(const char*));
     for(size_t i = 0; i < nobjs; ++i)
-        unique[i] = objs[i].name;
-    qsort(unique, nunique, sizeof(const char*), (int (*)(const void*, const void*))strcmp);
-    for(size_t i = 0; i < nunique; ++i)
     {
-        size_t end = i + 1;
-        while(end < nunique && strcmp(unique[i], unique[end]) == 0) ++end;
-        if(end == i + 1)
-            continue;
-        for(size_t j = 0; j < (nunique - end); ++j)
-            unique[i + 1 + j] = unique[end + j];
-        nunique -= end - (i + 1);
+        int isuniq = 1;
+        for(size_t j = 0; isuniq && j < nuniq; ++j)
+            if(strcmp(uniq[j], objs[i].name) == 0)
+                isuniq = 0;
+        if(isuniq)
+            uniq[nuniq++] = objs[i].name;
     }
     
     // create kernel array
-    *nkernels = NINITKERNS + nunique + 2 + NMAINKERNS;
+    *nkernels = NINITKERNS + nuniq + 2 + NMAINKERNS;
     *kernels = malloc((*nkernels)*sizeof(const char*));
     
     const char** k = *kernels;
@@ -428,8 +424,8 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
         *(k++) = load_kernel(INITKERNS[i]);
     
     // load kernels for objects
-    for(size_t i = 0; i < nunique; ++i)
-        *(k++) = load_kernel(unique[i]);
+    for(size_t i = 0; i < nuniq; ++i)
+        *(k++) = load_kernel(uniq[i]);
     
     // load compute kernel
     *(k++) = compute_kernel(nobjs, objs);
@@ -442,7 +438,7 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
         *(k++) = load_kernel(MAINKERNS[i]);
     
     // free array of unique object names
-    free(unique);
+    free(uniq);
 }
 
 char* kernel_name(const char* prefix, const char* name)
