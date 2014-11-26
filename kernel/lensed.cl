@@ -1,9 +1,3 @@
-kernel void set_params(constant float* params, global object* objects)
-{
-    set_sie(&objects[0], &params[0]);
-    set_sersic(&objects[1], &params[5]);
-}
-
 kernel void lensed(constant object* objects, constant int2* indices,
     ulong nq, constant float2* aa, constant float* ww, constant float* ee,
     constant float* mean, constant float* variance, global float* loglike)

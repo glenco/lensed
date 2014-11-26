@@ -80,6 +80,18 @@ static const char COMPFOOT[] =
     "}\n"
 ;
 
+// kernel to set parameters
+static const char SETPHEAD[] =
+    "kernel void set_params(global object* objects, constant float* params)\n"
+    "{\n"
+;
+static const char SETPBODY[] =
+    "    set_%s(objects + %zu, params + %zu);\n"
+;
+static const char SETPFOOT[] =
+    "}\n"
+;
+
 // replace substring, used to fill in object names in kernels
 static const char* str_replace(const char* str, const char* search, const char* replace)
 {
@@ -245,6 +257,74 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     return buf;
 }
 
+static const char* set_params_kernel(size_t nobjs, object objs[])
+{
+    // buffer for kernel
+    size_t buf_size;
+    char* buf;
+    
+    // current output position
+    char* out;
+    
+    // number of characters added
+    int wri;
+    
+    // parameter offset
+    size_t j;
+    
+    // calculate buffer size
+    j = 0;
+    buf_size = sizeof(SETPHEAD);
+    for(size_t i = 0; i < nobjs; ++i)
+    {
+        buf_size += sizeof(SETPBODY);
+        buf_size += strlen(objs[i].name);
+        buf_size += log10(1+i);
+        buf_size += log10(1+j);
+        j += objs[i].npars;
+    }
+    buf_size += sizeof(SETPFOOT);
+    
+    // allocate buffer
+    buf = malloc(buf_size);
+    if(!buf)
+        error("%s", strerror(errno));
+    
+    // start with first parameter
+    j = 0;
+    
+    // output tracks current writing position on buffer
+    out = buf;
+    
+    // write header
+    wri = sprintf(out, SETPHEAD);
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
+    
+    // write body
+    for(size_t i = 0; i < nobjs; ++i)
+    {
+        // write line for current object
+        wri = sprintf(out, SETPBODY, objs[i].name, i, j);
+        if(wri < 0)
+            error("%s", strerror(errno));
+        out += wri;
+        
+        // increase parameter offset
+        j += objs[i].npars;
+    }
+    
+    // write footer
+    wri = sprintf(out, SETPFOOT);
+    if(wri < 0)
+        error("%s", strerror(errno));
+    out += wri;
+    
+    // this is our code
+    return buf;
+}
+
 static const char* load_kernel(const char* name)
 {
     char* filename;
@@ -321,7 +401,7 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
     }
     
     // create kernel array
-    *nkernels = NINITKERNS + nunique + 1 + NMAINKERNS;
+    *nkernels = NINITKERNS + nunique + 2 + NMAINKERNS;
     *kernels = malloc((*nkernels)*sizeof(const char*));
     
     const char** k = *kernels;
@@ -336,6 +416,9 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
     
     // load compute kernel
     *(k++) = compute_kernel(nobjs, objs);
+    
+    // load parameter setter kernel
+    *(k++) = set_params_kernel(nobjs, objs);
     
     // load main kernels
     for(size_t i = 0; i < NMAINKERNS; ++i)
