@@ -56,6 +56,9 @@ typedef struct
     // type of object
     int type;
     
+    // size of object data
+    size_t size;
+    
     // unique identifier of object
     const char* id;
     

@@ -25,9 +25,10 @@ static const size_t NMAINKERNS = sizeof(MAINKERNS)/sizeof(MAINKERNS[0]);
 
 // kernel to get meta-data for object
 static const char METAKERN[] = 
-    "kernel void meta_<name>(global int* type, global ulong* npars)\n"
+    "kernel void meta_<name>(global int* type, global ulong* size, global ulong* npars)\n"
     "{\n"
     "    *type = object_<name>;\n"
+    "    *size = sizeof(struct <name>);\n"
     "    *npars = NPARAMS(<name>);\n"
     "}\n"
 ;
@@ -43,7 +44,7 @@ static const char PARSKERN[] =
 
 // kernel to compute images
 static const char COMPHEAD[] =
-    "static float compute(constant object* objects, float2 x)\n"
+    "static float compute(constant char* data, float2 x)\n"
     "{\n"
     "    // initial ray position\n"
     "    float2 y = x;\n"
@@ -59,7 +60,7 @@ static const char COMPLHED[] =
     "    // calculate deflection\n"
 ;
 static const char COMPLENS[] =
-    "    a += %s(objects + %zu, y);\n"
+    "    a += %s((constant void*)(data + %zu), y);\n"
 ;
 static const char COMPDEFL[] =
     "    \n"
@@ -71,7 +72,7 @@ static const char COMPSHED[] =
     "    // calculate surface brightness\n"
 ;
 static const char COMPSRCE[] =
-    "    f += %s(objects + %zu, y);\n"
+    "    f += %s((constant void*)(data + %zu), y);\n"
 ;
 static const char COMPFOOT[] =
     "    \n"
@@ -82,11 +83,11 @@ static const char COMPFOOT[] =
 
 // kernel to set parameters
 static const char SETPHEAD[] =
-    "kernel void set_params(global object* objects, constant float* params)\n"
+    "kernel void set_params(global char* data, constant float* params)\n"
     "{\n"
 ;
 static const char SETPBODY[] =
-    "    set_%s(objects + %zu, params + %zu);\n"
+    "    set_%s((global void*)(data + %zu), params + %zu);\n"
 ;
 static const char SETPFOOT[] =
     "}\n"
@@ -165,10 +166,14 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // current output position
     char* out;
     
+    // offset in data block
+    size_t d;
+    
     // number of characters added
     int wri;
     
     // calculate buffer size
+    d = 0;
     type = 0;
     buf_size = sizeof(COMPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
@@ -188,7 +193,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         else
             buf_size += sizeof(COMPSRCE);
         buf_size += strlen(objs[i].name);
-        buf_size += log10(1+i);
+        buf_size += log10(1+d);
+        d += objs[i].size;
     }
     buf_size += sizeof(COMPFOOT);
     
@@ -196,6 +202,9 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     buf = malloc(buf_size);
     if(!buf)
         error("%s", strerror(errno));
+    
+    // start at beginning of data block
+    d = 0;
     
     // start with invalid type
     type = 0;
@@ -239,12 +248,15 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         
         // write line for current object
         if(type == OBJ_LENS)
-            wri = sprintf(out, COMPLENS, objs[i].name, i);
+            wri = sprintf(out, COMPLENS, objs[i].name, d);
         else
-            wri = sprintf(out, COMPSRCE, objs[i].name, i);
+            wri = sprintf(out, COMPSRCE, objs[i].name, d);
         if(wri < 0)
             error("%s", strerror(errno));
         out += wri;
+        
+        // advance data pointer
+        d += objs[i].size;
     }
     
     // write footer
@@ -269,19 +281,23 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // number of characters added
     int wri;
     
+    // data offset
+    size_t d;
+    
     // parameter offset
-    size_t j;
+    size_t p;
     
     // calculate buffer size
-    j = 0;
+    d = p = 0;
     buf_size = sizeof(SETPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
     {
         buf_size += sizeof(SETPBODY);
         buf_size += strlen(objs[i].name);
-        buf_size += log10(1+i);
-        buf_size += log10(1+j);
-        j += objs[i].npars;
+        buf_size += log10(1+d);
+        buf_size += log10(1+p);
+        d += objs[i].size;
+        p += objs[i].npars;
     }
     buf_size += sizeof(SETPFOOT);
     
@@ -290,8 +306,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     if(!buf)
         error("%s", strerror(errno));
     
-    // start with first parameter
-    j = 0;
+    // start at beginning of data and parameters
+    p = d = 0;
     
     // output tracks current writing position on buffer
     out = buf;
@@ -306,13 +322,14 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     for(size_t i = 0; i < nobjs; ++i)
     {
         // write line for current object
-        wri = sprintf(out, SETPBODY, objs[i].name, i, j);
+        wri = sprintf(out, SETPBODY, objs[i].name, d, p);
         if(wri < 0)
             error("%s", strerror(errno));
         out += wri;
         
-        // increase parameter offset
-        j += objs[i].npars;
+        // increase offsets
+        d += objs[i].size;
+        p += objs[i].npars;
     }
     
     // write footer

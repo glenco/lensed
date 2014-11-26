@@ -20,10 +20,8 @@ PARAMS(sie) = {
     { "pa", true }
 };
 
-static float2 sie(constant object* obj, float2 x)
+static float2 sie(constant struct sie* sie, float2 x)
 {
-    constant struct sie* sie = (constant struct sie*)obj;
-    
     float u, v, r;
     
     u = (x.x - sie->x)*sie->c - (x.y - sie->y)*sie->s;
@@ -36,11 +34,9 @@ static float2 sie(constant object* obj, float2 x)
     return (float2)( u*sie->c + v*sie->s, v*sie->c - u*sie->s );
 }
 
-static void set_sie(global object* obj, constant float* P)
+static void set_sie(global struct sie* sie, constant float* P)
 {
     enum { X, Y, R_E, F, PA };
-    
-    global struct sie* sie = (global struct sie*)obj;
     
     sie->x = P[X];
     sie->y = P[Y];

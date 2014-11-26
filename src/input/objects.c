@@ -40,10 +40,12 @@ void add_object(input* inp, const char* id, const char* name)
     size_t nkernels;
     const char** kernels;
     cl_mem meta_type_mem;
+    cl_mem meta_size_mem;
     cl_mem meta_npars_mem;
     char* meta_name;
     cl_kernel meta_kernel;
     cl_int meta_type;
+    cl_ulong meta_size;
     cl_ulong meta_npars;
     cl_mem params_mem;
     char* params_name;
@@ -93,8 +95,9 @@ void add_object(input* inp, const char* id, const char* name)
     
     // buffers for object meta-data
     meta_type_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int), NULL, NULL);
+    meta_size_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
     meta_npars_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
-    if(!meta_type_mem || !meta_npars_mem)
+    if(!meta_type_mem || !meta_size_mem || !meta_npars_mem)
         error("object %s: failed to create buffer for meta-data", id);
     
     // setup and run kernel to get meta_data
@@ -103,7 +106,8 @@ void add_object(input* inp, const char* id, const char* name)
     if(err != CL_SUCCESS)
         error("object %s: failed to create kernel for meta-data", id);
     err |= clSetKernelArg(meta_kernel, 0, sizeof(cl_mem), &meta_type_mem);
-    err |= clSetKernelArg(meta_kernel, 1, sizeof(cl_mem), &meta_npars_mem);
+    err |= clSetKernelArg(meta_kernel, 1, sizeof(cl_mem), &meta_size_mem);
+    err |= clSetKernelArg(meta_kernel, 2, sizeof(cl_mem), &meta_npars_mem);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for meta-data", id);
     err = clEnqueueTask(queue, meta_kernel, 0, NULL, NULL);
@@ -112,12 +116,14 @@ void add_object(input* inp, const char* id, const char* name)
     
     // get meta-data from buffer
     err |= clEnqueueReadBuffer(queue, meta_type_mem, CL_TRUE, 0, sizeof(cl_int), &meta_type, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, meta_size_mem, CL_TRUE, 0, sizeof(cl_ulong), &meta_size, 0, NULL, NULL);
     err |= clEnqueueReadBuffer(queue, meta_npars_mem, CL_TRUE, 0, sizeof(cl_ulong), &meta_npars, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to get meta-data", id);
     
     // set meta-data for object
     obj->type = meta_type;
+    obj->size = meta_size;
     obj->npars = meta_npars;
     
     // check meta-data
@@ -182,6 +188,7 @@ void add_object(input* inp, const char* id, const char* name)
     clReleaseKernel(meta_kernel);
     free(meta_name);
     clReleaseMemObject(meta_type_mem);
+    clReleaseMemObject(meta_size_mem);
     clReleaseMemObject(meta_npars_mem);
     for(int i = 0; i < nkernels; ++i)
         free((void*)kernels[i]);

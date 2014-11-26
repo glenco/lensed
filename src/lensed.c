@@ -22,8 +22,6 @@
 #include "log.h"
 #include "version.h"
 
-#define OBJECT_SIZE 64
-
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
     verbose("%s", errinfo);
@@ -42,8 +40,8 @@ int main(int argc, char* argv[])
     cl_context context;
     cl_program program;
     
-    // buffer for objest
-    cl_mem object_mem;
+    // buffer for object data
+    cl_mem data_mem;
     
     // maximum work-group size
     size_t max_wg_size;
@@ -81,10 +79,10 @@ int main(int argc, char* argv[])
     
     
     /****************
-     * OpenCL setup *
+     * kernel setup *
      ****************/
     
-    verbose("OpenCL setup");
+    verbose("kernel");
     
     {
         // TODO decide the type of worker
@@ -218,10 +216,15 @@ int main(int argc, char* argv[])
         clEnqueueUnmapMemObject(lensed.queue, lensed.ee, ee, 0, NULL, NULL);
     }
     
-    verbose("  create object buffer");
+    // collect total size of object data
+    size_t data_size = 0;
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        data_size += inp->objs[i].size;
     
-    // allocate buffer for objects
-    object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, inp->nobjs*OBJECT_SIZE, NULL, &err);
+    verbose("  create object data buffer");
+    
+    // allocate buffer for object data
+    data_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to create object buffer");
     
@@ -234,7 +237,7 @@ int main(int argc, char* argv[])
     
     // main kernel arguments
     err = 0;
-    err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &object_mem);
+    err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &data_mem);
     err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &lensed.indices);
     err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
     err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
@@ -246,42 +249,33 @@ int main(int argc, char* argv[])
     if(err != CL_SUCCESS)
         error("failed to set kernel arguments");
     
+    // sum number of parameters
+    lensed.nparams = 0;
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        lensed.nparams += inp->objs[i].npars;
     
-    /*******************
-     * parameter space *
-     *******************/
-    
-    verbose("parameter space");
-    
+    // create the buffer that will pass parameter values to objects
     {
-        // sum number of parameters
-        lensed.nparams = 0;
-        for(size_t i = 0; i < inp->nobjs; ++i)
-            lensed.nparams += inp->objs[i].npars;
+        verbose("  create parameter buffer");
         
-        verbose("  dimension: %d", lensed.nparams);
+        // create the memory containing physical parameters on the device
+        lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nparams*sizeof(cl_float), NULL, &err);
+        if(err != CL_SUCCESS)
+            error("failed to create buffer for parameters");
         
-        // create the buffer that will pass parameter values to objects
-        {
-            verbose("  create parameter space");
-            
-            // create the memory containing physical parameters on the device
-            lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nparams*sizeof(cl_float), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create buffer for parameter space");
-            
-            // create kernel
-            lensed.set_params = clCreateKernel(program, "set_params", &err);
-            if(err != CL_SUCCESS)
-                error("failed to create kernel for parameter space");
-            
-            // set kernel arguments
-            err = 0;
-            err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &lensed.params);
-            err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &object_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set kernel arguments for parameter space");
-        }
+        verbose("  create parameter kernel");
+        
+        // create kernel
+        lensed.set_params = clCreateKernel(program, "set_params", &err);
+        if(err != CL_SUCCESS)
+            error("failed to create kernel for parameters");
+        
+        // set kernel arguments
+        err = 0;
+        err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &data_mem);
+        err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &lensed.params);
+        if(err != CL_SUCCESS)
+            error("failed to set kernel arguments for parameters");
     }
     
     
@@ -342,8 +336,8 @@ int main(int argc, char* argv[])
     // free kernel
     clReleaseKernel(lensed.kernel);
     
-    // free object buffer
-    clReleaseMemObject(object_mem);
+    // free object data buffer
+    clReleaseMemObject(data_mem);
     
     // free points
     clReleaseMemObject(lensed.qq);

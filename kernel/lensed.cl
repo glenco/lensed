@@ -1,4 +1,4 @@
-kernel void lensed(constant object* objects, constant int2* indices,
+kernel void lensed(constant char* data, constant int2* indices,
     ulong nq, constant float2* aa, constant float* ww, constant float* ee,
     constant float* mean, constant float* variance, global float* loglike)
 {
@@ -19,7 +19,7 @@ kernel void lensed(constant object* objects, constant int2* indices,
     for(size_t j = 0; j < nq; ++j)
     {
         // compute surface brightness at point
-        f = compute(objects, x + aa[j]);
+        f = compute(data, x + aa[j]);
         
         // add to value and error
         val += ww[j]*f;
