@@ -29,6 +29,9 @@ typedef struct
     int maxiter;
 } options;
 
+// opaque type for priors
+typedef struct prior prior;
+
 // parameters for objects
 typedef struct
 {
@@ -38,13 +41,12 @@ typedef struct
     // label, used for output
     const char* label;
     
-    // prior definition
-    const char* prior;
+    // prior for parameter
+    prior* pri;
     
     // flag for wrap-around parameters
     int wrap;
 } param;
-
 
 // object types
 enum

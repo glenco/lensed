@@ -19,4 +19,4 @@ void free_param(param* par);
 void set_param_label(param* par, const char* label);
 
 // set parameter prior
-void set_param_prior(param* par, const char* prior);
+void set_param_prior(param* par, const char* pri);

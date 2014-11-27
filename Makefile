@@ -8,22 +8,28 @@ HEADERS = lensed.h \
           data.h \
           nested.h \
           quadrature.h \
+          prior.h \
+          parse.h \
           log.h \
           version.h \
           constants.h \
           input/objects.h \
           input/options.h \
-          input/ini.h
+          input/ini.h \
+          prior/unif.h
 SOURCES = lensed.c \
           input.c \
           kernel.c \
           data.c \
           nested.c \
           quadrature.c \
+          prior.c \
+          parse.c \
           log.c \
           input/objects.c \
           input/options.c \
-          input/ini.c
+          input/ini.c \
+          prior/unif.c
 
 
 ####

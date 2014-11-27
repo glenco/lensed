@@ -28,4 +28,5 @@ struct lensed
     size_t nparams;
     cl_mem params;
     cl_kernel set_params;
+    prior** pris;
 };

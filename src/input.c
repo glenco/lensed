@@ -7,6 +7,7 @@
 #include "input/objects.h"
 #include "input/options.h"
 #include "input/ini.h"
+#include "prior.h"
 #include "log.h"
 #include "version.h"
 
@@ -173,6 +174,12 @@ input* read_input(int argc, char* argv[])
     if(inp->nobjs == 0)
         error("no objects found");
     
+    // make sure that all parameters have priors
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        for(size_t j = 0; j < inp->objs[i].npars; ++j)
+            if(!inp->objs[i].pars[j].pri)
+                error("missing prior: %s.%s (check [priors] section)", inp->objs[i].id, inp->objs[i].pars[j].name);
+    
     // everything is fine
     return inp;
 }
@@ -197,19 +204,13 @@ void print_input(const input* inp)
             verbose("  %s = %s", inp->objs[i].id, inp->objs[i].name);
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
             {
-                size_t args = 0;
-                if(inp->objs[i].pars[j].label)
-                    args += 1;
-                if(inp->objs[i].pars[j].prior)
-                    args += 1;
-                if(args == 0)
-                    verbose("    %s", inp->objs[i].pars[j].name);
-                else if(args == 1 && inp->objs[i].pars[j].label)
-                    verbose("    %s, label = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label);
-                else if(args == 1 && inp->objs[i].pars[j].prior)
-                    verbose("    %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].prior);
-                else if(args == 2)
-                    verbose("    %s, label = %s, prior = %s", inp->objs[i].pars[j].name, inp->objs[i].pars[j].label, inp->objs[i].pars[j].prior);
+                char buf[100] = {0};
+                const char* lab;
+                
+                print_prior(inp->objs[i].pars[j].pri, buf, 99);
+                lab = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].name;
+                
+                verbose("    %s ~ %s", lab, buf);
             }
         }
     }
