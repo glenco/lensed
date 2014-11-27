@@ -79,6 +79,24 @@ int main(int argc, char* argv[])
     data* dat = read_data(inp);
     
     
+    /*******************
+     * parameter space *
+     *******************/
+    
+    // sum number of parameters
+    lensed.npars = 0;
+    for(size_t i = 0; i < inp->nobjs; ++i)
+        lensed.npars += inp->objs[i].npars;
+    
+    // get all priors that will be needed when running
+    lensed.pris = malloc(lensed.npars*sizeof(prior*));
+    if(!lensed.pris)
+        error("%s", strerror(errno));
+    for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
+        for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
+            lensed.pris[p] = inp->objs[i].pars[j].pri;
+    
+    
     /****************
      * kernel setup *
      ****************/
@@ -271,17 +289,12 @@ int main(int argc, char* argv[])
     if(err != CL_SUCCESS)
         error("failed to set kernel arguments");
     
-    // sum number of parameters
-    lensed.nparams = 0;
-    for(size_t i = 0; i < inp->nobjs; ++i)
-        lensed.nparams += inp->objs[i].npars;
-    
     // create the buffer that will pass parameter values to objects
     {
         verbose("  create parameter buffer");
         
         // create the memory containing physical parameters on the device
-        lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nparams*sizeof(cl_float), NULL, &err);
+        lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.npars*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create buffer for parameters");
         
@@ -300,21 +313,6 @@ int main(int argc, char* argv[])
             error("failed to set kernel arguments for parameters");
     }
     
-    // get all priors that will be needed when running
-    {
-        verbose("  collect priors");
-        
-        lensed.pris = malloc(lensed.nparams*sizeof(prior*));
-        if(!lensed.pris)
-            error("%s", strerror(errno));
-        
-        size_t p = 0;
-        
-        for(size_t i = 0; i < inp->nobjs; ++i)
-            for(size_t j = 0; j < inp->objs[i].npars; ++j)
-                lensed.pris[p++] = inp->objs[i].pars[j].pri;
-    }
-    
     
     /***************
      * ready to go *
@@ -323,7 +321,7 @@ int main(int argc, char* argv[])
     info("run MultiNest");
     
     // create array for parameter wrap-around
-    int* wrap = malloc(lensed.nparams*sizeof(int));
+    int* wrap = malloc(lensed.npars*sizeof(int));
     
     // collect wrap-around info from parameters
     {
@@ -334,7 +332,7 @@ int main(int argc, char* argv[])
     }
     
     // gather MultiNest options
-    int ndim = lensed.nparams;
+    int ndim = lensed.npars;
     int npar = ndim;
     int nclspar = ndim;
     double ztol = -1E90;

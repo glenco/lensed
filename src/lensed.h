@@ -2,6 +2,10 @@
 
 struct lensed
 {
+    // parameter space
+    size_t npars;
+    prior** pris;
+    
     // worker queue
     cl_command_queue queue;
     
@@ -21,12 +25,10 @@ struct lensed
     cl_mem ww;
     cl_mem ee;
     
-    // main kernels
+    // main kernel
     cl_kernel kernel;
     
-    // parameter space
-    size_t nparams;
-    cl_mem params;
+    // parameter kernel
     cl_kernel set_params;
-    prior** pris;
+    cl_mem params;
 };
