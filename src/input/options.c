@@ -15,6 +15,7 @@ struct option
     const char* name;
     const char* help;
     int required;
+    size_t depend;
     const char* type;
     int (*read)(void*, const char*);
     int (*write)(char*, const void*, size_t);
@@ -30,16 +31,17 @@ struct option
 };
 
 // mark option as required or optional
-#define OPTION_REQUIRED(type) 1, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_null = NULL }
-#define OPTION_OPTIONAL(type, value) 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
+#define OPTION_REQUIRED(type) 1, 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_null = NULL }
+#define OPTION_OPTIONAL(type, value) 0, 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
+#define OPTION_REQIFSET(type, value, depend) 2, offsetof(options, depend), #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
+#define OPTION_REQIFNOT(type, value, depend) 3, offsetof(options, depend), #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
 
 // get offset of option field in input
 #define OPTION_FIELD(field) offsetof(options, field), sizeof(((options*)0)->field)
 
-// macro to declare a new type
-#define DECLARE_TYPE(type) \
-    int read_##type(const char*, void*); \
-    int write_##type(char*, size_t, const void*);
+// get status of dependency
+#define OPTION_ISSET(options, offset) (*(int*)((char*)options + offset))
+#define OPTION_ISNOT(options, offset) (!*(int*)((char*)options + offset))
 
 // list of known options
 struct option OPTIONS[] = {
@@ -48,6 +50,18 @@ struct option OPTIONS[] = {
         "Enable computations on GPU",
         OPTION_OPTIONAL(bool, 1),
         OPTION_FIELD(gpu)
+    },
+    {
+        "output",
+        "Output results",
+        OPTION_OPTIONAL(bool, 1),
+        OPTION_FIELD(output)
+    },
+    {
+        "root",
+        "Root element for all output paths",
+        OPTION_REQIFSET(string, NULL, output),
+        OPTION_FIELD(root)
     },
     {
         "image",
@@ -66,12 +80,6 @@ struct option OPTIONS[] = {
         "Subtracted flat-field offset",
         OPTION_REQUIRED(real),
         OPTION_FIELD(offset)
-    },
-    {
-        "root",
-        "Root element for all output paths",
-        OPTION_REQUIRED(string),
-        OPTION_FIELD(root)
     },
     {
         "mask",
@@ -93,7 +101,7 @@ struct option OPTIONS[] = {
     },
     {
         "mmodal",
-        "Multi-modal posterior (if ins = false)",
+        "Mode separation (if ins = false)",
         OPTION_OPTIONAL(bool, 1),
         OPTION_FIELD(mmodal)
     },
@@ -144,12 +152,6 @@ struct option OPTIONS[] = {
         "Resume from last checkpoint",
         OPTION_OPTIONAL(bool, 0),
         OPTION_FIELD(resume),
-    },
-    {
-        "outfile",
-        "Output MultiNest files",
-        OPTION_OPTIONAL(bool, 0),
-        OPTION_FIELD(outfile)
     },
     {
         "maxiter",
@@ -272,6 +274,22 @@ const char* option_help(size_t n)
 int option_required(size_t n)
 {
     return OPTIONS[n].required;
+}
+
+int option_resolved(size_t n, options* opts, int reqs[])
+{
+    int res = 0;
+    
+    if(reqs[n] == 0)
+        res = 1;
+    else if(reqs[n] == 1)
+        res = 0;
+    else if(reqs[n] == 2)
+        res = !OPTION_ISSET(opts, OPTIONS[n].depend);
+    else if(reqs[n] == 3)
+        res = !OPTION_ISNOT(opts, OPTIONS[n].depend);
+    
+    return res;
 }
 
 int option_default_value(char* buf, size_t buf_size, size_t n)

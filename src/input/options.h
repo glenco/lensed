@@ -33,6 +33,9 @@ const char* option_help(size_t n);
 // return whether n'th option is required (true) or optional (false)
 int option_required(size_t n);
 
+// check whether option was not resolved
+int option_resolved(size_t n, options* opts, int reqs[]);
+
 // write default value of n'th option to buffer
 int option_default_value(char* buf, size_t buf_size, size_t n);
 

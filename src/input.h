@@ -5,6 +5,8 @@ typedef struct
 {
     // lensed
     int gpu;
+    int output;
+    char* root;
     
     // data
     char* image;
@@ -13,7 +15,6 @@ typedef struct
     double offset;
     
     // MultiNest
-    char* root;
     int nlive;
     int ins;
     int mmodal;
@@ -25,7 +26,6 @@ typedef struct
     int seed;
     int fb;
     int resume;
-    int outfile;
     int maxiter;
 } options;
 

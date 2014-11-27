@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
         main_program(inp->nobjs, inp->objs, &nkernels, &kernels);
         
         // output program
-        if(inp->opts->outfile)
+        if(inp->opts->output)
         {
             FILE* prg;
             char* prgname;
@@ -339,7 +339,8 @@ int main(int argc, char* argv[])
     int nclspar = ndim;
     double ztol = -1E90;
     char root[100] = {0};
-    strncpy(root, inp->opts->root, 99);
+    if(inp->opts->root)
+        strncpy(root, inp->opts->root, 99);
     int initmpi = 1;
     double logzero = -DBL_MAX;
     
@@ -350,7 +351,7 @@ int main(int argc, char* argv[])
     run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff, inp->opts->nlive,
         inp->opts->tol, inp->opts->eff, ndim, npar, nclspar,
         inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
-        wrap, inp->opts->fb, inp->opts->resume, inp->opts->outfile, initmpi,
+        wrap, inp->opts->fb, inp->opts->resume, inp->opts->output, initmpi,
         logzero, inp->opts->maxiter, loglike, dumper, &lensed);
     
     // take end time
