@@ -39,7 +39,7 @@ KERNEL_EXT = .cl
 ####
 
 # general settings
-CFLAGS = -std=c99 -Wall -O3 -pedantic
+CFLAGS = -std=c99 -Wall -Werror -O3 -pedantic
 CPPFLAGS = 
 LDFLAGS = -lm -lcfitsio -lmultinest
 
@@ -73,9 +73,11 @@ ECHO = echo
 # terminal styles
 ####
 
-STYLE_BOLD=`tput bold`
-STYLE_DARK=`tput dim`
-STYLE_RESET=`tput sgr0`
+ifdef TERM
+    STYLE_BOLD=`tput bold`
+    STYLE_DARK=`tput dim`
+    STYLE_RESET=`tput sgr0`
+endif
 
 
 ####
@@ -94,17 +96,8 @@ LENSED = $(BIN_DIR)/lensed
 all: $(LENSED)
 
 clean:
-	$(RM) $(CONFIG) $(OBJECTS) $(LENSED)
-
-$(LENSED): $(OBJECTS)
-	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
-	@$(MKDIR) $(@D)
-	@$(CC) $(LDFLAGS) -o $@ $^
-
-$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG)
-	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
-	@$(MKDIR) $(@D)
-	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
+	@$(ECHO) "cleaning"
+	@$(RM) $(CONFIG) $(OBJECTS) $(LENSED)
 
 $(CONFIG): Makefile
 	@$(ECHO) "creating $(STYLE_BOLD)$@$(STYLE_RESET)"
@@ -114,3 +107,13 @@ $(CONFIG): Makefile
 	@$(ECHO) "" >> $@
 	@$(ECHO) "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> $@
 	@$(ECHO) "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> $@
+
+$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG)
+	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
+	@$(MKDIR) $(@D)
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
+
+$(LENSED): $(OBJECTS)
+	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
+	@$(MKDIR) $(@D)
+	@$(CC) $(LDFLAGS) -o $@ $^
