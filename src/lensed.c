@@ -50,6 +50,11 @@ int main(int argc, char* argv[])
     // size of quadrature rule
     cl_ulong nq;
     
+    // buffers for main kernel
+    cl_mem indices;
+    cl_mem mean;
+    cl_mem variance;
+    
     
     /*****************
      * configuration *
@@ -76,7 +81,10 @@ int main(int argc, char* argv[])
      **************/
     
     // read data given in input
-    data* dat = read_data(inp);
+    lensed.dat = read_data(inp);
+    
+    // set global log-likelihood normalisation
+    lensed.lognorm = -log(inp->opts->gain);
     
     
     /*******************
@@ -88,6 +96,14 @@ int main(int argc, char* argv[])
     for(size_t i = 0; i < inp->nobjs; ++i)
         lensed.npars += inp->objs[i].npars;
     
+    // get all parameters
+    lensed.pars = malloc(lensed.npars*sizeof(param*));
+    if(!lensed.pars)
+        error("%s", strerror(errno));
+    for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
+        for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
+            lensed.pars[p] = &inp->objs[i].pars[j];
+    
     // get all priors that will be needed when running
     lensed.pris = malloc(lensed.npars*sizeof(prior*));
     if(!lensed.pris)
@@ -95,6 +111,43 @@ int main(int argc, char* argv[])
     for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             lensed.pris[p] = inp->objs[i].pars[j].pri;
+    
+    
+    /***********
+     * results *
+     ***********/
+    
+    // results file if output is enabled
+    if(inp->opts->output)
+    {
+        // prefix and suffix of results output file
+        const char prefix[] = "!";
+        const char suffix[] = ".fits";
+        
+        // allocate space for filename
+        char* fits = malloc(strlen(prefix) + strlen(inp->opts->root) + strlen(suffix) + 1);
+        
+        // create model filename
+        strcpy(fits, prefix);
+        strcat(fits, inp->opts->root);
+        strcat(fits, suffix);
+        
+        // set filename
+        lensed.fits = fits;
+    }
+    else
+    {
+        // no output
+        lensed.fits = NULL;
+    }
+    
+    // arrays for parameters
+    lensed.mean = malloc(lensed.npars*sizeof(double));
+    lensed.sigma = malloc(lensed.npars*sizeof(double));
+    lensed.ml = malloc(lensed.npars*sizeof(double));
+    lensed.map = malloc(lensed.npars*sizeof(double));
+    if(!lensed.mean || !lensed.sigma || !lensed.ml || !lensed.map)
+        error("%s", strerror(errno));
     
     
     /****************
@@ -184,36 +237,30 @@ int main(int argc, char* argv[])
     
     // allocate device memory for data
     {
-        // number of pixels
-        lensed.size = dat->size;
-        
         // number of work-items
-        lensed.nd = lensed.size;
+        lensed.nd = lensed.dat->size;
         
         // pad number of work-items to work-group size
         if(lensed.nd % max_wg_size)
             lensed.nd += max_wg_size - (lensed.nd % max_wg_size);
         
-        verbose("  number of pixels: %zu -> %zu", lensed.size, lensed.nd);
+        verbose("  number of pixels: %zu -> %zu", lensed.dat->size, lensed.nd);
         
         // allocate data buffers
-        lensed.indices = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_int2), NULL, NULL);
-        lensed.mean = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
-        lensed.variance = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
+        indices = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_int2), NULL, NULL);
+        mean = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
+        variance = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
         lensed.loglike = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nd*sizeof(cl_float), NULL, NULL);
-        if(!lensed.indices || !lensed.mean || !lensed.variance || !lensed.loglike)
+        if(!indices || !mean || !variance || !lensed.loglike)
             error("failed to allocate data buffers");
         
         // write data buffers
         err = 0;
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), dat->indices, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->mean, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, lensed.variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), dat->variance, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), lensed.dat->indices, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), lensed.dat->mean, 0, NULL, NULL);
+        err |= clEnqueueWriteBuffer(lensed.queue, variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), lensed.dat->variance, 0, NULL, NULL);
         if(err != CL_SUCCESS)
             error("failed to write data buffers");
-        
-        // set global log-likelihood normalisation
-        lensed.lognorm = -log(inp->opts->gain);
     }
     
     // generate quadrature rule
@@ -256,38 +303,44 @@ int main(int argc, char* argv[])
         clEnqueueUnmapMemObject(lensed.queue, lensed.ee, ee, 0, NULL, NULL);
     }
     
-    // collect total size of object data
-    size_t data_size = 0;
-    for(size_t i = 0; i < inp->nobjs; ++i)
-        data_size += inp->objs[i].size;
+    // create buffer that contains object data
+    {
+        // collect total size of object data
+        size_t data_size = 0;
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            data_size += inp->objs[i].size;
+        
+        verbose("  create object data buffer");
+        
+        // allocate buffer for object data
+        data_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, NULL, &err);
+        if(err != CL_SUCCESS)
+            error("failed to create object buffer");
+    }
     
-    verbose("  create object data buffer");
-    
-    // allocate buffer for object data
-    data_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, NULL, &err);
-    if(err != CL_SUCCESS)
-        error("failed to create object buffer");
-    
-    verbose("  create kernel");
-    
-    // main kernel 
-    lensed.kernel = clCreateKernel(program, "lensed", &err);
-    if(err != CL_SUCCESS)
-        error("failed to create lensed kernel");
-    
-    // main kernel arguments
-    err = 0;
-    err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &data_mem);
-    err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &lensed.indices);
-    err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
-    err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
-    err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &lensed.ww);
-    err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.ee);
-    err |= clSetKernelArg(lensed.kernel, 6, sizeof(cl_mem), &lensed.mean);
-    err |= clSetKernelArg(lensed.kernel, 7, sizeof(cl_mem), &lensed.variance);
-    err |= clSetKernelArg(lensed.kernel, 8, sizeof(cl_mem), &lensed.loglike);
-    if(err != CL_SUCCESS)
-        error("failed to set kernel arguments");
+    // create kernel
+    {
+        verbose("  create kernel");
+        
+        // main kernel 
+        lensed.kernel = clCreateKernel(program, "loglike", &err);
+        if(err != CL_SUCCESS)
+            error("failed to create loglike kernel");
+        
+        // main kernel arguments
+        err = 0;
+        err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &data_mem);
+        err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &indices);
+        err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
+        err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
+        err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &lensed.ww);
+        err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.ee);
+        err |= clSetKernelArg(lensed.kernel, 6, sizeof(cl_mem), &mean);
+        err |= clSetKernelArg(lensed.kernel, 7, sizeof(cl_mem), &variance);
+        err |= clSetKernelArg(lensed.kernel, 8, sizeof(cl_mem), &lensed.loglike);
+        if(err != CL_SUCCESS)
+            error("failed to set loglike kernel arguments");
+    }
     
     // create the buffer that will pass parameter values to objects
     {
@@ -313,12 +366,41 @@ int main(int argc, char* argv[])
             error("failed to set kernel arguments for parameters");
     }
     
+    // create dumper
+    {
+        verbose("  create dumper");
+        
+        // buffer for dumper data
+        lensed.dumper_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nd*sizeof(cl_float4), NULL, &err);
+        if(err != CL_SUCCESS)
+            error("failed to allocate dumper buffer");
+        
+        // dumper kernel 
+        lensed.dumper = clCreateKernel(program, "dumper", &err);
+        if(err != CL_SUCCESS)
+            error("failed to create dumper kernel");
+        
+        // dumper kernel arguments
+        err = 0;
+        err |= clSetKernelArg(lensed.dumper, 0, sizeof(cl_mem), &data_mem);
+        err |= clSetKernelArg(lensed.dumper, 1, sizeof(cl_mem), &indices);
+        err |= clSetKernelArg(lensed.dumper, 2, sizeof(cl_ulong), &nq);
+        err |= clSetKernelArg(lensed.dumper, 3, sizeof(cl_mem), &lensed.qq);
+        err |= clSetKernelArg(lensed.dumper, 4, sizeof(cl_mem), &lensed.ww);
+        err |= clSetKernelArg(lensed.dumper, 5, sizeof(cl_mem), &lensed.ee);
+        err |= clSetKernelArg(lensed.dumper, 6, sizeof(cl_mem), &mean);
+        err |= clSetKernelArg(lensed.dumper, 7, sizeof(cl_mem), &variance);
+        err |= clSetKernelArg(lensed.dumper, 8, sizeof(cl_mem), &lensed.dumper_mem);
+        if(err != CL_SUCCESS)
+            error("failed to set dumper kernel arguments");
+    }
+    
     
     /***************
      * ready to go *
      ***************/
     
-    info("run MultiNest");
+    info("find posterior");
     
     // create array for parameter wrap-around
     int* wrap = malloc(lensed.npars*sizeof(int));
@@ -355,17 +437,55 @@ int main(int argc, char* argv[])
     // take end time
     time_t end = time(0);
     
+    // map output from device
+    cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.nd*sizeof(cl_float4), 0, NULL, NULL, &err);
+    if(err != CL_SUCCESS)
+        error("failed to map dumper buffer");
+    
+    // compute chi^2/dof
+    double chi2_dof = 0;
+    for(size_t i = 0; i < lensed.dat->size; ++i)
+        chi2_dof += output[i].s[3];
+    chi2_dof /= lensed.dat->size - lensed.npars;
+    
+    // unmap output
+    clEnqueueUnmapMemObject(lensed.queue, lensed.dumper_mem, output, 0, NULL, NULL);
+    
     // duration
     double dur = difftime(end, start);
     
     // output duration
-    info("run took %02d:%02d:%02d",
+    info("done in %02d:%02d:%02d",
          (int)(dur/3600),
          (int)(fmod(dur, 3600)/60),
          (int)fmod(dur, 60));
     
-    // free parameter space
+    // summary statistics
+    info("summary");
+    info("  ");
+    info(LOG_BOLD "  evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed.logev_ins : lensed.logev, lensed.logev_err);
+    info(LOG_BOLD "  max logP: " LOG_RESET "%.4f", lensed.max_loglike);
+    info(LOG_BOLD "  chi²/dof: " LOG_RESET "%.4f", chi2_dof);
+    info("  ");
+    
+    // parameter table
+    info("parameters");
+    info("  ");
+    info(LOG_BOLD "  %-10s  %10s  %10s  %10s  %10s" LOG_RESET, "parameter", "mean", "sigma", "ML", "MAP");
+    info("  ----------------------------------------------------------");
+    for(size_t i = 0; i < lensed.npars; ++i)
+        if(lensed.pars[i]->label)
+            info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
+    info("  ");
+    
+    // free MultiNest data
     free(wrap);
+    
+    // free dumper
+    clReleaseKernel(lensed.dumper);
+    clReleaseMemObject(lensed.dumper_mem);
+    
+    // free parameter space
     clReleaseMemObject(lensed.params);
     clReleaseKernel(lensed.set_params);
     
@@ -381,16 +501,24 @@ int main(int argc, char* argv[])
     clReleaseMemObject(lensed.ee);
     
     // free data
-    clReleaseMemObject(lensed.mean);
-    clReleaseMemObject(lensed.variance);
+    clReleaseMemObject(indices);
+    clReleaseMemObject(mean);
+    clReleaseMemObject(variance);
     
     // free worker
     clReleaseProgram(program);
     clReleaseCommandQueue(lensed.queue);
     clReleaseContext(context);
     
+    // free results
+    free((char*)lensed.fits);
+    free(lensed.mean);
+    free(lensed.sigma);
+    free(lensed.ml);
+    free(lensed.map);
+    
     // free data
-    free_data(dat);
+    free_data(lensed.dat);
     
     // free input
     free_input(inp);

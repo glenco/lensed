@@ -17,6 +17,5 @@ data* read_data(const input* inp);
 // free all memory allocated by data
 void free_data(data* dat);
 
-// write data to FITS file
-void write_data(const char* filename, size_t width, size_t height,
-                size_t size, size_t num, cl_float* data[], cl_uint2 indices[]);
+// write output to FITS file
+void write_output(const char* filename, const data* dat, size_t num, cl_float4* output);

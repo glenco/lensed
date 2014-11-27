@@ -206,23 +206,22 @@ data* read_data(const input* inp)
     return d;
 }
 
-void write_data(const char* filename, size_t width, size_t height,
-                size_t size, size_t num, cl_float* data[], cl_uint2 indices[])
+void write_output(const char* filename, const data* dat, size_t num, cl_float4* output)
 {
     double** images = malloc(num*sizeof(double*));
     
     for(size_t n = 0; n < num; ++n)
     {
         // allocate image filled with zeros
-        images[n] = calloc(width*height, sizeof(double));
+        images[n] = calloc(dat->width*dat->height, sizeof(double));
         
         // set pixels
-        for(size_t i = 0; i < size; ++i)
-            images[n][(indices[i].s[1]-1)*width+(indices[i].s[0]-1)] = data[n][i];
+        for(size_t i = 0; i < dat->size; ++i)
+            images[n][(dat->indices[i].s[1]-1)*dat->width+(dat->indices[i].s[0]-1)] = output[i].s[n];
     }
     
     // write FITS file
-    write_fits(filename, width, height, num, images);
+    write_fits(filename, dat->width, dat->height, num, images);
     
     for(size_t n = 0; n < num; ++n)
         free(images[n]);
