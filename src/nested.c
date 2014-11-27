@@ -10,53 +10,20 @@
 #include <CL/cl.h>
 #endif
 
+#include "input.h"
+#include "prior.h"
 #include "lensed.h"
 #include "nested.h"
 #include "constants.h"
 #include "log.h"
-
-/* TODO dynamic prior selection */
-void priors(double cube[])
-{
-#if 1
-    /* lens */
-    cube[0] = 45. + 10*cube[0],
-    cube[1] = 45. + 10*cube[1],
-    cube[2] = 12. + 10*cube[2],
-    cube[3] = cube[3],
-    cube[4] = PI*cube[4],
-    /* source */
-    cube[5] = 40. + 20*cube[5];
-    cube[6] = 40. + 20*cube[6];
-    cube[7] = 5*cube[7];
-    cube[8] = 5*cube[8];
-    cube[9] = 0.5 + 7.5*cube[9];
-    cube[10] = cube[10];
-    cube[11] = PI*cube[11];
-#else
-    /* lens */
-    cube[0] = 50.5;
-    cube[1] = 50.5;
-    cube[2] = 17.4381;
-    cube[3] = 0.75;
-    cube[4] = 2.35619;
-    /* source */
-    cube[5] = 51.7637;
-    cube[6] = 49.933;
-    cube[7] = 2.04882;
-    cube[8] = 3.074;
-    cube[9] = 7.159;
-    cube[10] = 0.923181;
-    cube[11] = 2.43091;
-#endif
-}
 
 void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
 {
     struct lensed* lensed = lensed_;
     
     // transform from unit cube to physical
-    priors(cube);
+    for(size_t i = 0; i < lensed->nparams; ++i)
+        apply_prior(lensed->pris[i], &cube[i]);
     
     // error flag
     cl_int err = 0;

@@ -300,6 +300,21 @@ int main(int argc, char* argv[])
             error("failed to set kernel arguments for parameters");
     }
     
+    // get all priors that will be needed when running
+    {
+        verbose("  collect priors");
+        
+        lensed.pris = malloc(lensed.nparams*sizeof(prior*));
+        if(!lensed.pris)
+            error("%s", strerror(errno));
+        
+        size_t p = 0;
+        
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+                lensed.pris[p++] = inp->objs[i].pars[j].pri;
+    }
+    
     
     /***************
      * ready to go *

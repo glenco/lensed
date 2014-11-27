@@ -10,6 +10,7 @@
 #endif
 
 #include "../input.h"
+#include "../prior.h"
 #include "objects.h"
 #include "../kernel.h"
 #include "../log.h"
@@ -173,7 +174,7 @@ void add_object(input* inp, const char* id, const char* name)
         obj->pars[i].label = NULL;
         
         // no prior is set
-        obj->pars[i].prior = NULL;
+        obj->pars[i].pri = NULL;
         
         // wrap-around
         obj->pars[i].wrap = params[i].wrap;
@@ -241,7 +242,7 @@ param* find_param(object* obj, const char* name)
 void free_param(param* par)
 {
     free((char*)par->label);
-    free((char*)par->prior);
+    free_prior(par->pri);
 }
 
 void set_param_label(param* par, const char* label)
@@ -255,13 +256,8 @@ void set_param_label(param* par, const char* label)
     strcpy((char*)par->label, label);
 }
 
-void set_param_prior(param* par, const char* prior)
+void set_param_prior(param* par, const char* str)
 {
-    // allocate space for string
-    par->prior = realloc((char*)par->prior, strlen(prior) + 1);
-    if(!par->prior)
-        error("could not set parameter prior \"%s\": %s", prior, strerror(errno));
-    
-    // copy prior to param
-    strcpy((char*)par->prior, prior);
+    // parse prior
+    par->pri = read_prior(str);
 }
