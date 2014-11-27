@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <limits.h>
 
 #include "../input.h"
 #include "options.h"
+#include "../parse.h"
 #include "../log.h"
 
 // information about input option
@@ -16,8 +16,8 @@ struct option
     const char* help;
     int required;
     const char* type;
-    int (*read)(const char*, void*);
-    int (*write)(char*, size_t, const void*);
+    int (*read)(void*, const char*);
+    int (*write)(char*, const void*, size_t);
     union {
         void* default_null;
         const char* default_string;
@@ -30,8 +30,8 @@ struct option
 };
 
 // mark option as required or optional
-#define OPTION_REQUIRED(type) 1, #type, read_##type, write_##type, { .default_null = NULL }
-#define OPTION_OPTIONAL(type, value) 0, #type, read_##type, write_##type, { .default_##type = value }
+#define OPTION_REQUIRED(type) 1, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_null = NULL }
+#define OPTION_OPTIONAL(type, value) 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
 
 // get offset of option field in input
 #define OPTION_FIELD(field) offsetof(options, field), sizeof(((options*)0)->field)
@@ -40,12 +40,6 @@ struct option
 #define DECLARE_TYPE(type) \
     int read_##type(const char*, void*); \
     int write_##type(char*, size_t, const void*);
-
-// declare known option types
-DECLARE_TYPE(string)
-DECLARE_TYPE(bool)
-DECLARE_TYPE(int)
-DECLARE_TYPE(real)
 
 // list of known options
 struct option OPTIONS[] = {
@@ -244,7 +238,7 @@ int read_option_n(input* inp, const char* name, int n, const char* value)
     }
     
     // try to read option and return eventual errors
-    if(OPTIONS[opt].read(value, (char*)inp->opts + OPTIONS[opt].offset))
+    if(OPTIONS[opt].read((char*)inp->opts + OPTIONS[opt].offset, value))
     {
         snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "option %.*s: invalid value: %s (should be %s)", n, name, value, OPTIONS[opt].type);
         return 1;
@@ -289,91 +283,10 @@ int option_required(size_t n)
 
 int option_default_value(char* buf, size_t buf_size, size_t n)
 {
-    return OPTIONS[n].write(buf, buf_size, &OPTIONS[n].default_value);
+    return OPTIONS[n].write(buf, &OPTIONS[n].default_value, buf_size);
 }
 
 int option_value(char* buf, size_t buf_size, const input* inp, size_t n)
 {
-    return OPTIONS[n].write(buf, buf_size, (char*)inp->opts + OPTIONS[n].offset);
+    return OPTIONS[n].write(buf, (char*)inp->opts + OPTIONS[n].offset, buf_size);
 }
-
-// begin implementation of option types
-
-int read_string(const char* in, void* out)
-{
-    char** out_str = out;
-    *out_str = malloc(strlen(in) + 1);
-    strcpy(*out_str, in);
-    return 0;
-}
-
-int write_string(char* out, size_t n, const void* in)
-{
-    char* const* in_str = in;
-    snprintf(out, n, "%s", *in_str ? *in_str : "(none)");
-    return 0;
-}
-
-int read_bool(const char* in, void* out)
-{
-    int* out_bool = out;
-    if(
-        strcmp(in, "true") == 0 ||
-        strcmp(in, "TRUE") == 0 ||
-        strcmp(in, "1") == 0
-    )
-        *out_bool = 1;
-    else if(
-        strcmp(in, "false") == 0 ||
-        strcmp(in, "FALSE") == 0 ||
-        strcmp(in, "0") == 0
-    )
-        *out_bool = 0;
-    else
-        return 1;
-    return 0;
-}
-
-int write_bool(char* out, size_t n, const void* in)
-{
-    const int* in_bool = in;
-    snprintf(out, n, "%s", *in_bool ? "true" : "false");
-    return 0;
-}
-
-int read_int(const char* in, void* out)
-{
-    int* out_int = out;
-    char* end;
-    long l = strtol(in, &end, 10);
-    if(*end || l < INT_MIN || l > INT_MAX)
-        return 1;
-    *out_int = l;
-    return 0;
-}
-
-int write_int(char* out, size_t n, const void* in)
-{
-    const int* in_int = in;
-    snprintf(out, n, "%d", *in_int);
-    return 0;
-}
-
-int read_real(const char* in, void* out)
-{
-    double* out_double = out;
-    char* end;
-    *out_double = strtod(in, &end);
-    if(*end)
-        return 1;
-    return 0;
-}
-
-int write_real(char* out, size_t n, const void* in)
-{
-    const double* in_double = in;
-    snprintf(out, n, "%g", *in_double);
-    return 0;
-}
-
-// end implementation of option types

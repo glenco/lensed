@@ -8,6 +8,7 @@ HEADERS = lensed.h \
           data.h \
           nested.h \
           quadrature.h \
+          parse.h \
           log.h \
           version.h \
           constants.h \
@@ -20,6 +21,7 @@ SOURCES = lensed.c \
           data.c \
           nested.c \
           quadrature.c \
+          parse.c \
           log.c \
           input/objects.c \
           input/options.c \
