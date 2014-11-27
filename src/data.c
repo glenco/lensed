@@ -234,4 +234,5 @@ void free_data(data* d)
     free(d->mean);
     free(d->variance);
     free(d->indices);
+    free(d);
 }
