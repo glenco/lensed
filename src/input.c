@@ -166,13 +166,13 @@ input* read_input(int argc, char* argv[])
     }
     
     // make sure all required options are set
-    size_t err = check_options(inp);
-    if(err != -1)
-        error("required option \"%s\" not set", option_name(err));
+    for(size_t i = 0, n = noptions(); i < n; ++i)
+        if(inp->reqs[i])
+            error("missing required option: %s", option_name(i));
     
     // make sure that some objects are given
     if(inp->nobjs == 0)
-        error("no objects found");
+        error("no objects were given (check [objects] section)");
     
     // make sure that all parameters have priors
     for(size_t i = 0; i < inp->nobjs; ++i)
@@ -224,4 +224,6 @@ void free_input(input* inp)
     for(size_t i = 0; i < inp->nobjs; ++i)
         free_object(&inp->objs[i]);
     free(inp->objs);
+    
+    free(inp);
 }

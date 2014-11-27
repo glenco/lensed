@@ -6,9 +6,6 @@ options* create_options();
 // free all memory allocated for options
 void free_options(options* opts);
 
-// make sure all required options are set
-size_t check_options(const input* inp);
-
 // set default options in input
 void default_options(input* inp);
 

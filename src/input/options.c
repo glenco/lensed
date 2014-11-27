@@ -169,7 +169,7 @@ options* create_options()
 {
     options* opts = malloc(sizeof(options));
     if(!opts)
-        error("could not create options: %s", strerror(errno));
+        error("%s", strerror(errno));
     memset(opts, 0, sizeof(options));
     return opts;
 }
@@ -179,14 +179,7 @@ void free_options(options* opts)
     free(opts->image);
     free(opts->mask);
     free(opts->root);
-}
-
-size_t check_options(const input* inp)
-{
-    for(size_t i = 0; i < NOPTIONS; ++i)
-        if(inp->reqs[i])
-            return i;
-    return -1;
+    free(opts);
 }
 
 void default_options(input* inp)
