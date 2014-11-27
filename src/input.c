@@ -165,9 +165,9 @@ input* read_input(int argc, char* argv[])
         }
     }
     
-    // make sure all required options are set
+    // make sure all required options are resolved
     for(size_t i = 0, n = noptions(); i < n; ++i)
-        if(inp->reqs[i])
+        if(!option_resolved(i, inp->opts, inp->reqs))
             error("missing required option: %s", option_name(i));
     
     // make sure that some objects are given
