@@ -50,6 +50,12 @@ DECLARE_TYPE(real)
 // list of known options
 struct option OPTIONS[] = {
     {
+        "gpu",
+        "Enable computations on GPU",
+        OPTION_OPTIONAL(bool, 1),
+        OPTION_FIELD(gpu)
+    },
+    {
         "image",
         "Input image, FITS file in counts/sec",
         OPTION_REQUIRED(string),

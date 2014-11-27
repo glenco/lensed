@@ -86,12 +86,9 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
-        // TODO decide the type of worker
-        int gpu = 1;
+        verbose("  device: %s", inp->opts->gpu ? "GPU" : "CPU");
         
-        verbose("  device: %s", gpu ? "GPU" : "CPU");
-        
-        err = clGetDeviceIDs(NULL, gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
+        err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
         if(err != CL_SUCCESS)
             error("failed to get device");
         
