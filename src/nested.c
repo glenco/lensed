@@ -22,17 +22,17 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     struct lensed* lensed = lensed_;
     
     // transform from unit cube to physical
-    for(size_t i = 0; i < lensed->nparams; ++i)
+    for(size_t i = 0; i < lensed->npars; ++i)
         apply_prior(lensed->pris[i], &cube[i]);
     
     // error flag
     cl_int err = 0;
     
     // map parameter space on device
-    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->nparams*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, NULL, &err);
     
     // copy parameters to device
-    for(int i = 0; i < lensed->nparams; ++i)
+    for(int i = 0; i < lensed->npars; ++i)
         params[i] = cube[i];
     
     // done with parameter space

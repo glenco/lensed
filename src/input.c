@@ -200,17 +200,20 @@ void print_input(const input* inp)
         
         verbose("objects");
         for(size_t i = 0; i < inp->nobjs; ++i)
-        {
             verbose("  %s = %s", inp->objs[i].id, inp->objs[i].name);
-            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+        
+        verbose("parameters");
+        for(size_t i = 0, p = 1; i < inp->nobjs; ++i)
+        {
+            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             {
                 char buf[100] = {0};
-                const char* lab;
-                
                 print_prior(inp->objs[i].pars[j].pri, buf, 99);
-                lab = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].name;
                 
-                verbose("    %s ~ %s", lab, buf);
+                if(inp->objs[i].pars[j].label)
+                    verbose("  %zu: %s ~ %s", p, inp->objs[i].pars[j].label, buf);
+                else
+                    verbose("  %zu: %s.%s ~ %s", p, inp->objs[i].name, inp->objs[i].pars[j].name, buf);
             }
         }
     }
