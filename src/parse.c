@@ -4,6 +4,13 @@
 #include <limits.h>
 
 #include "parse.h"
+#include "constants.h"
+
+// list of constants for reals
+static const struct { const char* name; double value; } REAL_CONSTS[] = {
+    { "pi", PI }
+};
+static const size_t NREAL_CONSTS = sizeof(REAL_CONSTS)/sizeof(REAL_CONSTS[0]);
 
 int read_string(char** out, const char* in)
 {
@@ -54,9 +61,21 @@ int write_int(char* out, const int* in, size_t n)
 int read_real(double* out, const char* in)
 {
     char* end;
+    
     *out = strtod(in, &end);
     if(*end)
-        return 1;
+    {
+        size_t i;
+        for(i = 0; i < NREAL_CONSTS; ++i)
+            if(strcmp(end, REAL_CONSTS[i].name) == 0)
+                break;
+        if(i == NREAL_CONSTS)
+            return 1;
+        if(end == in)
+            *out = REAL_CONSTS[i].value;
+        else
+            *out *= REAL_CONSTS[i].value;
+    }
     return 0;
 }
 
