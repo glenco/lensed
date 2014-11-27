@@ -42,7 +42,7 @@ static void set_sersic(global struct sersic* src, float x, float y, float r, flo
     
     src->cos = cos(pa);
     src->sin = sin(pa);
-    src->log0 = 0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - log(q) - 2*log(r) - log(tgamma(2*n+1));
+    src->log0 = -0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - log(q) - 2*log(r) - log(tgamma(2*n+1));
     src->log1 = log(b) - log(r)/n;
     src->m = 0.5f/n;
 }
