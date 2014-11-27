@@ -135,7 +135,7 @@ data* read_data(const input* inp)
     read_fits(inp->opts->image, &d->width, &d->height, &image);
     
     verbose("image");
-    verbose("  dimensions = %zux%zu)", d->width, d->height);
+    verbose("  dimensions = %zux%zu", d->width, d->height);
     
     /* total number of pixels */
     ntot = d->width*d->height;
@@ -150,7 +150,7 @@ data* read_data(const input* inp)
         
         /* make sure mask and image dimensions match if given */
         if(mask && (mx != d->width || my != d->height))
-            error("mask dimensions %zux%zu should match image dimensions %zux%zu)", mx, my, d->width, d->height);
+            error("mask dimensions %zux%zu should match image dimensions %zux%zu", mx, my, d->width, d->height);
         
         verbose("  masked");
         
