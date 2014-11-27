@@ -3,6 +3,9 @@
 // options
 typedef struct
 {
+    // lensed
+    int gpu;
+    
     // data
     char* image;
     char* mask;
