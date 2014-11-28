@@ -1,26 +1,28 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+#include <errno.h>
 
 #include "log.h"
 
-/* global log-level */
+// global log-level
 enum log_level LOG_LEVEL = LOG_INFO;
 
-/* set log level */
+// set log level
 void log_level(enum log_level log_level)
 {
     LOG_LEVEL = log_level;
 }
 
-/* log verbose */
+// log verbose
 void verbose(const char* msg, ...)
 {
     if(LOG_LEVEL <= LOG_VERBOSE)
     {
         va_list args;
         va_start(args, msg);
-
+        
         fprintf(stdout, LOG_DARK);
         vfprintf(stdout, msg, args);
         fprintf(stdout, LOG_RESET "\n");
@@ -29,7 +31,7 @@ void verbose(const char* msg, ...)
     }
 }
 
-/* log info */
+// log info
 void info(const char* msg, ...)
 {
     if(LOG_LEVEL <= LOG_INFO)
@@ -44,7 +46,7 @@ void info(const char* msg, ...)
     }
 }
 
-/* log warning */
+// log warning
 void warn(const char* msg, ...)
 {
     if(LOG_LEVEL <= LOG_WARN)
@@ -52,7 +54,7 @@ void warn(const char* msg, ...)
         va_list args;
         va_start(args, msg);
         
-        fprintf(stderr, "WARNING: ");
+        fprintf(stderr, LOG_BOLD "warning: " LOG_RESET);
         vfprintf(stderr, msg, args);
         fprintf(stderr, "\n");
         
@@ -66,7 +68,7 @@ void warn(const char* msg, ...)
     }
 }
 
-/* log error and exit */
+// log error and exit
 void error(const char* msg, ...)
 {
     if(LOG_LEVEL <= LOG_ERROR)
@@ -74,7 +76,7 @@ void error(const char* msg, ...)
         va_list args;
         va_start(args, msg);
         
-        fprintf(stderr, "ERROR: ");
+        fprintf(stderr, LOG_BOLD "error: " LOG_RESET);
         vfprintf(stderr, msg, args);
         fprintf(stderr, "\n");
         
@@ -84,7 +86,7 @@ void error(const char* msg, ...)
     exit(EXIT_FAILURE);
 }
 
-/* log file error and exit */
+// log file error and exit
 void errorf(const char* file, size_t line, const char* msg, ...)
 {
     if(LOG_LEVEL <= LOG_ERROR)
@@ -97,11 +99,34 @@ void errorf(const char* file, size_t line, const char* msg, ...)
         va_list args;
         va_start(args, msg);
         
-        fprintf(stderr, "ERROR: ");
+        fprintf(stderr, LOG_BOLD "error: " LOG_RESET);
         vfprintf(stderr, msg, args);
         fprintf(stderr, "\n");
         
         va_end(args);
+    }
+    
+    exit(EXIT_FAILURE);
+}
+
+// log internal error and exit
+void errori(const char* msg, ...)
+{
+    if(LOG_LEVEL <= LOG_ERROR)
+    {
+        fprintf(stderr, LOG_BOLD "error: " LOG_RESET);
+        
+        if(msg)
+        {
+            va_list args;
+            va_start(args, msg);
+            vfprintf(stderr, msg, args);
+            fprintf(stderr, ": ");
+            va_end(args);
+        }
+        
+        fprintf(stderr, "%s", strerror(errno));
+        fprintf(stderr, "\n");
     }
     
     exit(EXIT_FAILURE);

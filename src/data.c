@@ -1,6 +1,4 @@
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -121,7 +119,7 @@ data* read_data(const input* inp)
     // try to allocate memory for data
     data* d = malloc(sizeof(data));
     if(!d)
-        error("could not create data: %s", strerror(errno));
+        errori("could not create data");
     
     // image and mask arrays
     double* image;
