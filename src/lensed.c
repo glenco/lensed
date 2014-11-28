@@ -473,8 +473,7 @@ int main(int argc, char* argv[])
     info(LOG_BOLD "  %-10s  %10s  %10s  %10s  %10s" LOG_RESET, "parameter", "mean", "sigma", "ML", "MAP");
     info("  ----------------------------------------------------------");
     for(size_t i = 0; i < lensed.npars; ++i)
-        if(lensed.pars[i]->label)
-            info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
+        info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
     info("  ");
     
     // write parameter names and labels to file
@@ -495,16 +494,8 @@ int main(int argc, char* argv[])
             errori("could not write %s", name);
         
         for(size_t i = 0; i < inp->nobjs; ++i)
-        {
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
-            {
-                int width = fprintf(file, "%s.%s", inp->objs[i].name, inp->objs[i].pars[j].name);
-                fprintf(file, "%*s", width < 20 ? 20 - width : 0, " ");
-                if(inp->objs[i].pars[j].label)
-                    fprintf(file, "%s", inp->objs[i].pars[j].label);
-                fprintf(file, "\n");
-            }
-        }
+                fprintf(file, "%-20s  %s\n", inp->objs[i].pars[j].id, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : "");
         
         fclose(file);
         free(name);

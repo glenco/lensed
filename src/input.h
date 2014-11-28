@@ -35,8 +35,11 @@ typedef struct prior prior;
 // parameters for objects
 typedef struct
 {
-    // name of parameter, used as identifier
+    // name of parameter
     char name[32];
+    
+    // identifier of parameter
+    const char* id;
     
     // label, used for output
     const char* label;
