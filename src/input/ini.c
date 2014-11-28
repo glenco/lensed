@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #include "../input.h"
 #include "objects.h"
@@ -96,7 +95,7 @@ void read_ini(const char* ini, input* inp)
     // try to open file
     file = fopen(ini, "r");
     if(!file)
-        errorf(ini, 0, 0, "%s", strerror(errno));
+        errori(NULL);
     
     // start with first line
     line = 0;
@@ -217,7 +216,7 @@ void read_ini(const char* ini, input* inp)
     
     // check abort condition for errors
     if(ferror(file))
-        errorf(ini, line, "%s", strerror(errno));
+        errori(NULL);
     
     // close ini file
     fclose(file);

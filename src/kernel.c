@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <math.h>
 
 #include "input.h"
@@ -136,7 +135,7 @@ static const char* str_replace(const char* str, const char* search, const char* 
     // step 3: allocate buffer
     buf = malloc(buf_size);
     if(!buf)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     // step 4: copy string and replace
     pos = in = str;
@@ -218,7 +217,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // allocate buffer
     buf = malloc(buf_size);
     if(!buf)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     // start at beginning of data block
     d = 0;
@@ -232,13 +231,13 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // write file header
     wri = sprintf(out, FILEHEAD, "compute");
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write header
     wri = sprintf(out, COMPHEAD);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write body
@@ -252,7 +251,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             {
                 wri = sprintf(out, COMPDEFL);
                 if(wri < 0)
-                    error("%s", strerror(errno));
+                    errori(NULL);
                 out += wri;
             }
             
@@ -262,7 +261,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             else
                 wri = sprintf(out, COMPSHED);
             if(wri < 0)
-                error("%s", strerror(errno));
+                errori(NULL);
             out += wri;
             
             // new type
@@ -275,7 +274,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         else
             wri = sprintf(out, COMPSRCE, objs[i].name, d);
         if(wri < 0)
-            error("%s", strerror(errno));
+            errori(NULL);
         out += wri;
         
         // advance data pointer
@@ -285,13 +284,13 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // write footer
     wri = sprintf(out, COMPFOOT);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write file footer
     wri = sprintf(out, FILEFOOT);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // this is our code
@@ -337,7 +336,7 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // allocate buffer
     buf = malloc(buf_size);
     if(!buf)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     // start at beginning of data and parameters
     p = d = 0;
@@ -348,13 +347,13 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // write file header
     wri = sprintf(out, FILEHEAD, "set_params");
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write header
     wri = sprintf(out, SETPHEAD);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write body
@@ -363,7 +362,7 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
         // write left side of line
         wri = sprintf(out, SETPLEFT, objs[i].name, d);
         if(wri < 0)
-            error("%s", strerror(errno));
+            errori(NULL);
         out += wri;
         
         // write arguments
@@ -371,14 +370,14 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
         {
             wri = sprintf(out, SETPARGS, p+j);
             if(wri < 0)
-                error("%s", strerror(errno));
+                errori(NULL);
             out += wri;
         }
         
         // write left side of line
         wri = sprintf(out, SETPRGHT);
         if(wri < 0)
-            error("%s", strerror(errno));
+            errori(NULL);
         out += wri;
         
         // increase offsets
@@ -389,13 +388,13 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // write footer
     wri = sprintf(out, SETPFOOT);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // write file footer
     wri = sprintf(out, FILEFOOT);
     if(wri < 0)
-        error("%s", strerror(errno));
+        errori(NULL);
     out += wri;
     
     // this is our code
@@ -441,7 +440,7 @@ static const char* load_kernel(const char* name)
     // try to allocate buffer
     buf = malloc(buf_size);
     if(!buf)
-        error("kernel %s: %s", name, strerror(errno));
+        errori("kernel %s", name);
     
     // start at beginning
     out = buf;
@@ -449,7 +448,7 @@ static const char* load_kernel(const char* name)
     // write file header
     wri = sprintf(out, FILEHEAD, name);
     if(wri < 0)
-        error("kernel %s: %s", name, strerror(errno));
+        errori("kernel %s", name);
     out += wri;
     
     // write file
@@ -460,7 +459,7 @@ static const char* load_kernel(const char* name)
     // write file footer
     wri = sprintf(out, FILEFOOT);
     if(wri < 0)
-        error("kernel %s: %s", name, strerror(errno));
+        errori("kernel %s", name);
     out += wri;
     
     // clean up

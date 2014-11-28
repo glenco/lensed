@@ -1,7 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <errno.h>
 
 #include "unif.h"
 #include "../parse.h"
@@ -32,7 +30,7 @@ void* read_prior_unif(size_t nargs, const char* argv[])
     
     unif = malloc(sizeof(struct uniform));
     if(!unif)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     unif->a = a;
     unif->b = b;

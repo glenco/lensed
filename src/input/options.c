@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #include "../input.h"
 #include "options.h"
@@ -171,7 +170,7 @@ options* create_options()
 {
     options* opts = malloc(sizeof(options));
     if(!opts)
-        error("%s", strerror(errno));
+        errori(NULL);
     memset(opts, 0, sizeof(options));
     return opts;
 }

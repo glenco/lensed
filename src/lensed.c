@@ -1,8 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <float.h>
 #include <string.h>
-#include <errno.h>
+#include <float.h>
 #include <math.h>
 #include <time.h>
 
@@ -99,7 +98,7 @@ int main(int argc, char* argv[])
     // get all parameters
     lensed.pars = malloc(lensed.npars*sizeof(param*));
     if(!lensed.pars)
-        error("%s", strerror(errno));
+        errori(NULL);
     for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             lensed.pars[p] = &inp->objs[i].pars[j];
@@ -107,7 +106,7 @@ int main(int argc, char* argv[])
     // get all priors that will be needed when running
     lensed.pris = malloc(lensed.npars*sizeof(prior*));
     if(!lensed.pris)
-        error("%s", strerror(errno));
+        errori(NULL);
     for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             lensed.pris[p] = inp->objs[i].pars[j].pri;
@@ -147,7 +146,7 @@ int main(int argc, char* argv[])
     lensed.ml = malloc(lensed.npars*sizeof(double));
     lensed.map = malloc(lensed.npars*sizeof(double));
     if(!lensed.mean || !lensed.sigma || !lensed.ml || !lensed.map)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     
     /****************
@@ -181,25 +180,25 @@ int main(int argc, char* argv[])
         // output program
         if(inp->opts->output)
         {
-            FILE* prg;
-            char* prgname;
+            FILE* file;
+            char* name;
             
-            prgname = malloc(strlen(inp->opts->root) + strlen("kernel.cl") + 1);
-            if(!prgname)
-                error("%s", strerror(errno));
+            name = malloc(strlen(inp->opts->root) + strlen("kernel.cl") + 1);
+            if(!name)
+                errori(NULL);
             
-            strcpy(prgname, inp->opts->root);
-            strcat(prgname, "kernel.cl");
+            strcpy(name, inp->opts->root);
+            strcat(name, "kernel.cl");
             
-            prg = fopen(prgname, "w");
-            if(!prg)
-                error("could not write %s: %s", prgname, strerror(errno));
+            file = fopen(name, "w");
+            if(!file)
+                errori("could not write %s", name);
             
             for(size_t i = 0; i < nkernels; ++i)
-                fputs(kernels[i], prg);
+                fputs(kernels[i], file);
             
-            fclose(prg);
-            free(prgname);
+            fclose(file);
+            free(name);
         }
         
         // create program
@@ -463,9 +462,9 @@ int main(int argc, char* argv[])
     // summary statistics
     info("summary");
     info("  ");
-    info(LOG_BOLD "  evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed.logev_ins : lensed.logev, lensed.logev_err);
-    info(LOG_BOLD "  max ln p: " LOG_RESET "%.4f", lensed.max_loglike);
-    info(LOG_BOLD "  chi²/dof: " LOG_RESET "%.4f", chi2_dof);
+    info(LOG_BOLD "  log-evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed.logev_ins : lensed.logev, lensed.logev_err);
+    info(LOG_BOLD "  max log-like: " LOG_RESET "%.4f", lensed.max_loglike);
+    info(LOG_BOLD "  min chi²/dof: " LOG_RESET "%.4f", chi2_dof);
     info("  ");
     
     // parameter table
@@ -486,14 +485,14 @@ int main(int argc, char* argv[])
         
         name = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
         if(!name)
-            error("%s", strerror(errno));
+            errori(NULL);
         
         strcpy(name, inp->opts->root);
         strcat(name, ".paramnames");
         
         file = fopen(name, "w");
         if(!file)
-            error("could not write %s: %s", name, strerror(errno));
+            errori("could not write %s", name);
         
         for(size_t i = 0; i < inp->nobjs; ++i)
         {

@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #include "input.h"
 #include "input/objects.h"
@@ -94,7 +93,7 @@ input* read_input(int argc, char* argv[])
     // allocate memory for input
     input* inp = malloc(sizeof(input));
     if(!inp)
-        error("could not create input: %s", strerror(errno));
+        errori("could not create input");
     
     // create options
     inp->opts = create_options();

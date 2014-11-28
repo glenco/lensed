@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -57,7 +56,7 @@ void add_object(input* inp, const char* id, const char* name)
     inp->nobjs += 1;
     inp->objs = realloc(inp->objs, inp->nobjs*sizeof(object));
     if(!inp->objs)
-        error("object %s: %s", name, strerror(errno));
+        errori("object %s", name);
     
     // realloc was successful, get new object
     obj = &inp->objs[inp->nobjs-1];
@@ -66,7 +65,7 @@ void add_object(input* inp, const char* id, const char* name)
     obj->id = malloc(strlen(id) + 1);
     obj->name = malloc(strlen(name) + 1);
     if(!obj->id || !obj->name)
-        error("object %s: %s", id, strerror(errno));
+        errori("object %s", id);
     strcpy((char*)obj->id, id);
     strcpy((char*)obj->name, name);
     
@@ -151,7 +150,7 @@ void add_object(input* inp, const char* id, const char* name)
     // array for kernel parameters
     params = malloc(obj->npars*sizeof(struct kernel_param));
     if(!params)
-        error("object %s: %s", strerror(errno));
+        errori("object %s", id);
     
     // get kernel parameters from buffer
     err = clEnqueueReadBuffer(queue, params_mem, CL_TRUE, 0, obj->npars*sizeof(struct kernel_param), params, 0, NULL, NULL);
@@ -161,7 +160,7 @@ void add_object(input* inp, const char* id, const char* name)
     // create array for params
     obj->pars = malloc(obj->npars*sizeof(param));
     if(!obj->pars)
-        error("object %s: %s", id, strerror(errno));
+        errori("object %s", id);
     
     // set up parameter array
     for(size_t i = 0; i < obj->npars; ++i)
@@ -250,7 +249,7 @@ void set_param_label(param* par, const char* label)
     // allocate space for string
     par->label = realloc((char*)par->label, strlen(label) + 1);
     if(!par->label)
-        error("could not set parameter label \"%s\": %s", label, strerror(errno));
+        errori("could not set parameter label \"%s\"", label);
     
     // copy label to param
     strcpy((char*)par->label, label);

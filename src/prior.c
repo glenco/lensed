@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "input.h"
 #include "prior.h"
@@ -74,7 +73,7 @@ prior* read_prior(const char* str)
     // allocate array for arguments
     args = malloc(nargs*sizeof(const char*));
     if(!args)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     // tokenize string into arguments
     nargs = 0;
@@ -84,7 +83,7 @@ prior* read_prior(const char* str)
         spn = strcspn(str + pos, WS);
         arg = malloc(spn + 1);
         if(!arg)
-            error("%s", strerror(errno));
+            errori(NULL);
         strncpy(arg, str + pos, spn);
         arg[spn] = '\0';
         
@@ -106,7 +105,7 @@ prior* read_prior(const char* str)
     // create prior
     pri = malloc(sizeof(prior));
     if(!pri)
-        error("%s", strerror(errno));
+        errori(NULL);
     
     // set up prior functions
     pri->prior = PRIORS[pos].prior;
