@@ -464,7 +464,7 @@ int main(int argc, char* argv[])
     info("summary");
     info("  ");
     info(LOG_BOLD "  evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed.logev_ins : lensed.logev, lensed.logev_err);
-    info(LOG_BOLD "  max logP: " LOG_RESET "%.4f", lensed.max_loglike);
+    info(LOG_BOLD "  max ln p: " LOG_RESET "%.4f", lensed.max_loglike);
     info(LOG_BOLD "  chi²/dof: " LOG_RESET "%.4f", chi2_dof);
     info("  ");
     
@@ -477,6 +477,39 @@ int main(int argc, char* argv[])
         if(lensed.pars[i]->label)
             info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
     info("  ");
+    
+    // write parameter names and labels to file
+    if(inp->opts->output)
+    {
+        FILE* file;
+        char* name;
+        
+        name = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
+        if(!name)
+            error("%s", strerror(errno));
+        
+        strcpy(name, inp->opts->root);
+        strcat(name, ".paramnames");
+        
+        file = fopen(name, "w");
+        if(!file)
+            error("could not write %s: %s", name, strerror(errno));
+        
+        for(size_t i = 0; i < inp->nobjs; ++i)
+        {
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+            {
+                int width = fprintf(file, "%s.%s", inp->objs[i].name, inp->objs[i].pars[j].name);
+                fprintf(file, "%*s", width < 20 ? 20 - width : 0, " ");
+                if(inp->objs[i].pars[j].label)
+                    fprintf(file, "%s", inp->objs[i].pars[j].label);
+                fprintf(file, "\n");
+            }
+        }
+        
+        fclose(file);
+        free(name);
+    }
     
     // free MultiNest data
     free(wrap);
