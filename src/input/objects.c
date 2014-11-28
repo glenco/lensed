@@ -165,9 +165,19 @@ void add_object(input* inp, const char* id, const char* name)
     // set up parameter array
     for(size_t i = 0; i < obj->npars; ++i)
     {
+        // id of parameter
+        char* id;
+        
         // copy name into param
         for(size_t j = 0; j <= sizeof(params[i].name); ++j)
             obj->pars[i].name[j] = params[i].name[j];
+        
+        // create id
+        id = malloc(strlen(obj->id) + 1 + strlen(obj->pars[i].name) + 1);
+        if(!id)
+            errori(NULL);
+        sprintf(id, "%s.%s", obj->id, obj->pars[i].name);
+        obj->pars[i].id = id;
         
         // no label is set
         obj->pars[i].label = NULL;
@@ -240,6 +250,7 @@ param* find_param(object* obj, const char* name)
 
 void free_param(param* par)
 {
+    free((char*)par->id);
     free((char*)par->label);
     free_prior(par->pri);
 }
