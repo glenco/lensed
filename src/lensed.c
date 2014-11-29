@@ -27,6 +27,35 @@ static void opencl_notify(const char* errinfo, const void* private_info,  size_t
     verbose("%s", errinfo);
 }
 
+static int redirect_stdout(FILE* fnew)
+{
+    int old;
+    
+    // flush old standard output
+    fflush(stdout);
+    
+    // copy old standard output
+    old = dup(STDOUT_FILENO);
+    
+    // redirect standard output to fnew
+    dup2(fileno(fnew), STDOUT_FILENO);
+    
+    // return old standard output
+    return old;
+}
+
+static void reset_stdout(int old)
+{
+    // flush current stdout
+    fflush(stdout);
+    
+    // restore original standard output
+    dup2(old, STDOUT_FILENO);
+    
+    // close copy
+    close(old);
+}
+
 int main(int argc, char* argv[])
 {
     // program data
@@ -54,41 +83,23 @@ int main(int argc, char* argv[])
     cl_mem mean;
     cl_mem variance;
     
+    // log file for capturing library output
+    FILE* log_file;
     
-    /*****************
-     * configuration *
-     *****************/
+    // timer for duration
+    time_t start, end;
+    double dur;
+    
+    // chi^2/dof value for maximum likelihood result
+    double chi2_dof;
+    
+    
+    /*********
+     * input *
+     *********/
     
     // read input
     input* inp = read_input(argc, argv);
-    
-    // print banner
-    info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
-    info(LOG_BOLD " | |                       | |" LOG_DARK "/   \\" LOG_RESET);
-    info(LOG_BOLD " | | ___ _ __  ___  ___  __| |" LOG_DARK "  A  \\" LOG_RESET "  " LOG_BOLD "lensed" LOG_RESET " %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-    info(LOG_BOLD " | |/ _ \\ '_ \\/ __|/ _ \\/ _` |" LOG_DARK " < > |" LOG_RESET);
-    info(LOG_BOLD " | |  __/ | | \\__ \\  __/ (_| |" LOG_DARK "  V  /" LOG_RESET);
-    info(LOG_BOLD " |_|\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
-    info(LOG_BOLD "                              " LOG_RESET);
-    
-    // print input
-    print_input(inp);
-    
-    
-    /**************
-     * input data *
-     **************/
-    
-    // read data given in input
-    lensed.dat = read_data(inp);
-    
-    // set global log-likelihood normalisation
-    lensed.lognorm = -log(inp->opts->gain);
-    
-    
-    /*******************
-     * parameter space *
-     *******************/
     
     // sum number of parameters
     lensed.npars = 0;
@@ -110,6 +121,65 @@ int main(int argc, char* argv[])
     for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             lensed.pris[p] = inp->objs[i].pars[j].pri;
+    
+    
+    /*****************
+     * special modes *
+     *****************/
+    
+    // output header for batch mode
+    if(inp->opts->batch_header)
+    {
+        // write fields row
+        printf("%-60s", "summary");
+        printf("%-*s", (int)(lensed.npars*12), "mean");
+        printf("%-*s", (int)(lensed.npars*12), "sigma");
+        printf("%-*s", (int)(lensed.npars*12), "ML");
+        printf("%-*s", (int)(lensed.npars*12), "MAP");
+        printf("\n");
+        
+        // write summary header
+        printf("%-18s  ", "log-ev");
+        printf("%-18s  ", "log-lh");
+        printf("%-18s  ", "chi2/n");
+        
+        // write parameter headers
+        for(size_t j = 0; j < 4; ++j)
+            for(size_t i = 0; i < lensed.npars; ++i)
+                printf("%-10s  ", lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id);
+        
+        // batch file header is done
+        printf("\n");
+        exit(0);
+    }
+    
+    
+    /*****************
+     * status output *
+     *****************/
+    
+    // print banner
+    info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
+    info(LOG_BOLD " | |                       | |" LOG_DARK "/   \\" LOG_RESET);
+    info(LOG_BOLD " | | ___ _ __  ___  ___  __| |" LOG_DARK "  A  \\" LOG_RESET "  " LOG_BOLD "lensed" LOG_RESET " %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    info(LOG_BOLD " | |/ _ \\ '_ \\/ __|/ _ \\/ _` |" LOG_DARK " < > |" LOG_RESET);
+    info(LOG_BOLD " | |  __/ | | \\__ \\  __/ (_| |" LOG_DARK "  V  /" LOG_RESET);
+    info(LOG_BOLD " |_|\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
+    info(LOG_BOLD "                              " LOG_RESET);
+    
+    // print input
+    print_input(inp);
+    
+    
+    /********
+     * data *
+     ********/
+    
+    // read data given in input
+    lensed.dat = read_data(inp);
+    
+    // set global log-likelihood normalisation
+    lensed.lognorm = -log(inp->opts->gain);
     
     
     /***********
@@ -401,40 +471,84 @@ int main(int argc, char* argv[])
     
     info("find posterior");
     
-    // create array for parameter wrap-around
-    int* wrap = malloc(lensed.npars*sizeof(int));
-    
-    // collect wrap-around info from parameters
+    // open log file
+    if(inp->opts->output)
     {
-        int* w = wrap;
-        for(size_t i = 0; i < inp->nobjs; ++i)
-            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++w)
-                *w = inp->objs[i].pars[j].wrap;
+        // build log file name
+        char* log_name = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
+        if(!log_name)
+            errori(NULL);
+        sprintf(log_name, "%slog.txt", inp->opts->root);
+        
+        // open log file
+        log_file = fopen(log_name, "w");
+        if(!log_file)
+            errori("could not open log file: %s", log_name);
+        
+        // name no longer needed
+        free(log_name);
+    }
+    else
+    {
+        // redirect log to null device
+        log_file = fopen("/dev/null", "w");
+        if(!log_file)
+            errori(NULL);
     }
     
-    // gather MultiNest options
-    int ndim = lensed.npars;
-    int npar = ndim;
-    int nclspar = ndim;
-    double ztol = -1E90;
-    char root[100] = {0};
-    if(inp->opts->root)
-        strncpy(root, inp->opts->root, 99);
-    int initmpi = 1;
-    double logzero = -DBL_MAX;
-    
     // take start time
-    time_t start = time(0);
+    start = time(0);
     
-    // run MultiNest
-    run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff, inp->opts->nlive,
-        inp->opts->tol, inp->opts->eff, ndim, npar, nclspar,
-        inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
-        wrap, inp->opts->fb, inp->opts->resume, inp->opts->output, initmpi,
-        logzero, inp->opts->maxiter, loglike, dumper, &lensed);
+    // call MultiNest
+    {
+        // MultiNest options
+        int ndim = lensed.npars;
+        int npar = ndim;
+        int nclspar = ndim;
+        double ztol = -1E90;
+        char root[100] = {0};
+        int initmpi = 1;
+        int fb = (LOG_LEVEL <= LOG_VERBOSE);
+        double logzero = -DBL_MAX;
+        int* wrap;
+        int out;
+        
+        // copy root element for file output if given
+        if(inp->opts->root)
+            strncpy(root, inp->opts->root, 99);
+        
+        // create array for parameter wrap-around
+        wrap = malloc(lensed.npars*sizeof(int));
+        if(!wrap)
+            errori(NULL);
+        for(size_t i = 0; i < lensed.npars; ++i)
+            wrap[i] = lensed.pars[i]->wrap;
+        
+        // redirect MultiNest's output to log file
+        out = redirect_stdout(log_file);
+        
+        // run MultiNest
+        run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
+            inp->opts->nlive, inp->opts->tol, inp->opts->eff,
+            ndim, npar, nclspar, inp->opts->maxmodes, inp->opts->updint,
+            ztol, root, inp->opts->seed, wrap, fb, inp->opts->resume,
+            inp->opts->output, initmpi, logzero, inp->opts->maxiter,
+            loglike, dumper, &lensed);
+        
+        // restore standard output
+        reset_stdout(out);
+        
+        // free MultiNest data
+        free(wrap);
+    }
     
     // take end time
-    time_t end = time(0);
+    end = time(0);
+    
+    
+    /***********
+     * results *
+     ***********/
     
     // map output from device
     cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.nd*sizeof(cl_float4), 0, NULL, NULL, &err);
@@ -442,7 +556,7 @@ int main(int argc, char* argv[])
         error("failed to map dumper buffer");
     
     // compute chi^2/dof
-    double chi2_dof = 0;
+    chi2_dof = 0;
     for(size_t i = 0; i < lensed.dat->size; ++i)
         chi2_dof += output[i].s[3];
     chi2_dof /= lensed.dat->size - lensed.npars;
@@ -451,13 +565,8 @@ int main(int argc, char* argv[])
     clEnqueueUnmapMemObject(lensed.queue, lensed.dumper_mem, output, 0, NULL, NULL);
     
     // duration
-    double dur = difftime(end, start);
-    
-    // output duration
-    info("done in %02d:%02d:%02d",
-         (int)(dur/3600),
-         (int)(fmod(dur, 3600)/60),
-         (int)fmod(dur, 60));
+    dur = difftime(end, start);
+    info("done in %02d:%02d:%02d", (int)(dur/3600), (int)(fmod(dur, 3600)/60), (int)fmod(dur, 60));
     
     // summary statistics
     info("summary");
@@ -501,8 +610,27 @@ int main(int argc, char* argv[])
         free(name);
     }
     
-    // free MultiNest data
-    free(wrap);
+    // batch output
+    if(LOG_LEVEL == LOG_BATCH)
+    {
+        // write summary results
+        printf("%-18.4f  ", inp->opts->ins ? lensed.logev_ins : lensed.logev);
+        printf("%-18.4f  ", lensed.max_loglike);
+        printf("%-18.4f  ", chi2_dof);
+        
+        // write parameter results
+        for(size_t i = 0; i < lensed.npars; ++i)
+            printf("%-10.4f  ", lensed.mean[i]);
+        for(size_t i = 0; i < lensed.npars; ++i)
+            printf("%-10.4f  ", lensed.sigma[i]);
+        for(size_t i = 0; i < lensed.npars; ++i)
+            printf("%-10.4f  ", lensed.ml[i]);
+        for(size_t i = 0; i < lensed.npars; ++i)
+            printf("%-10.4f  ", lensed.map[i]);
+        
+        // output is done
+        printf("\n");
+    }
     
     // free dumper
     clReleaseKernel(lensed.dumper);
@@ -545,6 +673,10 @@ int main(int argc, char* argv[])
     
     // free input
     free_input(inp);
+    
+    // there might be output left in Fortran's buffer, so redirect again
+    // to log file, which is not closed on purpose
+    redirect_stdout(log_file);
     
     return EXIT_SUCCESS;
 }

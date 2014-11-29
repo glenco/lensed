@@ -141,12 +141,6 @@ struct option OPTIONS[] = {
         OPTION_FIELD(seed)
     },
     {
-        "fb",
-        "Show MultiNest feedback",
-        OPTION_OPTIONAL(bool, 0),
-        OPTION_FIELD(fb)
-    },
-    {
         "resume",
         "Resume from last checkpoint",
         OPTION_OPTIONAL(bool, 0),

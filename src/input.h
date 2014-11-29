@@ -7,6 +7,7 @@ typedef struct
     int gpu;
     int output;
     char* root;
+    int batch_header;
     
     // data
     char* image;
@@ -24,7 +25,6 @@ typedef struct
     int maxmodes;
     int updint;
     int seed;
-    int fb;
     int resume;
     int maxiter;
 } options;
