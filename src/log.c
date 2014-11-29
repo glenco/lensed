@@ -60,11 +60,17 @@ void warn(const char* msg, ...)
         
         va_end(args);
         
-        fprintf(stderr, "Enter 'x' to abort or nothing to continue: ");
-        fflush(stderr);
-        char c = getchar();
-        if(c == 'x')
-            exit(1);
+        if(LOG_LEVEL <= LOG_INFO)
+        {
+            fprintf(stderr, "enter 'x' to abort or nothing to continue: ");
+            fflush(stderr);
+            
+            if(getchar() == 'x')
+            {
+                fprintf(stderr, "aborted!\n");
+                exit(1);
+            }
+        }
     }
 }
 
