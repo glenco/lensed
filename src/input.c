@@ -33,8 +33,10 @@ void usage(int help)
         printf("  %-16s  %s\n", "-v, --verbose", "Verbose output.");
         printf("  %-16s  %s\n", "--warn", "Show only warnings and errors.");
         printf("  %-16s  %s\n", "--error", "Show only errors.");
+        printf("  %-16s  %s\n", "-b, --batch", "Batch output.");
         printf("  %-16s  %s\n", "-q, --quiet", "Suppress all output.");
         printf("  %-16s  %s\n", "--version", "Show version number.");
+        printf("  %-16s  %s\n", "--batch-header", "Batch output header.");
         for(size_t i = 0, n = noptions(); i < n; ++i)
         {
             char opt[50];
@@ -124,10 +126,14 @@ input* read_input(int argc, char* argv[])
                     log_level(LOG_WARN);
                 else if(strcmp(argv[i]+2, "error") == 0)
                     log_level(LOG_ERROR);
+                else if(strcmp(argv[i]+2, "batch") == 0)
+                    log_level(LOG_BATCH);
                 else if(strcmp(argv[i]+2, "quiet") == 0)
                     log_level(LOG_QUIET);
                 else if(strcmp(argv[i]+2, "version") == 0)
                     version();
+                else if(strcmp(argv[i]+2, "batch-header") == 0)
+                    inp->opts->batch_header = 1;
                 else
                     read_arg(argv[i]+2, inp);
             }
@@ -144,6 +150,10 @@ input* read_input(int argc, char* argv[])
                     
                     case 'v':
                         log_level(LOG_VERBOSE);
+                        break;
+                    
+                    case 'b':
+                        log_level(LOG_BATCH);
                         break;
                     
                     case 'q':
@@ -164,20 +174,24 @@ input* read_input(int argc, char* argv[])
         }
     }
     
-    // make sure all required options are resolved
-    for(size_t i = 0, n = noptions(); i < n; ++i)
-        if(!option_resolved(i, inp->opts, inp->reqs))
-            error("missing required option: %s", option_name(i));
-    
-    // make sure that some objects are given
-    if(inp->nobjs == 0)
-        error("no objects were given (check [objects] section)");
-    
-    // make sure that all parameters have priors
-    for(size_t i = 0; i < inp->nobjs; ++i)
-        for(size_t j = 0; j < inp->objs[i].npars; ++j)
-            if(!inp->objs[i].pars[j].pri)
-                error("missing prior: %s.%s (check [priors] section)", inp->objs[i].id, inp->objs[i].pars[j].name);
+    // check input if not in a special mode
+    if(!(inp->opts->batch_header))
+    {
+        // make sure all required options are resolved
+        for(size_t i = 0, n = noptions(); i < n; ++i)
+            if(!option_resolved(i, inp->opts, inp->reqs))
+                error("missing required option: %s", option_name(i));
+        
+        // make sure that some objects are given
+        if(inp->nobjs == 0)
+            error("no objects were given (check [objects] section)");
+        
+        // make sure that all parameters have priors
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
+                if(!inp->objs[i].pars[j].pri)
+                    error("missing prior: %s.%s (check [priors] section)", inp->objs[i].id, inp->objs[i].pars[j].name);
+    }
     
     // everything is fine
     return inp;

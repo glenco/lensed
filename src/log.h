@@ -1,10 +1,11 @@
 #pragma once
 
-/* the diverse levels of logging */
+// the individual levels of logging
 extern enum log_level
 {
     LOG_VERBOSE,
     LOG_INFO,
+    LOG_BATCH,
     LOG_WARN,
     LOG_ERROR,
     LOG_QUIET
