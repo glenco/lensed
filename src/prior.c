@@ -128,8 +128,11 @@ prior* read_prior(const char* str)
 
 void free_prior(prior* pri)
 {
-    pri->free(pri->data);
-    free(pri);
+    if(pri)
+    {
+        pri->free(pri->data);
+        free(pri);
+    }
 }
 
 void print_prior(const prior* pri, char* buf, size_t n)

@@ -268,6 +268,9 @@ void set_param_label(param* par, const char* label)
 
 void set_param_prior(param* par, const char* str)
 {
+    // free existing prior
+    free_prior(par->pri);
+    
     // parse prior
     par->pri = read_prior(str);
 }
