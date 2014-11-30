@@ -19,3 +19,6 @@ void free_data(data* dat);
 
 // write output to FITS file
 void write_output(const char* filename, const data* dat, size_t num, cl_float4* output);
+
+// find mode (i.e. most common value) of input data
+double find_mode(size_t nvalues, cl_float values[]);
