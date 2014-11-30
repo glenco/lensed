@@ -11,7 +11,6 @@ HEADERS = lensed.h \
           prior.h \
           parse.h \
           log.h \
-          version.h \
           constants.h \
           input/objects.h \
           input/options.h \
@@ -90,14 +89,17 @@ endif
 # build rules
 ####
 
-.PHONY: all clean
+.PHONY: all clean release-major release-minor release-patch
 
-SOURCE_DIR = src
 BUILD_DIR = build
+SOURCE_DIR = src
+TOOLS_DIR = tools
 BIN_DIR = bin
 CONFIG = $(BUILD_DIR)/config.h
+VERSION = $(SOURCE_DIR)/version.h
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
+RELEASE_TOOL = $(BUILD_DIR)/release
 
 all: $(LENSED)
 
@@ -114,7 +116,7 @@ $(CONFIG): Makefile
 	@$(ECHO) "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> $@
 	@$(ECHO) "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> $@
 
-$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG)
+$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG) $(VERSION)
 	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
@@ -123,3 +125,20 @@ $(LENSED): $(OBJECTS)
 	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
 	@$(CC) $(LDFLAGS) -o $@ $^
+
+$(RELEASE_TOOL): $(TOOLS_DIR)/release.c
+	@$(ECHO) "building release tool"
+	@$(MKDIR) $(@D)
+	@$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
+
+release-major: $(RELEASE_TOOL)
+	@$(ECHO) "releasing $(STYLE_BOLD)major$(STYLE_RESET) version"
+	@$(RELEASE_TOOL) major > $(SOURCE_DIR)/version.h
+
+release-minor: $(RELEASE_TOOL)
+	@$(ECHO) "releasing $(STYLE_BOLD)minor$(STYLE_RESET) version"
+	@$(RELEASE_TOOL) minor > $(SOURCE_DIR)/version.h
+
+release-patch: $(RELEASE_TOOL)
+	@$(ECHO) "releasing $(STYLE_BOLD)patch$(STYLE_RESET) version"
+	@$(RELEASE_TOOL) patch > $(SOURCE_DIR)/version.h
