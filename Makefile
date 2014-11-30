@@ -89,8 +89,6 @@ endif
 # build rules
 ####
 
-.PHONY: all clean release-major release-minor release-patch
-
 BUILD_DIR = build
 SOURCE_DIR = src
 TOOLS_DIR = tools
@@ -101,14 +99,16 @@ OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
 RELEASE_TOOL = $(BUILD_DIR)/release
 
+.PHONY: all clean
+
 all: $(LENSED)
 
 clean:
 	@$(ECHO) "cleaning"
-	@$(RM) $(CONFIG) $(OBJECTS) $(LENSED)
+	@$(RM) $(CONFIG) $(OBJECTS) $(LENSED) $(RELEASE_TOOL)
 
 $(CONFIG): Makefile
-	@$(ECHO) "creating $(STYLE_BOLD)$@$(STYLE_RESET)"
+	@$(ECHO) "updating $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(RM) $@
 	@$(MKDIR) $(@D)
 	@$(ECHO) "#pragma once" >> $@
@@ -116,7 +116,7 @@ $(CONFIG): Makefile
 	@$(ECHO) "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> $@
 	@$(ECHO) "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> $@
 
-$(OBJECTS):$(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG) $(VERSION)
+$(OBJECTS): $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG) $(VERSION)
 	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
@@ -126,19 +126,15 @@ $(LENSED): $(OBJECTS)
 	@$(MKDIR) $(@D)
 	@$(CC) $(LDFLAGS) -o $@ $^
 
+.PHONY: $(RELEASE_TOOL) release-major release-minor release-patch
+
 $(RELEASE_TOOL): $(TOOLS_DIR)/release.c
 	@$(ECHO) "building release tool"
 	@$(MKDIR) $(@D)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
 
-release-major: $(RELEASE_TOOL)
-	@$(ECHO) "releasing $(STYLE_BOLD)major$(STYLE_RESET) version"
-	@$(RELEASE_TOOL) major > $(SOURCE_DIR)/version.h
-
-release-minor: $(RELEASE_TOOL)
-	@$(ECHO) "releasing $(STYLE_BOLD)minor$(STYLE_RESET) version"
-	@$(RELEASE_TOOL) minor > $(SOURCE_DIR)/version.h
-
-release-patch: $(RELEASE_TOOL)
-	@$(ECHO) "releasing $(STYLE_BOLD)patch$(STYLE_RESET) version"
-	@$(RELEASE_TOOL) patch > $(SOURCE_DIR)/version.h
+release-major release-minor release-patch: release-%: $(RELEASE_TOOL)
+	@$(ECHO) "updating $(STYLE_BOLD)$(VERSION)$(STYLE_RESET)"
+	@$(RELEASE_TOOL) $* > $(VERSION)
+	@$(MAKE) $(LENSED)
+	@$(ECHO) "version $(STYLE_BOLD)`$(LENSED) --version`$(STYLE_RESET)"
