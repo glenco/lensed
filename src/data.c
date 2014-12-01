@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <math.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -11,6 +12,20 @@
 #include "input.h"
 #include "data.h"
 #include "log.h"
+
+// number of bins for find_mode
+#ifndef MODE_BINS
+#define MODE_BINS 100
+#endif
+
+// return value for invalid find_mode
+#ifndef MODE_NAN
+#ifdef NAN
+#define MODE_NAN NAN
+#else
+#define MODE_NAN 0
+#endif
+#endif
 
 void fits_error(const char* filename, int status)
 {
@@ -204,6 +219,14 @@ data* read_data(const input* inp)
     return d;
 }
 
+void free_data(data* d)
+{
+    free(d->mean);
+    free(d->variance);
+    free(d->indices);
+    free(d);
+}
+
 void write_output(const char* filename, const data* dat, size_t num, cl_float4* output)
 {
     double** images = malloc(num*sizeof(double*));
@@ -226,10 +249,57 @@ void write_output(const char* filename, const data* dat, size_t num, cl_float4* 
     free(images);
 }
 
-void free_data(data* d)
+double find_mode(size_t nvalues, cl_float values[])
 {
-    free(d->mean);
-    free(d->variance);
-    free(d->indices);
-    free(d);
+    double min, max, dx;
+    size_t* counts;
+    size_t i, j;
+    
+    // make sure there are values
+    if(nvalues == 0)
+        return MODE_NAN;
+    
+    // find minimum and maximum of values
+    min = max = values[0];
+    for(i = 1; i < nvalues; ++i)
+    {
+        if(values[i] < min)
+            min = values[i];
+        else if(values[i] > max)
+            max = values[i];
+    }
+    
+    // if the values are amodal, return
+    if(min == max)
+        return min;
+    
+    // bin width, two bins on end points are added for padding
+    dx = (max - min)/(MODE_BINS-2);
+    
+    // move minimum further out so that 0 is in the middle of a bin
+    min = (floor(min/dx - 0.5)+0.5)*dx;
+    
+    // create array for bin counts
+    counts = calloc(MODE_BINS, sizeof(size_t));
+    if(!counts)
+        errori(NULL);
+    
+    // count frequency in each bin
+    for(i = 0; i < nvalues; ++i)
+    {
+        j = (values[i] - min)/dx;
+        counts[j] += 1;
+    }
+    
+    // find bin with most counts
+    j = 0;
+    for(i = 1; i < MODE_BINS; ++i)
+        if(counts[i] > counts[j])
+            j = i;
+    
+    // done with counts
+    free(counts);
+    
+    // return counts at middle of mode bin
+    return min + (j + 0.5)*dx;
 }

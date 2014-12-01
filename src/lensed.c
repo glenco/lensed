@@ -61,6 +61,9 @@ int main(int argc, char* argv[])
     // program data
     struct lensed lensed;
     
+    // statistics for checking data
+    double data_mode;
+    
     // OpenCL error code
     cl_int err;
     
@@ -180,6 +183,17 @@ int main(int argc, char* argv[])
     
     // set global log-likelihood normalisation
     lensed.lognorm = -log(inp->opts->gain);
+    
+    // get mode of data
+    data_mode = find_mode(lensed.dat->size, lensed.dat->mean);
+    
+    // make sure that data is flat-fielded
+    if(fabs(data_mode) > DBL_EPSILON)
+        warn("mode of data is not zero (mode = %f)\n"
+             "The most common value in the data is different from zero. This "
+             "might indicate that your image was not flat-field corrected or "
+             "that there is not much empty sky in the field of view. In both "
+             "cases the reconstruction will probably fail.", data_mode);
     
     
     /***********
