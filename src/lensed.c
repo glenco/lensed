@@ -69,17 +69,17 @@ int main(int argc, char* argv[])
     cl_context context;
     cl_program program;
     
-    // buffer for object data
-    cl_mem data_mem;
+    // buffer for objects
+    cl_mem object_mem;
     
-    // maximum work-group size
-    size_t max_wg_size;
-    
-    // size of quadrature rule
+    // quadrature rule
     cl_ulong nq;
+    cl_float2* qq;
+    cl_float2* ww;
+    cl_mem qq_mem;
+    cl_mem ww_mem;
     
-    // buffers for main kernel
-    cl_mem indices;
+    // buffers for data
     cl_mem mean;
     cl_mem variance;
     
@@ -181,6 +181,11 @@ int main(int argc, char* argv[])
     // set global log-likelihood normalisation
     lensed.lognorm = -log(inp->opts->gain);
     
+    verbose("data");
+    verbose("  pixels: %zu x %zu = %zu", lensed.dat->width, lensed.dat->height, lensed.dat->size);
+    if(lensed.dat->nmask)
+        verbose("  masked pixels: %zu", lensed.dat->nmask);
+    
     
     /***********
      * results *
@@ -217,6 +222,27 @@ int main(int argc, char* argv[])
     lensed.map = malloc(lensed.npars*sizeof(double));
     if(!lensed.mean || !lensed.sigma || !lensed.ml || !lensed.map)
         errori(NULL);
+    
+    
+    /*******************
+     * quadrature rule *
+     *******************/
+    
+    verbose("quadrature");
+    
+    // get the number of nodes of quadrature rule
+    nq = quad_points();
+    
+    verbose("  number of points: %zu", nq);
+    
+    // allocate space for quadrature points and weights
+    qq = malloc(nq*sizeof(cl_float2));
+    ww = malloc(nq*sizeof(cl_float2));
+    if(!qq || !ww)
+        errori(NULL);
+    
+    // get quadrature rule
+    quad_rule(qq, ww);
     
     
     /****************
@@ -277,13 +303,18 @@ int main(int argc, char* argv[])
         if(!program || err != CL_SUCCESS)
             error("failed to create program");
         
-        // build options
-        const char* build_options =
-            " -cl-denorms-are-zero"
-            " -cl-strict-aliasing"
-            " -cl-mad-enable"
-            " -cl-no-signed-zeros"
-            " -cl-fast-relaxed-math";
+        // flags for building, zero-terminated
+        const char* build_flags[] = {
+            "-cl-denorms-are-zero",
+            "-cl-strict-aliasing",
+            "-cl-mad-enable",
+            "-cl-no-signed-zeros",
+            "-cl-fast-relaxed-math",
+            NULL
+        };
+        
+        // make build options string
+        const char* build_options = kernel_options(lensed.dat->width, lensed.dat->height, nq, build_flags);
         
         // and build program
         verbose("  build program");
@@ -294,95 +325,74 @@ int main(int argc, char* argv[])
         // free program codes
         for(int i = 0; i < nkernels; ++i)
             free((void*)kernels[i]);
+        free(kernels);
+        
+        // free build options
+        free((char*)build_options);
     }
     
-    // get maximum work group size
+    // set up work-groups
     {
+        size_t max_wg_size;
+        
+        // query device for maximum work group size
         err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
         if(err != CL_SUCCESS)
-            error("failed to get max work group size");
-        verbose("  maximum work-group size: %zu", max_wg_size);
+            error("failed to get maximum work-group size");
+        
+        // find local work size that is less than or equal to maximum
+        lensed.local[0] = lensed.local[1] = exp2(ceil(log2(sqrt(max_wg_size)))) + 0.5;
+        for(size_t i = 1; lensed.local[0]*lensed.local[1] > max_wg_size; ++i)
+            lensed.local[i%2] /= 2;
+        
+        verbose("  work-group size: %zu x %zu = %zu (maximum: %zu)", lensed.local[0], lensed.local[1], lensed.local[0]*lensed.local[1], max_wg_size);
+        
+        // global work size
+        lensed.global[0] = lensed.dat->width;
+        lensed.global[1] = lensed.dat->height;
+        
+        // pad global work size to be multiple of work-group size
+        if(lensed.global[0] % lensed.local[0])
+            lensed.global[0] += lensed.local[0] - (lensed.global[0] % lensed.local[0]);
+        if(lensed.global[1] % lensed.local[1])
+            lensed.global[1] += lensed.local[1] - (lensed.global[1] % lensed.local[1]);
+        
+        verbose("  number of work-groups: %zu", lensed.global[0]*lensed.global[1]/lensed.local[0]/lensed.local[1]);
     }
     
     // allocate device memory for data
     {
-        // number of work-items
-        lensed.nd = lensed.dat->size;
+        verbose("  create data buffers");
         
-        // pad number of work-items to work-group size
-        if(lensed.nd % max_wg_size)
-            lensed.nd += max_wg_size - (lensed.nd % max_wg_size);
-        
-        verbose("  number of pixels: %zu -> %zu", lensed.dat->size, lensed.nd);
-        
-        // allocate data buffers
-        indices = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_int2), NULL, NULL);
-        mean = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
-        variance = clCreateBuffer(context, CL_MEM_READ_ONLY, lensed.nd*sizeof(cl_float), NULL, NULL);
-        lensed.loglike = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nd*sizeof(cl_float), NULL, NULL);
-        if(!indices || !mean || !variance || !lensed.loglike)
+        mean = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.dat->size*sizeof(cl_float), lensed.dat->mean, NULL);
+        variance = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.dat->size*sizeof(cl_float), lensed.dat->variance, NULL);
+        lensed.loglike = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.dat->size*sizeof(cl_float), NULL, NULL);
+        if(!mean || !variance || !lensed.loglike)
             error("failed to allocate data buffers");
-        
-        // write data buffers
-        err = 0;
-        err |= clEnqueueWriteBuffer(lensed.queue, indices, CL_FALSE, 0, lensed.nd*sizeof(cl_int2), lensed.dat->indices, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, mean, CL_FALSE, 0, lensed.nd*sizeof(cl_float), lensed.dat->mean, 0, NULL, NULL);
-        err |= clEnqueueWriteBuffer(lensed.queue, variance, CL_FALSE, 0, lensed.nd*sizeof(cl_float), lensed.dat->variance, 0, NULL, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to write data buffers");
     }
     
-    // generate quadrature rule
+    // create buffers for quadrature rule
     {
-        // get the number of nodes of quadrature rule
-        nq = quad_points();
-        
-        verbose("  quadrature points: %zu", nq);
-        
         verbose("  create quadrature buffers");
         
         // allocate buffers for quadrature rule
-        lensed.qq = clCreateBuffer(context, CL_MEM_READ_ONLY, nq*sizeof(cl_float2), NULL, NULL);
-        lensed.ww = clCreateBuffer(context, CL_MEM_READ_ONLY, nq*sizeof(cl_float), NULL, NULL);
-        lensed.ee = clCreateBuffer(context, CL_MEM_READ_ONLY, nq*sizeof(cl_float), NULL, NULL);
-        if(!lensed.qq || !lensed.ww || !lensed.ee)
+        qq_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), qq, NULL);
+        ww_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), ww, NULL);
+        if(!qq_mem || !ww_mem)
             error("failed to allocate quadrature buffers");
-        
-        // get array of abscissae
-        cl_float2* qq = clEnqueueMapBuffer(lensed.queue, lensed.qq, CL_TRUE, CL_MAP_WRITE, 0, nq*sizeof(cl_float2), 0, NULL, NULL, &err);
-        if(err != CL_SUCCESS)
-            error("failed to map abscissa array for quadrature");
-        
-        // get array of weights
-        cl_float* ww = clEnqueueMapBuffer(lensed.queue, lensed.ww, CL_TRUE, CL_MAP_WRITE, 0, nq*sizeof(cl_float), 0, NULL, NULL, &err);
-        if(err != CL_SUCCESS)
-            error("failed to map weight array for quadrature");
-        
-        // get array of error weights
-        cl_float* ee = clEnqueueMapBuffer(lensed.queue, lensed.ee, CL_TRUE, CL_MAP_WRITE, 0, nq*sizeof(cl_float), 0, NULL, NULL, &err);
-        if(err != CL_SUCCESS)
-            error("failed to map error weight array for quadrature");
-        
-        // now generate the quadrature rules
-        quad_rule(qq, ww, ee);
-        
-        // unmap the arrays
-        clEnqueueUnmapMemObject(lensed.queue, lensed.qq, qq, 0, NULL, NULL);
-        clEnqueueUnmapMemObject(lensed.queue, lensed.ww, ww, 0, NULL, NULL);
-        clEnqueueUnmapMemObject(lensed.queue, lensed.ee, ee, 0, NULL, NULL);
     }
     
     // create buffer that contains object data
     {
         // collect total size of object data
-        size_t data_size = 0;
+        size_t object_size = 0;
         for(size_t i = 0; i < inp->nobjs; ++i)
-            data_size += inp->objs[i].size;
+            object_size += inp->objs[i].size;
         
-        verbose("  create object data buffer");
+        verbose("  create object buffer");
         
         // allocate buffer for object data
-        data_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, data_size, NULL, &err);
+        object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, object_size, NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create object buffer");
     }
@@ -398,15 +408,12 @@ int main(int argc, char* argv[])
         
         // main kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &data_mem);
-        err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &indices);
-        err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_ulong), &nq);
-        err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &lensed.qq);
-        err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &lensed.ww);
-        err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.ee);
-        err |= clSetKernelArg(lensed.kernel, 6, sizeof(cl_mem), &mean);
-        err |= clSetKernelArg(lensed.kernel, 7, sizeof(cl_mem), &variance);
-        err |= clSetKernelArg(lensed.kernel, 8, sizeof(cl_mem), &lensed.loglike);
+        err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &qq_mem);
+        err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_mem), &ww_mem);
+        err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &mean);
+        err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &variance);
+        err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.loglike);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
     }
@@ -429,7 +436,7 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &data_mem);
+        err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &object_mem);
         err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &lensed.params);
         if(err != CL_SUCCESS)
             error("failed to set kernel arguments for parameters");
@@ -437,12 +444,14 @@ int main(int argc, char* argv[])
     
     // create dumper
     {
-        verbose("  create dumper");
+        verbose("  create dumper buffer");
         
         // buffer for dumper data
-        lensed.dumper_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.nd*sizeof(cl_float4), NULL, &err);
+        lensed.dumper_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.dat->size*sizeof(cl_float4), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to allocate dumper buffer");
+        
+        verbose("  create dumper kernel");
         
         // dumper kernel 
         lensed.dumper = clCreateKernel(program, "dumper", &err);
@@ -451,15 +460,12 @@ int main(int argc, char* argv[])
         
         // dumper kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.dumper, 0, sizeof(cl_mem), &data_mem);
-        err |= clSetKernelArg(lensed.dumper, 1, sizeof(cl_mem), &indices);
-        err |= clSetKernelArg(lensed.dumper, 2, sizeof(cl_ulong), &nq);
-        err |= clSetKernelArg(lensed.dumper, 3, sizeof(cl_mem), &lensed.qq);
-        err |= clSetKernelArg(lensed.dumper, 4, sizeof(cl_mem), &lensed.ww);
-        err |= clSetKernelArg(lensed.dumper, 5, sizeof(cl_mem), &lensed.ee);
-        err |= clSetKernelArg(lensed.dumper, 6, sizeof(cl_mem), &mean);
-        err |= clSetKernelArg(lensed.dumper, 7, sizeof(cl_mem), &variance);
-        err |= clSetKernelArg(lensed.dumper, 8, sizeof(cl_mem), &lensed.dumper_mem);
+        err |= clSetKernelArg(lensed.dumper, 0, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed.dumper, 1, sizeof(cl_mem), &qq_mem);
+        err |= clSetKernelArg(lensed.dumper, 2, sizeof(cl_mem), &ww_mem);
+        err |= clSetKernelArg(lensed.dumper, 3, sizeof(cl_mem), &mean);
+        err |= clSetKernelArg(lensed.dumper, 4, sizeof(cl_mem), &variance);
+        err |= clSetKernelArg(lensed.dumper, 5, sizeof(cl_mem), &lensed.dumper_mem);
         if(err != CL_SUCCESS)
             error("failed to set dumper kernel arguments");
     }
@@ -551,15 +557,16 @@ int main(int argc, char* argv[])
      ***********/
     
     // map output from device
-    cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.nd*sizeof(cl_float4), 0, NULL, NULL, &err);
+    cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.dat->size*sizeof(cl_float4), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to map dumper buffer");
     
     // compute chi^2/dof
     chi2_dof = 0;
     for(size_t i = 0; i < lensed.dat->size; ++i)
-        chi2_dof += output[i].s[3];
-    chi2_dof /= lensed.dat->size - lensed.npars;
+        if(!lensed.dat->mask[i])
+            chi2_dof += output[i].s[3];
+    chi2_dof /= lensed.dat->size - lensed.dat->nmask - lensed.npars;
     
     // unmap output
     clEnqueueUnmapMemObject(lensed.queue, lensed.dumper_mem, output, 0, NULL, NULL);
@@ -643,16 +650,14 @@ int main(int argc, char* argv[])
     // free kernel
     clReleaseKernel(lensed.kernel);
     
-    // free object data buffer
-    clReleaseMemObject(data_mem);
+    // free object buffer
+    clReleaseMemObject(object_mem);
     
-    // free points
-    clReleaseMemObject(lensed.qq);
-    clReleaseMemObject(lensed.ww);
-    clReleaseMemObject(lensed.ee);
+    // free quadrature buffers
+    clReleaseMemObject(qq_mem);
+    clReleaseMemObject(ww_mem);
     
     // free data
-    clReleaseMemObject(indices);
     clReleaseMemObject(mean);
     clReleaseMemObject(variance);
     
@@ -660,6 +665,10 @@ int main(int argc, char* argv[])
     clReleaseProgram(program);
     clReleaseCommandQueue(lensed.queue);
     clReleaseContext(context);
+    
+    // free quadrature rule
+    free(qq);
+    free(ww);
     
     // free results
     free((char*)lensed.fits);

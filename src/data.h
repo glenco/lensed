@@ -5,9 +5,10 @@ typedef struct
     size_t width;
     size_t height;
     size_t size;
-    cl_uint2* indices;
     cl_float* mean;
     cl_float* variance;
+    size_t nmask;
+    cl_int* mask;
     double lognorm;
 } data;
 

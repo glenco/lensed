@@ -47,21 +47,22 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
         error("failed to set parameters");
     
     // run kernel
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->kernel, 1, NULL, &lensed->nd, NULL, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->kernel, 2, NULL, lensed->global, lensed->local, 0, NULL, NULL);
     
     // check for errors
     if(err != CL_SUCCESS)
         error("failed to run kernel");
     
     // map result from device
-    cl_float* loglike = clEnqueueMapBuffer(lensed->queue, lensed->loglike, CL_TRUE, CL_MAP_READ, 0, lensed->nd*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* loglike = clEnqueueMapBuffer(lensed->queue, lensed->loglike, CL_TRUE, CL_MAP_READ, 0, lensed->dat->size*sizeof(cl_float), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to map log-likelihood buffer");
     
     /* sum likelihood */
     double sum = 0.0;
-    for(int i = 0; i < lensed->dat->size; ++i)
-        sum += loglike[i] + lensed->lognorm;
+    for(size_t i = 0; i < lensed->dat->size; ++i)
+        if(!lensed->dat->mask[i])
+            sum += loglike[i] + lensed->lognorm;
     
     // unmap result
     clEnqueueUnmapMemObject(lensed->queue, lensed->loglike, loglike, 0, NULL, NULL);
@@ -116,14 +117,14 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         error("failed to set parameters");
     
     // run kernel
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->dumper, 1, NULL, &lensed->nd, NULL, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->dumper, 2, NULL, lensed->global, lensed->local, 0, NULL, NULL);
     
     // check for errors
     if(err != CL_SUCCESS)
         error("failed to run dumper");
     
     // map output from device
-    output = clEnqueueMapBuffer(lensed->queue, lensed->dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed->nd*sizeof(cl_float4), 0, NULL, NULL, &err);
+    output = clEnqueueMapBuffer(lensed->queue, lensed->dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed->dat->size*sizeof(cl_float4), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to map dumper buffer");
     
