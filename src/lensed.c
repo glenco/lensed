@@ -183,7 +183,8 @@ int main(int argc, char* argv[])
     lensed.lognorm = -log(inp->opts->gain);
     
     verbose("data");
-    verbose("  pixels: %zu x %zu = %zu", lensed.dat->width, lensed.dat->height, lensed.dat->size);
+    verbose("  dimensions: %zu x %zu", lensed.dat->width, lensed.dat->height);
+    verbose("  image pixels: %zu", lensed.dat->size);
     if(lensed.dat->nmask)
         verbose("  masked pixels: %zu", lensed.dat->nmask);
     
@@ -377,29 +378,20 @@ int main(int argc, char* argv[])
     {
         size_t max_wg_size;
         
-        // query device for maximum work group size
+        // query device for maximum work-group size
         err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
         if(err != CL_SUCCESS)
             error("failed to get maximum work-group size");
         
-        // find local work size that is less than or equal to maximum
-        lensed.local[0] = lensed.local[1] = exp2(ceil(log2(sqrt(max_wg_size)))) + 0.5;
-        for(size_t i = 1; lensed.local[0]*lensed.local[1] > max_wg_size; ++i)
-            lensed.local[i%2] /= 2;
-        
-        verbose("  work-group size: %zu x %zu = %zu (maximum: %zu)", lensed.local[0], lensed.local[1], lensed.local[0]*lensed.local[1], max_wg_size);
-        
         // global work size
-        lensed.global[0] = lensed.dat->width;
-        lensed.global[1] = lensed.dat->height;
+        lensed.work_size = lensed.dat->size;
         
-        // pad global work size to be multiple of work-group size
-        if(lensed.global[0] % lensed.local[0])
-            lensed.global[0] += lensed.local[0] - (lensed.global[0] % lensed.local[0]);
-        if(lensed.global[1] % lensed.local[1])
-            lensed.global[1] += lensed.local[1] - (lensed.global[1] % lensed.local[1]);
+        // pad global work size to be multiple of maximum work-group size
+        if(lensed.work_size % max_wg_size)
+            lensed.work_size += max_wg_size - (lensed.work_size % max_wg_size);
         
-        verbose("  number of work-groups: %zu", lensed.global[0]*lensed.global[1]/lensed.local[0]/lensed.local[1]);
+        verbose("  maximum work-group size: %zu", max_wg_size);
+        verbose("  global work size: %zu", lensed.work_size);
     }
     
     // allocate device memory for data

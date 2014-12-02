@@ -27,9 +27,8 @@ struct lensed
     // worker queue
     cl_command_queue queue;
     
-    // local and global work size
-    size_t local[2];
-    size_t global[2];
+    // global work size
+    size_t work_size;
     
     // main kernel
     cl_kernel kernel;
