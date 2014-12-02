@@ -253,11 +253,52 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
+        char device_name[128];
+        char device_vendor[128];
+        char device_version[128];
+        char device_compiler[128];
+        char driver_version[128];
+        
         verbose("  device: %s", inp->opts->gpu ? "GPU" : "CPU");
         
         err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
         if(err != CL_SUCCESS)
             error("failed to get device");
+        
+        // query device name
+        err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device name");
+        
+        verbose("  device name: %s", device_name);
+        
+        // query device vendor
+        err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device vendor");
+        
+        verbose("  device vendor: %s", device_vendor);
+        
+        // query device version
+        err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device version");
+        
+        verbose("  device version: %s", device_version);
+        
+        // query device compiler
+        err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device compiler");
+        
+        verbose("  device compiler: %s", device_compiler);
+        
+        // query driver version
+        err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get driver version");
+        
+        verbose("  driver version: %s", driver_version);
         
         context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
         if(!context || err != CL_SUCCESS)
@@ -301,7 +342,7 @@ int main(int argc, char* argv[])
         // create program
         verbose("  create program");
         program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
-        if(!program || err != CL_SUCCESS)
+        if(err != CL_SUCCESS)
             error("failed to create program");
         
         // flags for building, zero-terminated
