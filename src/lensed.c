@@ -24,7 +24,8 @@
 
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
-    verbose("%s", errinfo);
+    if(LOG_LEVEL <= LOG_VERBOSE)
+        fprintf(stderr, LOG_DARK "%s\n" LOG_RESET, errinfo);
 }
 
 static int redirect_stdout(FILE* fnew)
