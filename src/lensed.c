@@ -24,7 +24,8 @@
 
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
-    verbose("%s", errinfo);
+    if(LOG_LEVEL <= LOG_VERBOSE)
+        fprintf(stderr, LOG_DARK "%s\n" LOG_RESET, errinfo);
 }
 
 static int redirect_stdout(FILE* fnew)
@@ -182,7 +183,8 @@ int main(int argc, char* argv[])
     lensed.lognorm = -log(inp->opts->gain);
     
     verbose("data");
-    verbose("  pixels: %zu x %zu = %zu", lensed.dat->width, lensed.dat->height, lensed.dat->size);
+    verbose("  dimensions: %zu x %zu", lensed.dat->width, lensed.dat->height);
+    verbose("  image pixels: %zu", lensed.dat->size);
     if(lensed.dat->nmask)
         verbose("  masked pixels: %zu", lensed.dat->nmask);
     
@@ -252,11 +254,52 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
+        char device_name[128];
+        char device_vendor[128];
+        char device_version[128];
+        char device_compiler[128];
+        char driver_version[128];
+        
         verbose("  device: %s", inp->opts->gpu ? "GPU" : "CPU");
         
         err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
         if(err != CL_SUCCESS)
             error("failed to get device");
+        
+        // query device name
+        err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device name");
+        
+        verbose("  device name: %s", device_name);
+        
+        // query device vendor
+        err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device vendor");
+        
+        verbose("  device vendor: %s", device_vendor);
+        
+        // query device version
+        err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device version");
+        
+        verbose("  device version: %s", device_version);
+        
+        // query device compiler
+        err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get device compiler");
+        
+        verbose("  device compiler: %s", device_compiler);
+        
+        // query driver version
+        err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get driver version");
+        
+        verbose("  driver version: %s", driver_version);
         
         context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
         if(!context || err != CL_SUCCESS)
@@ -300,7 +343,7 @@ int main(int argc, char* argv[])
         // create program
         verbose("  create program");
         program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
-        if(!program || err != CL_SUCCESS)
+        if(err != CL_SUCCESS)
             error("failed to create program");
         
         // flags for building, zero-terminated
@@ -335,29 +378,20 @@ int main(int argc, char* argv[])
     {
         size_t max_wg_size;
         
-        // query device for maximum work group size
+        // query device for maximum work-group size
         err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t), &max_wg_size, NULL);
         if(err != CL_SUCCESS)
             error("failed to get maximum work-group size");
         
-        // find local work size that is less than or equal to maximum
-        lensed.local[0] = lensed.local[1] = exp2(ceil(log2(sqrt(max_wg_size)))) + 0.5;
-        for(size_t i = 1; lensed.local[0]*lensed.local[1] > max_wg_size; ++i)
-            lensed.local[i%2] /= 2;
-        
-        verbose("  work-group size: %zu x %zu = %zu (maximum: %zu)", lensed.local[0], lensed.local[1], lensed.local[0]*lensed.local[1], max_wg_size);
-        
         // global work size
-        lensed.global[0] = lensed.dat->width;
-        lensed.global[1] = lensed.dat->height;
+        lensed.work_size = lensed.dat->size;
         
-        // pad global work size to be multiple of work-group size
-        if(lensed.global[0] % lensed.local[0])
-            lensed.global[0] += lensed.local[0] - (lensed.global[0] % lensed.local[0]);
-        if(lensed.global[1] % lensed.local[1])
-            lensed.global[1] += lensed.local[1] - (lensed.global[1] % lensed.local[1]);
+        // pad global work size to be multiple of maximum work-group size
+        if(lensed.work_size % max_wg_size)
+            lensed.work_size += max_wg_size - (lensed.work_size % max_wg_size);
         
-        verbose("  number of work-groups: %zu", lensed.global[0]*lensed.global[1]/lensed.local[0]/lensed.local[1]);
+        verbose("  maximum work-group size: %zu", max_wg_size);
+        verbose("  global work size: %zu", lensed.work_size);
     }
     
     // allocate device memory for data

@@ -47,7 +47,7 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
         error("failed to set parameters");
     
     // run kernel
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->kernel, 2, NULL, lensed->global, lensed->local, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->kernel, 1, NULL, &lensed->work_size, NULL, 0, NULL, NULL);
     
     // check for errors
     if(err != CL_SUCCESS)
@@ -117,7 +117,7 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         error("failed to set parameters");
     
     // run kernel
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->dumper, 2, NULL, lensed->global, lensed->local, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->dumper, 1, NULL, &lensed->work_size, NULL, 0, NULL, NULL);
     
     // check for errors
     if(err != CL_SUCCESS)
