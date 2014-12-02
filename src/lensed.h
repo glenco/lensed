@@ -27,14 +27,12 @@ struct lensed
     // worker queue
     cl_command_queue queue;
     
-    // quadrature rule
-    cl_mem qq;
-    cl_mem ww;
-    cl_mem ee;
+    // local and global work size
+    size_t local[2];
+    size_t global[2];
     
     // main kernel
     cl_kernel kernel;
-    size_t nd;
     cl_mem loglike;
     
     // parameter kernel

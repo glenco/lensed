@@ -60,7 +60,7 @@ size_t quad_points()
     return QUAD_N*QUAD_N;
 }
 
-void quad_rule(cl_float2 xx[], cl_float ww[], cl_float ee[])
+void quad_rule(cl_float2 xx[], cl_float2 ww[])
 {
     for(size_t i = 0, j = 0; j < QUAD_N; ++j)
     {
@@ -68,8 +68,8 @@ void quad_rule(cl_float2 xx[], cl_float ww[], cl_float ee[])
         {
             xx[i].s[0] = QUAD_ABSC[k];
             xx[i].s[1] = QUAD_ABSC[j];
-            ww[i] = QUAD_WEIG[j]*QUAD_WEIG[k];
-            ee[i] = QUAD_ERRW[j]*QUAD_ERRW[k];
+            ww[i].s[0] = QUAD_WEIG[j]*QUAD_WEIG[k];
+            ww[i].s[1] = QUAD_ERRW[j]*QUAD_ERRW[k];
         }
     }
 }

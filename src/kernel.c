@@ -533,6 +533,49 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
     free(uniq);
 }
 
+const char* kernel_options(size_t width, size_t height, size_t nq, const char* flags[])
+{
+    size_t nopts;
+    size_t opts_size;
+    char* opts;
+    char* cur;
+    const char** f;
+    
+    // hard-coded options
+    const char* width_opt = " -DWIDTH=%zu";
+    const char* height_opt = " -DHEIGHT=%zu";
+    const char* nq_opt = " -DNQ=%zu";
+    
+    // get number of options and their sizes
+    opts_size = 0;
+    opts_size += strlen(width_opt) + log10(width) + 1;
+    opts_size += strlen(height_opt) + log10(height) + 1;
+    opts_size += strlen(nq_opt) + log10(nq) + 1;
+    nopts = 3;
+    for(f = flags; *f; ++f, ++nopts)
+        opts_size += strlen(*f) + 1;
+    
+    // allocate buffer for options
+    opts = malloc(opts_size + 1);
+    if(!opts)
+        errori(NULL);
+    
+    // pointer to current writing position
+    cur = opts;
+    
+    // write hard-coded options
+    cur += sprintf(cur, width_opt, width);
+    cur += sprintf(cur, height_opt, height);
+    cur += sprintf(cur, nq_opt, nq);
+    
+    // add flags
+    for(f = flags; *f; ++f)
+        cur += sprintf(cur, " %s", *f);
+    
+    // return build options string
+    return opts;
+}
+
 char* kernel_name(const char* prefix, const char* name)
 {
     char* buf = malloc(strlen(prefix) + strlen(name) + 1);

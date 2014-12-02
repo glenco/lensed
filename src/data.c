@@ -126,19 +126,11 @@ data* read_data(const input* inp)
     size_t mx, my;
     double* mask;
     
-    /* total and active number of pixels */
-    size_t ntot, nact;
-    
     /* read image */
     read_fits(inp->opts->image, &d->width, &d->height, &image);
     
-    verbose("image");
-    verbose("  dimensions = %zux%zu", d->width, d->height);
-    
     /* total number of pixels */
-    ntot = d->width*d->height;
-    
-    verbose("  total pixels = %zu", ntot);
+    d->size = d->width*d->height;
     
     /* use mask if given */
     if(inp->opts->mask)
@@ -150,50 +142,35 @@ data* read_data(const input* inp)
         if(mask && (mx != d->width || my != d->height))
             error("mask dimensions %zux%zu should match image dimensions %zux%zu", mx, my, d->width, d->height);
         
-        verbose("  masked");
-        
-        /* count active pixels */
-        nact = 0;
-        for(size_t i = 0; i < ntot; ++i)
+        // count masked pixels
+        d->nmask = 0;
+        for(size_t i = 0; i < d->size; ++i)
             if(mask[i])
-                nact += 1;
+                d->nmask += 1;
     }
     else
     {
-        /* no mask */
-        mask = 0;
-        
-        /* all pixels are active */
-        nact = ntot;
+        // zero mask
+        mask = calloc(d->size, sizeof(cl_int));
+        d->nmask = 0;
     }
     
-    verbose("  active pixels = %zu", nact);
-    
     /* allocate arrays for data */
-    d->mean = malloc(nact*sizeof(cl_float));
-    d->variance = malloc(nact*sizeof(cl_float));
-    d->indices = malloc(nact*sizeof(cl_int2));
+    d->mean = malloc(d->size*sizeof(cl_float));
+    d->variance = malloc(d->size*sizeof(cl_float));
+    d->mask = malloc(d->size*sizeof(cl_int));
     
     /* set data pixels */
-    d->size = 0;
-    for(size_t i = 0; i < ntot; ++i)
+    for(size_t i = 0; i < d->size; ++i)
     {
-        /* skip masked */
-        if(mask && !mask[i])
-            continue;
-        
         /* mean value */
-        d->mean[d->size] = image[i];
+        d->mean[i] = image[i];
         
         /* variance */
-        d->variance[d->size] = (image[i] + inp->opts->offset)/inp->opts->gain;
+        d->variance[i] = (image[i] + inp->opts->offset)/inp->opts->gain;
         
-        /* pixel indices */
-        d->indices[d->size].s[0] = 1 + i%d->width;
-        d->indices[d->size].s[1] = 1 + i/d->width;
-        
-        /* next pixel */
-        d->size += 1;
+        /* mask */
+        d->mask[i] = mask[i];
     }
     
     /* free image and mask arrays */
@@ -215,7 +192,7 @@ void write_output(const char* filename, const data* dat, size_t num, cl_float4* 
         
         // set pixels
         for(size_t i = 0; i < dat->size; ++i)
-            images[n][(dat->indices[i].s[1]-1)*dat->width+(dat->indices[i].s[0]-1)] = output[i].s[n];
+            images[n][i] = output[i].s[n];
     }
     
     // write FITS file
@@ -230,6 +207,6 @@ void free_data(data* d)
 {
     free(d->mean);
     free(d->variance);
-    free(d->indices);
+    free(d->mask);
     free(d);
 }
