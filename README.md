@@ -4,6 +4,62 @@ lensed
 A tool to reconstruct lenses and sources from strong lensing observations.
 
 
+Configuration
+-------------
+
+### Priors
+
+Priors for parameters are specified in the `[priors]` section of a configuration
+file. They are given in the format
+
+```ini
+[priors]
+obj.param = <prior> <arg0> <arg1> ...
+```
+
+An exception is the pseudo-prior that fixes the value of a parameter, which is
+given simply as `<value>` without any name.
+
+The following priors are known:
+
+-   `<value>` -- pseudo-prior that fixes the parameter to the given `<value>`
+    (i.e. a delta function)
+-   `unif <a> <b>` -- uniform prior on the interval [a, b]
+
+Examples:
+
+```ini
+[priors]
+
+; parameter "x" of object "lens" is fixed to be 100
+lens.x = 100
+
+; uniform probability for parameter "x" of object "lens" to be in [80, 120]
+lens.y = unif 80 120
+```
+
+
+### Labels
+
+It is possible to attach labels to parameters for post-processing e.g. with
+getdist. These labels are given in the `[labels]` section of a configuration
+file. The format is
+
+```ini
+[labels]
+obj.param = <label>
+```
+
+Examples:
+
+```ini
+[labels]
+
+; label parameter "x" of object "lens"
+lens.x = x_L
+```
+
+
 Batch mode
 ----------
 
