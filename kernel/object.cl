@@ -1,8 +1,9 @@
 // object types
 enum
 {
-    LENS   = 'L',
-    SOURCE = 'S'
+    LENS       = 'L',
+    SOURCE     = 'S',
+    FOREGROUND = 'F'
 };
 
 // structure that holds parameter definition
