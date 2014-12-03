@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 
 #include "parse.h"
 #include "constants.h"
@@ -81,6 +82,32 @@ int read_real(double* out, const char* in)
 
 int write_real(char* out, const double* in, size_t n)
 {
+    size_t i;
+    
+    if(*in == 0)
+    {
+        snprintf(out, n, "0");
+        return 0;
+    }
+    
+    for(i = 0; i < NREAL_CONSTS; ++i)
+    {
+        double f = (*in)/REAL_CONSTS[i].value;
+        
+        if(f == 1.0)
+        {
+            snprintf(out, n, "%s", REAL_CONSTS[i].name);
+            return 0;
+        }
+        
+        if(100*f == floor(100*f))
+        {
+            snprintf(out, n, "%g%s", f, REAL_CONSTS[i].name);
+            return 0;
+        }
+    }
+    
     snprintf(out, n, "%g", *in);
+    
     return 0;
 }

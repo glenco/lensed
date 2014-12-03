@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <stdio.h>
+#include <string.h>
 
 #include "unif.h"
 #include "../parse.h"
@@ -47,7 +47,22 @@ void print_prior_unif(const void* data, char* buf, size_t n)
 {
     const struct uniform* unif = data;
     
-    snprintf(buf, n, "U(%g, %g)", unif->a, unif->b);
+    size_t len = 0;
+    if(len + 2 > n)
+        return;
+    strcpy(buf, "U(");
+    len += 2;
+    write_real(buf + len, &unif->a, n - len);
+    len = strlen(buf);
+    if(len + 2 > n)
+        return;
+    strcat(buf, ", ");
+    len += 2;
+    write_real(buf + len, &unif->b, n - len);
+    len = strlen(buf);
+    if(len + 2 > n)
+        return;
+    strcat(buf, ")");
 }
 
 double prior_unif(const void* data, double u)
