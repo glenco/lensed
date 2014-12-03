@@ -1,22 +1,16 @@
 #pragma once
 
-typedef struct
-{
-    size_t width;
-    size_t height;
-    size_t size;
-    cl_float* mean;
-    cl_float* variance;
-    size_t nmask;
-    cl_int* mask;
-    double lognorm;
-} data;
+// read image from file
+void read_image(const char* filename, size_t* width, size_t* height, cl_float** image);
 
-// read image from file, with optional mask
-data* read_data(const input* inp);
+// read weights from file
+void read_weight(const char* filename, size_t width, size_t height, cl_float** weight);
 
-// free all memory allocated by data
-void free_data(data* dat);
+// generate weights from image
+void make_weight(const cl_float* image, size_t width, size_t height, double gain, double offset, cl_float** weight);
+
+// read mask from file
+void read_mask(const char* filename, size_t width, size_t height, int** mask);
 
 // write output to FITS file
-void write_output(const char* filename, const data* dat, size_t num, cl_float4* output);
+void write_output(const char* filename, size_t width, size_t height, size_t num, cl_float4* output);

@@ -11,6 +11,7 @@ typedef struct
     
     // data
     char* image;
+    char* weight;
     char* mask;
     double gain;
     double offset;

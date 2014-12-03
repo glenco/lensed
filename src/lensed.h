@@ -3,10 +3,11 @@
 struct lensed
 {
     // input data
-    data* dat;
-    
-    // global log-likelihood normalisation from gain
-    double lognorm;
+    size_t width;
+    size_t height;
+    size_t size;
+    cl_float* image;
+    cl_float* weight;
     
     // parameter space
     size_t npars;
@@ -32,7 +33,7 @@ struct lensed
     
     // main kernel
     cl_kernel kernel;
-    cl_mem loglike;
+    cl_mem output_mem;
     
     // parameter kernel
     cl_kernel set_params;

@@ -62,6 +62,9 @@ int main(int argc, char* argv[])
     // program data
     struct lensed lensed;
     
+    // data
+    size_t masked;
+    
     // OpenCL error code
     cl_int err;
     
@@ -81,8 +84,8 @@ int main(int argc, char* argv[])
     cl_mem ww_mem;
     
     // buffers for data
-    cl_mem mean;
-    cl_mem variance;
+    cl_mem image_mem;
+    cl_mem weight_mem;
     
     // log file for capturing library output
     FILE* log_file;
@@ -176,17 +179,48 @@ int main(int argc, char* argv[])
      * data *
      ********/
     
-    // read data given in input
-    lensed.dat = read_data(inp);
+    // read input image
+    read_image(inp->opts->image, &lensed.width, &lensed.height, &lensed.image);
     
-    // set global log-likelihood normalisation
-    lensed.lognorm = -log(inp->opts->gain);
+    // total size of image
+    lensed.size = lensed.width*lensed.height;
+    
+    // read weights if given, else generate from image
+    if(inp->opts->weight)
+        read_weight(inp->opts->weight, lensed.width, lensed.height, &lensed.weight);
+    else
+        make_weight(lensed.image, lensed.width, lensed.height, inp->opts->gain, inp->opts->offset, &lensed.weight);
+    
+    // start without masked pixels
+    masked = 0;
+    
+    // apply mask if given
+    if(inp->opts->mask)
+    {
+        int* mask;
+        
+        // read mask from file
+        read_mask(inp->opts->mask, lensed.width, lensed.height, &mask);
+        
+        // mask individual pixels by setting their weight to zero
+        for(size_t i = 0; i < lensed.size; ++i)
+        {
+            if(mask[i])
+            {
+                lensed.weight[i] = 0;
+                masked += 1;
+            }
+        }
+        
+        // done with mask
+        free(mask);
+    }
     
     verbose("data");
-    verbose("  dimensions: %zu x %zu", lensed.dat->width, lensed.dat->height);
-    verbose("  image pixels: %zu", lensed.dat->size);
-    if(lensed.dat->nmask)
-        verbose("  masked pixels: %zu", lensed.dat->nmask);
+    verbose("  dimensions: %zu x %zu", lensed.width, lensed.height);
+    verbose("  image pixels: %zu", lensed.size);
+    if(inp->opts->mask)
+        verbose("  masked pixels: %zu", masked);
     
     
     /***********
@@ -357,7 +391,7 @@ int main(int argc, char* argv[])
         };
         
         // make build options string
-        const char* build_options = kernel_options(lensed.dat->width, lensed.dat->height, nq, build_flags);
+        const char* build_options = kernel_options(lensed.width, lensed.height, nq, build_flags);
         
         // and build program
         verbose("  build program");
@@ -384,7 +418,7 @@ int main(int argc, char* argv[])
             error("failed to get maximum work-group size");
         
         // global work size
-        lensed.work_size = lensed.dat->size;
+        lensed.work_size = lensed.size;
         
         // pad global work size to be multiple of maximum work-group size
         if(lensed.work_size % max_wg_size)
@@ -398,10 +432,10 @@ int main(int argc, char* argv[])
     {
         verbose("  create data buffers");
         
-        mean = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.dat->size*sizeof(cl_float), lensed.dat->mean, NULL);
-        variance = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.dat->size*sizeof(cl_float), lensed.dat->variance, NULL);
-        lensed.loglike = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.dat->size*sizeof(cl_float), NULL, NULL);
-        if(!mean || !variance || !lensed.loglike)
+        image_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.image, NULL);
+        weight_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.weight, NULL);
+        lensed.output_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
+        if(!image_mem || !weight_mem || !lensed.output_mem)
             error("failed to allocate data buffers");
     }
     
@@ -445,9 +479,9 @@ int main(int argc, char* argv[])
         err |= clSetKernelArg(lensed.kernel, 0, sizeof(cl_mem), &object_mem);
         err |= clSetKernelArg(lensed.kernel, 1, sizeof(cl_mem), &qq_mem);
         err |= clSetKernelArg(lensed.kernel, 2, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &mean);
-        err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &variance);
-        err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.loglike);
+        err |= clSetKernelArg(lensed.kernel, 3, sizeof(cl_mem), &image_mem);
+        err |= clSetKernelArg(lensed.kernel, 4, sizeof(cl_mem), &weight_mem);
+        err |= clSetKernelArg(lensed.kernel, 5, sizeof(cl_mem), &lensed.output_mem);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
     }
@@ -481,7 +515,7 @@ int main(int argc, char* argv[])
         verbose("  create dumper buffer");
         
         // buffer for dumper data
-        lensed.dumper_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.dat->size*sizeof(cl_float4), NULL, &err);
+        lensed.dumper_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float4), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to allocate dumper buffer");
         
@@ -497,8 +531,8 @@ int main(int argc, char* argv[])
         err |= clSetKernelArg(lensed.dumper, 0, sizeof(cl_mem), &object_mem);
         err |= clSetKernelArg(lensed.dumper, 1, sizeof(cl_mem), &qq_mem);
         err |= clSetKernelArg(lensed.dumper, 2, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed.dumper, 3, sizeof(cl_mem), &mean);
-        err |= clSetKernelArg(lensed.dumper, 4, sizeof(cl_mem), &variance);
+        err |= clSetKernelArg(lensed.dumper, 3, sizeof(cl_mem), &image_mem);
+        err |= clSetKernelArg(lensed.dumper, 4, sizeof(cl_mem), &weight_mem);
         err |= clSetKernelArg(lensed.dumper, 5, sizeof(cl_mem), &lensed.dumper_mem);
         if(err != CL_SUCCESS)
             error("failed to set dumper kernel arguments");
@@ -591,16 +625,15 @@ int main(int argc, char* argv[])
      ***********/
     
     // map output from device
-    cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.dat->size*sizeof(cl_float4), 0, NULL, NULL, &err);
+    cl_float4* output = clEnqueueMapBuffer(lensed.queue, lensed.dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed.size*sizeof(cl_float4), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to map dumper buffer");
     
     // compute chi^2/dof
     chi2_dof = 0;
-    for(size_t i = 0; i < lensed.dat->size; ++i)
-        if(!lensed.dat->mask[i])
-            chi2_dof += output[i].s[3];
-    chi2_dof /= lensed.dat->size - lensed.dat->nmask - lensed.npars;
+    for(size_t i = 0; i < lensed.size; ++i)
+        chi2_dof += output[i].s[3];
+    chi2_dof /= lensed.size - masked - lensed.npars;
     
     // unmap output
     clEnqueueUnmapMemObject(lensed.queue, lensed.dumper_mem, output, 0, NULL, NULL);
@@ -692,8 +725,8 @@ int main(int argc, char* argv[])
     clReleaseMemObject(ww_mem);
     
     // free data
-    clReleaseMemObject(mean);
-    clReleaseMemObject(variance);
+    clReleaseMemObject(image_mem);
+    clReleaseMemObject(weight_mem);
     
     // free worker
     clReleaseProgram(program);
@@ -712,7 +745,8 @@ int main(int argc, char* argv[])
     free(lensed.map);
     
     // free data
-    free_data(lensed.dat);
+    free(lensed.image);
+    free(lensed.weight);
     
     // free input
     free_input(inp);

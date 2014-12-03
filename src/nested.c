@@ -54,21 +54,20 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
         error("failed to run kernel");
     
     // map result from device
-    cl_float* loglike = clEnqueueMapBuffer(lensed->queue, lensed->loglike, CL_TRUE, CL_MAP_READ, 0, lensed->dat->size*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* output = clEnqueueMapBuffer(lensed->queue, lensed->output_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
-        error("failed to map log-likelihood buffer");
+        error("failed to map output buffer");
     
-    /* sum likelihood */
-    double sum = 0.0;
-    for(size_t i = 0; i < lensed->dat->size; ++i)
-        if(!lensed->dat->mask[i])
-            sum += loglike[i] + lensed->lognorm;
+    // sum chi^2 value
+    double chi2 = 0.0;
+    for(size_t i = 0; i < lensed->size; ++i)
+        chi2 += output[i];
     
     // unmap result
-    clEnqueueUnmapMemObject(lensed->queue, lensed->loglike, loglike, 0, NULL, NULL);
+    clEnqueueUnmapMemObject(lensed->queue, lensed->output_mem, output, 0, NULL, NULL);
     
-    /* set likelihood */
-    *lnew = sum;
+    // set log-likelihood
+    *lnew = -0.5*chi2;
 }
 
 void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
@@ -124,13 +123,13 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         error("failed to run dumper");
     
     // map output from device
-    output = clEnqueueMapBuffer(lensed->queue, lensed->dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed->dat->size*sizeof(cl_float4), 0, NULL, NULL, &err);
+    output = clEnqueueMapBuffer(lensed->queue, lensed->dumper_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float4), 0, NULL, NULL, &err);
     if(err != CL_SUCCESS)
         error("failed to map dumper buffer");
     
     // output results if asked to
     if(lensed->fits)
-        write_output(lensed->fits, lensed->dat, 4, output);
+        write_output(lensed->fits, lensed->width, lensed->height, 4, output);
     
     // unmap buffers
     clEnqueueUnmapMemObject(lensed->queue, lensed->dumper_mem, output, 0, NULL, NULL);
