@@ -52,13 +52,13 @@ void print_prior_unif(const void* data, char* buf, size_t n)
         return;
     strcpy(buf, "U(");
     len += 2;
-    write_real(buf + len, &unif->a, n - len);
+    write_real(buf + len, unif->a, n - len);
     len = strlen(buf);
     if(len + 2 > n)
         return;
     strcat(buf, ", ");
     len += 2;
-    write_real(buf + len, &unif->b, n - len);
+    write_real(buf + len, unif->b, n - len);
     len = strlen(buf);
     if(len + 2 > n)
         return;
