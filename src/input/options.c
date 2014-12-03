@@ -71,14 +71,20 @@ struct option OPTIONS[] = {
     {
         "gain",
         "Conversion factor to counts",
-        OPTION_REQUIRED(real),
+        OPTION_REQIFNOT(real, 1, weight),
         OPTION_FIELD(gain)
     },
     {
         "offset",
         "Subtracted flat-field offset",
-        OPTION_REQUIRED(real),
+        OPTION_REQIFNOT(real, 0, weight),
         OPTION_FIELD(offset)
+    },
+    {
+        "weight",
+        "Weight map in 1/(counts/sec)^2",
+        OPTION_OPTIONAL(string, NULL),
+        OPTION_FIELD(weight)
     },
     {
         "mask",
@@ -172,6 +178,7 @@ options* create_options()
 void free_options(options* opts)
 {
     free(opts->image);
+    free(opts->weight);
     free(opts->mask);
     free(opts->root);
     free(opts);
