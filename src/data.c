@@ -208,7 +208,7 @@ void write_output(const char* filename, size_t width, size_t height, size_t num,
     free(images);
 }
 
-cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[])
+void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm)
 {
     double min, max, dx;
     size_t* counts;
@@ -216,7 +216,11 @@ cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[
     
     // make sure there are values
     if(nvalues == 0)
-        return MODE_NAN;
+    {
+        *mode = MODE_NAN;
+        *fwhm = 0;
+        return;
+    }
     
     // find minimum and maximum of values
     min = max = values[0];
@@ -232,7 +236,11 @@ cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[
     
     // if the values are amodal, return
     if(min == max)
-        return min;
+    {
+        *mode = min;
+        *fwhm = 0;
+        return;
+    }
     
     // bin width
     dx = (max - min)/MODE_BINS;
@@ -259,9 +267,25 @@ cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[
         if(counts[i] > counts[j])
             j = i;
     
+    // mode is at middle of most common bin
+    *mode = min + (j + 0.5)*dx;
+    
+    // find right half maximum
+    for(i = j+1; i < MODE_BINS; ++i)
+        if(counts[i] < 0.5*counts[j])
+            break;
+    
+    // right half maximum
+    *fwhm = i*dx;
+    
+    // find left half maximum
+    for(i = j; i > 0; --i)
+        if(counts[i-1] < 0.5*counts[j])
+            break;
+    
+    // full width at half maximum
+    *fwhm -= (i-1)*dx;
+    
     // done with counts
     free(counts);
-    
-    // return counts at middle of mode bin
-    return min + (j + 0.5)*dx;
 }

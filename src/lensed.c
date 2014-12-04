@@ -224,18 +224,15 @@ int main(int argc, char* argv[])
     
     // check flat-fielding
     {
-        cl_float mode, var;
+        double mode, fwhm;
         
         // get mode of pixel values
-        mode = find_mode(lensed.size, lensed.image, lensed.weight);
+        find_mode(lensed.size, lensed.image, lensed.weight, &mode, &fwhm);
         
-        verbose("  image mode: %f", mode);
+        verbose("  background sky: %f ± %f", mode, 0.5*fwhm);
         
-        // Poisson variance for mode
-        var = (mode + inp->opts->offset)/inp->opts->gain;
-        
-        // check if mode is within 1 sigma of zero
-        if(mode*mode/var > 1)
+        // check if mode contains zero
+        if(fabs(mode) > 0.5*fwhm)
         {
             size_t i;
             
@@ -246,11 +243,21 @@ int main(int argc, char* argv[])
             
             // warn if there is no sky
             if(i == inp->nobjs)
-                warn("mode of data is not zero (mode = %f)\n"
+                warn("background sky is not zero\n"
                      "The mode of the image is far from zero. This might "
                      "indicate that the background sky was not removed from "
                      "the image. In this case, you should add a \"sky\" object "
                      "or the reconstruction might fail.");
+        }
+        else
+        {
+            // warn if there is no offset given
+            if(!inp->opts->offset && !inp->opts->weight)
+                warn("background sky is zero but no offset was given\n"
+                     "The mode of the image is close to zero. This might "
+                     "indicate that the background sky was removed from the "
+                     "image. In this case, the \"offset\" option must be given "
+                     "to get the correct pixel weights.");
         }
     }
     
