@@ -16,4 +16,4 @@ void read_mask(const char* filename, size_t width, size_t height, int** mask);
 void write_output(const char* filename, size_t width, size_t height, size_t num, cl_float4* output);
 
 // find most common value
-cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[]);
+void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm);
