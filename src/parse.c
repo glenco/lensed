@@ -13,19 +13,6 @@ static const struct { const char* name; double value; } REAL_CONSTS[] = {
 };
 static const size_t NREAL_CONSTS = sizeof(REAL_CONSTS)/sizeof(REAL_CONSTS[0]);
 
-int read_string(char** out, const char* in)
-{
-    *out = malloc(strlen(in) + 1);
-    strcpy(*out, in);
-    return 0;
-}
-
-int write_string(char* out, const char** in, size_t n)
-{
-    snprintf(out, n, "%s", *in ? *in : "(none)");
-    return 0;
-}
-
 int read_bool(int* out, const char* in)
 {
     if(strcmp(in, "true") == 0 || strcmp(in, "TRUE") == 0 || strcmp(in, "1") == 0)
@@ -37,9 +24,9 @@ int read_bool(int* out, const char* in)
     return 0;
 }
 
-int write_bool(char* out, const int* in, size_t n)
+int write_bool(char* out, int in, size_t n)
 {
-    snprintf(out, n, "%s", *in ? "true" : "false");
+    snprintf(out, n, "%s", in ? "true" : "false");
     return 0;
 }
 
@@ -53,9 +40,9 @@ int read_int(int* out, const char* in)
     return 0;
 }
 
-int write_int(char* out, const int* in, size_t n)
+int write_int(char* out, int in, size_t n)
 {
-    snprintf(out, n, "%d", *in);
+    snprintf(out, n, "%d", in);
     return 0;
 }
 
@@ -80,11 +67,11 @@ int read_real(double* out, const char* in)
     return 0;
 }
 
-int write_real(char* out, const double* in, size_t n)
+int write_real(char* out, double in, size_t n)
 {
     size_t i;
     
-    if(*in == 0)
+    if(in == 0)
     {
         snprintf(out, n, "0");
         return 0;
@@ -92,7 +79,7 @@ int write_real(char* out, const double* in, size_t n)
     
     for(i = 0; i < NREAL_CONSTS; ++i)
     {
-        double f = (*in)/REAL_CONSTS[i].value;
+        double f = in/REAL_CONSTS[i].value;
         
         if(f == 1.0)
         {
@@ -107,7 +94,7 @@ int write_real(char* out, const double* in, size_t n)
         }
     }
     
-    snprintf(out, n, "%g", *in);
+    snprintf(out, n, "%g", in);
     
     return 0;
 }

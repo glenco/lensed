@@ -12,6 +12,20 @@
 #include "data.h"
 #include "log.h"
 
+// number of bins for find_mode
+#ifndef MODE_BINS
+#define MODE_BINS 100
+#endif
+
+// return value for invalid find_mode
+#ifndef MODE_NAN
+#ifdef NAN
+#define MODE_NAN NAN
+#else
+#define MODE_NAN 0
+#endif
+#endif
+
 void fits_error(const char* filename, int status)
 {
     char err_text[32];
@@ -192,4 +206,62 @@ void write_output(const char* filename, size_t width, size_t height, size_t num,
     for(size_t n = 0; n < num; ++n)
         free(images[n]);
     free(images);
+}
+
+cl_float find_mode(size_t nvalues, const cl_float values[], const cl_float mask[])
+{
+    double min, max, dx;
+    size_t* counts;
+    size_t i, j;
+    
+    // make sure there are values
+    if(nvalues == 0)
+        return MODE_NAN;
+    
+    // find minimum and maximum of values
+    min = max = values[0];
+    for(i = 1; i < nvalues; ++i)
+    {
+        if(mask && !mask[i])
+            continue;
+        if(values[i] < min)
+            min = values[i];
+        else if(values[i] > max)
+            max = values[i];
+    }
+    
+    // if the values are amodal, return
+    if(min == max)
+        return min;
+    
+    // bin width
+    dx = (max - min)/MODE_BINS;
+    
+    // create array for bin counts
+    counts = calloc(MODE_BINS, sizeof(size_t));
+    if(!counts)
+        errori(NULL);
+    
+    // count frequency in each bin
+    for(i = 0; i < nvalues; ++i)
+    {
+        if(mask && !mask[i])
+            continue;
+        j = (values[i] - min)/dx;
+        if(j == MODE_BINS)
+            j -= 1;
+        counts[j] += 1;
+    }
+    
+    // find bin with most counts
+    j = 0;
+    for(i = 1; i < MODE_BINS; ++i)
+        if(counts[i] > counts[j])
+            j = i;
+    
+    // done with counts
+    free(counts);
+    
+    // return counts at middle of mode bin
+    return min + (j + 0.5)*dx;
 }

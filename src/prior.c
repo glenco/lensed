@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "input.h"
+#include "parse.h"
 #include "prior.h"
 #include "log.h"
 
@@ -25,10 +26,12 @@ typedef struct
 #define PRIOR(x) { #x, read_prior_##x, free_prior_##x, print_prior_##x, prior_##x }
 
 // include all prior headers here
+#include "prior/delta.h"
 #include "prior/unif.h"
 
 // define known priors here
 static const prior_list PRIORS[] = {
+    PRIOR(delta),
     PRIOR(unif)
 };
 
@@ -56,6 +59,8 @@ prior* read_prior(const char* str)
     char* arg;
     
     size_t pos, spn, len;
+    
+    double dummy;
     
     // get length of string
     len = strlen(str);
@@ -93,10 +98,19 @@ prior* read_prior(const char* str)
         pos += strspn(str + pos, WS);
     }
     
-    // find prior in list
-    for(pos = 0; pos < NPRIORS; ++pos)
-        if(strcmp(args[0], PRIORS[pos].name) == 0)
-            break;
+    // single-argument prior with real is delta
+    if(nargs == 1 && read_real(&dummy, args[0]) == 0)
+    {
+        // delta function prior
+        pos = 0;
+    }
+    else
+    {
+        // find prior in list
+        for(pos = 1; pos < NPRIORS; ++pos)
+            if(strcmp(args[0], PRIORS[pos].name) == 0)
+                break;
+    }
     
     // make sure prior was found
     if(pos == NPRIORS)

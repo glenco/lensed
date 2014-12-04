@@ -55,8 +55,9 @@ typedef struct
 // object types
 enum
 {
-    OBJ_LENS = 'L',
-    OBJ_SOURCE = 'S'
+    OBJ_LENS       = 'L',
+    OBJ_SOURCE     = 'S',
+    OBJ_FOREGROUND = 'F'
 };
 
 // definition of objects

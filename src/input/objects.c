@@ -128,8 +128,8 @@ void add_object(input* inp, const char* id, const char* name)
     obj->npars = meta_npars;
     
     // check meta-data
-    if(obj->type != OBJ_LENS && obj->type != OBJ_SOURCE)
-        error("object %s: invalid type (should be LENS or SOURCE)", id);
+    if(obj->type != OBJ_LENS && obj->type != OBJ_SOURCE && obj->type != OBJ_FOREGROUND)
+        error("object %s: invalid type (should be LENS, SOURCE or FOREGROUD)", id);
     
     // buffer for kernel parameters
     params_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(struct kernel_param), NULL, &err);

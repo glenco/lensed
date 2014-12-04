@@ -30,10 +30,10 @@ struct option
 };
 
 // mark option as required or optional
-#define OPTION_REQUIRED(type) 1, 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_null = NULL }
-#define OPTION_OPTIONAL(type, value) 0, 0, #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
-#define OPTION_REQIFSET(type, value, depend) 2, offsetof(options, depend), #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
-#define OPTION_REQIFNOT(type, value, depend) 3, offsetof(options, depend), #type, (int (*)(void*, const char*))read_##type, (int (*)(char*, const void*, size_t))write_##type, { .default_##type = value }
+#define OPTION_REQUIRED(type) 1, 0, #type, option_read_##type, option_write_##type, { .default_null = NULL }
+#define OPTION_OPTIONAL(type, value) 0, 0, #type, option_read_##type, option_write_##type, { .default_##type = value }
+#define OPTION_REQIFSET(type, value, depend) 2, offsetof(options, depend), #type, option_read_##type, option_write_##type, { .default_##type = value }
+#define OPTION_REQIFNOT(type, value, depend) 3, offsetof(options, depend), #type, option_read_##type, option_write_##type, { .default_##type = value }
 
 // get offset of option field in input
 #define OPTION_FIELD(field) offsetof(options, field), sizeof(((options*)0)->field)
@@ -41,6 +41,17 @@ struct option
 // get status of dependency
 #define OPTION_ISSET(options, offset) (*(int*)((char*)options + offset))
 #define OPTION_ISNOT(options, offset) (!*(int*)((char*)options + offset))
+
+// declare option types
+#define OPTION_TYPE(type) \
+    static int option_read_##type(void*, const char*); \
+    static int option_write_##type(char*, const void*, size_t);
+
+// list known option types
+OPTION_TYPE(string)
+OPTION_TYPE(bool)
+OPTION_TYPE(int)
+OPTION_TYPE(real)
 
 // list of known options
 struct option OPTIONS[] = {
@@ -77,7 +88,7 @@ struct option OPTIONS[] = {
     {
         "offset",
         "Subtracted flat-field offset",
-        OPTION_REQIFNOT(real, 0, weight),
+        OPTION_OPTIONAL(real, 0),
         OPTION_FIELD(offset)
     },
     {
@@ -300,4 +311,57 @@ int option_default_value(char* buf, size_t buf_size, size_t n)
 int option_value(char* buf, size_t buf_size, const input* inp, size_t n)
 {
     return OPTIONS[n].write(buf, (char*)inp->opts + OPTIONS[n].offset, buf_size);
+}
+
+// wrappers for option reading and writing
+
+int option_read_string(void* out, const char* in)
+{
+    char** out_char = out;
+    *out_char = malloc(strlen(in) + 1);
+    strcpy(*out_char, in);
+    return 0;
+}
+
+int option_write_string(char* out, const void* in, size_t n)
+{
+    char* const* in_char = in;
+    snprintf(out, n, "%s", *in_char ? *in_char : "none");
+    return 0;
+}
+
+int option_read_bool(void* out, const char* in)
+{
+    int* out_bool = out;
+    return read_bool(out_bool, in);
+}
+
+int option_write_bool(char* out, const void* in, size_t n)
+{
+    const int* in_bool = in;
+    return write_bool(out, *in_bool, n);
+}
+
+int option_read_int(void* out, const char* in)
+{
+    int* out_int = out;
+    return read_int(out_int, in);
+}
+
+int option_write_int(char* out, const void* in, size_t n)
+{
+    const int* in_int = in;
+    return write_int(out, *in_int, n);
+}
+
+int option_read_real(void* out, const char* in)
+{
+    double* out_real = out;
+    return read_real(out_real, in);
+}
+
+int option_write_real(char* out, const void* in, size_t n)
+{
+    const double* in_real = in;
+    return write_real(out, *in_real, n);
 }

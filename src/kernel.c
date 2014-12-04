@@ -88,6 +88,13 @@ static const char COMPSHED[] =
 static const char COMPSRCE[] =
     "    f += %s((constant void*)(data + %zu), y);\n"
 ;
+static const char COMPFHED[] =
+    "    \n"
+    "    // add foreground\n"
+;
+static const char COMPFGND[] =
+    "    f += %s((constant void*)(data + %zu), x);\n"
+;
 static const char COMPFOOT[] =
     "    \n"
     "    // return total surface brightness\n"
@@ -173,6 +180,9 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // object type currently processed
     int type;
     
+    // trigger for changing lens planes
+    int trigger;
+    
     // buffer for kernel
     size_t buf_size;
     char* buf;
@@ -188,25 +198,33 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     
     // calculate buffer size
     d = 0;
-    type = 0;
+    type = trigger = 0;
     buf_size = sizeof(FILEHEAD) + strlen("compute");
     buf_size += sizeof(COMPHEAD);
     for(size_t i = 0; i < nobjs; ++i)
     {
+        if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
+        {
+            if(trigger == OBJ_LENS)
+                buf_size += sizeof(COMPDEFL);
+            trigger = objs[i].type;
+        }
         if(objs[i].type != type)
         {
-            if(type == OBJ_LENS)
-                buf_size += sizeof(COMPDEFL);
             if(objs[i].type == OBJ_LENS)
                 buf_size += sizeof(COMPLHED);
-            else
+            else if(objs[i].type == OBJ_SOURCE)
                 buf_size += sizeof(COMPSHED);
+            else if(objs[i].type == OBJ_FOREGROUND)
+                buf_size += sizeof(COMPFHED);
             type = objs[i].type;
         }
         if(type == OBJ_LENS)
             buf_size += sizeof(COMPLENS);
-        else
+        else if(type == OBJ_SOURCE)
             buf_size += sizeof(COMPSRCE);
+        else if(type == OBJ_FOREGROUND)
+            buf_size += sizeof(COMPFGND);
         buf_size += strlen(objs[i].name);
         buf_size += log10(1+d);
         d += objs[i].size;
@@ -223,7 +241,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     d = 0;
     
     // start with invalid type
-    type = 0;
+    type = trigger = 0;
     
     // output tracks current writing position on buffer
     out = buf;
@@ -243,11 +261,11 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     // write body
     for(size_t i = 0; i < nobjs; ++i)
     {
-        // check if type of object changed
-        if(objs[i].type != type)
+        // check if lens plane change is triggered
+        if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
         {
-            // when going from lenses to sources, apply deflection
-            if(type == OBJ_LENS)
+            // when triggering from lenses to sources, apply deflection
+            if(trigger == OBJ_LENS)
             {
                 wri = sprintf(out, COMPDEFL);
                 if(wri < 0)
@@ -255,11 +273,22 @@ static const char* compute_kernel(size_t nobjs, object objs[])
                 out += wri;
             }
             
+            // new trigger
+            trigger = objs[i].type;
+        }
+        
+        // check if type of object changed
+        if(objs[i].type != type)
+        {
             // write header
             if(objs[i].type == OBJ_LENS)
                 wri = sprintf(out, COMPLHED);
-            else
+            else if(objs[i].type == OBJ_SOURCE)
                 wri = sprintf(out, COMPSHED);
+            else if(objs[i].type == OBJ_FOREGROUND)
+                wri = sprintf(out, COMPFHED);
+            else
+                wri = 0;
             if(wri < 0)
                 errori(NULL);
             out += wri;
@@ -271,8 +300,12 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         // write line for current object
         if(type == OBJ_LENS)
             wri = sprintf(out, COMPLENS, objs[i].name, d);
-        else
+        else if(type == OBJ_SOURCE)
             wri = sprintf(out, COMPSRCE, objs[i].name, d);
+        else if(type == OBJ_FOREGROUND)
+            wri = sprintf(out, COMPFGND, objs[i].name, d);
+        else
+            wri = 0;
         if(wri < 0)
             errori(NULL);
         out += wri;
