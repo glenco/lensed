@@ -88,7 +88,7 @@ struct option OPTIONS[] = {
     {
         "offset",
         "Subtracted flat-field offset",
-        OPTION_REQIFNOT(real, 0, weight),
+        OPTION_OPTIONAL(real, 0),
         OPTION_FIELD(offset)
     },
     {

@@ -222,6 +222,38 @@ int main(int argc, char* argv[])
     if(inp->opts->mask)
         verbose("  masked pixels: %zu", masked);
     
+    // check flat-fielding
+    {
+        cl_float mode, var;
+        
+        // get mode of pixel values
+        mode = find_mode(lensed.size, lensed.image, lensed.weight);
+        
+        verbose("  image mode: %f", mode);
+        
+        // Poisson variance for mode
+        var = (mode + inp->opts->offset)/inp->opts->gain;
+        
+        // check if mode is within 1 sigma of zero
+        if(mode*mode/var > 1)
+        {
+            size_t i;
+            
+            // try to locate sky object
+            for(i = 0; i < inp->nobjs; ++i)
+                if(strcmp(inp->objs[i].name, "sky") == 0)
+                    break;
+            
+            // warn if there is no sky
+            if(i == inp->nobjs)
+                warn("mode of data is not zero (mode = %f)\n"
+                     "The mode of the image is far from zero. This might "
+                     "indicate that the background sky was not removed from "
+                     "the image. In this case, you should add a \"sky\" object "
+                     "or the reconstruction might fail.");
+        }
+    }
+    
     
     /***********
      * results *
