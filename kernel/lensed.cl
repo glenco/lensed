@@ -1,58 +1,45 @@
-// integrate flux in pixel and return value and error estimate
-static float2 flux(constant char* data, float2 x,
-    constant float2* qq, constant float2* ww)
+// compute image
+kernel void render(constant char* data,
+                   constant float2* qq, constant float2* ww,
+                   global float* value, global float* error)
 {
-    // flux value and error of pixel
-    float2 flux = 0;
+    // get pixel indices
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int k = mad24(j, IMAGE_WIDTH, i);
     
-    // apply quadrature rule to computed surface brightness
-    for(size_t j = 0; j < QUAD_POINTS; ++j)
-        flux += ww[j]*compute(data, x + qq[j]);
-    
-    // done
-    return flux;
-}
-
-// compute image and calculate log-likelihood
-kernel void loglike(constant char* data, constant float2* qq, constant float2* ww,
-    global const float* image, global const float* weight, global float* output)
-{
-    // get pixel index
-    size_t i = get_global_id(0);
-    
-    // make sure pixel is in image
-    if(i < IMAGE_SIZE)
+    // compute pixel flux if pixel is in image
+    if(i < IMAGE_WIDTH && j < IMAGE_HEIGHT)
     {
         // pixel position
-        float2 x = (float2)(1 + i % IMAGE_WIDTH, 1 + i / IMAGE_WIDTH);
+        float2 x = (float2)(1 + i, 1 + j);
         
-        // integrate flux in pixel
-        float2 f = flux(data, x, qq, ww);
+        // value and error of quadrature
+        float2 f = 0;
         
-        // chi^2 value for pixel
-        float d = f.s0 - image[i];
-        output[i] = weight[i]*d*d;
+        // apply quadrature rule to computed surface brightness
+        for(size_t n = 0; n < QUAD_POINTS; ++n)
+            f += ww[n]*compute(data, x + qq[n]);
+        
+        // done
+        value[k] = f.s0;
+        error[k] = f.s1;
     }
 }
 
-// generate image and errors for dumper output
-kernel void dumper(constant char* data, constant float2* qq, constant float2* ww,
-    global const float* image, global const float* weight, global float4* output)
+// calculate log-likelihood of computed model
+kernel void loglike(global const float* image, global const float* weight,
+                    global const float* model, global float* loglike)
 {
     // get pixel index
-    size_t i = get_global_id(0);
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int k = mad24(j, IMAGE_WIDTH, i);
     
-    // make sure pixel is in image
-    if(i < IMAGE_SIZE)
+    // compute chi^2 value if pixel is in image
+    if(i < IMAGE_WIDTH && j < IMAGE_HEIGHT)
     {
-        // pixel position
-        float2 x = (float2)(1 + i % IMAGE_WIDTH, 1 + i / IMAGE_WIDTH);
-        
-        // integrate flux in pixel
-        float2 f = flux(data, x, qq, ww);
-        
-        // return flux, error, residual, chi^2
-        float d = f.s0 - image[i];
-        output[i] = (float4)(f, d, weight[i]*d*d);
+        float d = model[k] - image[k];
+        loglike[k] = weight[k]*d*d;
     }
 }
