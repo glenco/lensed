@@ -39,6 +39,9 @@ int main(int argc, char* argv[])
     
     // data
     size_t masked;
+    cl_float* psf;
+    size_t psfw;
+    size_t psfh;
     
     // quadrature rule
     cl_ulong nq;
@@ -63,6 +66,7 @@ int main(int argc, char* argv[])
     // buffers for data
     cl_mem image_mem;
     cl_mem weight_mem;
+    cl_mem psf_mem;
     
     // log file for capturing library output
     char* logfil;
@@ -156,11 +160,17 @@ int main(int argc, char* argv[])
      * data *
      ********/
     
+    verbose("data");
+    
     // read input image
     read_image(inp->opts->image, &lensed.width, &lensed.height, &lensed.image);
     
+    verbose("  image size: %zu x %zu", lensed.width, lensed.height);
+    
     // total size of image
     lensed.size = lensed.width*lensed.height;
+    
+    verbose("  image pixels: %zu", lensed.size);
     
     // read weights if given, else generate from image
     if(inp->opts->weight)
@@ -191,13 +201,25 @@ int main(int argc, char* argv[])
         
         // done with mask
         free(mask);
+        
+        verbose("  masked pixels: %zu", masked);
     }
     
-    verbose("data");
-    verbose("  dimensions: %zu x %zu", lensed.width, lensed.height);
-    verbose("  image pixels: %zu", lensed.size);
-    if(inp->opts->mask)
-        verbose("  masked pixels: %zu", masked);
+    // load PSF if given
+    if(inp->opts->psf)
+    {
+        // read psf
+        read_psf(inp->opts->psf, &psfw, &psfh, &psf);
+        
+        verbose("  PSF size: %zu x %zu", psfw, psfh);
+    }
+    else
+    {
+        // no psf
+        psf = NULL;
+        psfw = 0;
+        psfh = 0;
+    }
     
     // check flat-fielding
     {
@@ -206,7 +228,7 @@ int main(int argc, char* argv[])
         // get mode of pixel values
         find_mode(lensed.size, lensed.image, lensed.weight, &mode, &fwhm);
         
-        verbose("  background sky: %f ± %f", mode, 0.5*fwhm);
+        verbose("  background: %f ± %f", mode, 0.5*fwhm);
         
         // check if mode contains zero
         if(fabs(mode) > 0.5*fwhm)
@@ -407,7 +429,7 @@ int main(int argc, char* argv[])
         };
         
         // make build options string
-        const char* build_options = kernel_options(lensed.width, lensed.height, nq, build_flags);
+        const char* build_options = kernel_options(lensed.width, lensed.height, !!psf, psfw, psfh, nq, build_flags);
         
         // and build program
         verbose("  build program");
@@ -444,7 +466,9 @@ int main(int argc, char* argv[])
         
         image_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.image, NULL);
         weight_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.weight, NULL);
-        if(!image_mem || !weight_mem)
+        if(psf)
+            psf_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), psf, &err);
+        if(!image_mem || !weight_mem || err)
             error("failed to allocate data buffers");
     }
     
@@ -522,6 +546,41 @@ int main(int argc, char* argv[])
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         
+        // convolution kernel if there is a PSF
+        if(psf)
+        {
+            size_t cache_size;
+            
+            verbose("  create convolve buffer");
+            
+            lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+            if(err != CL_SUCCESS)
+                error("failed to create convolve buffer");
+            
+            verbose("  create convolve kernel");
+            
+            // size of local memory that stores part of the model
+            cache_size = (psfw/2 + lensed.lws[0] + psfw/2)*(psfh/2 + lensed.lws[1] + psfh/2);
+            
+            // convolve kernel 
+            lensed.convolve = clCreateKernel(program, "convolve", &err);
+            if(err != CL_SUCCESS)
+                error("failed to create convolve kernel");
+            err = 0;
+            err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.value_mem);
+            err |= clSetKernelArg(lensed.convolve, 1, sizeof(cl_mem), &psf_mem);
+            err |= clSetKernelArg(lensed.convolve, 2, cache_size*sizeof(cl_float), NULL);
+            err |= clSetKernelArg(lensed.convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
+            err |= clSetKernelArg(lensed.convolve, 4, sizeof(cl_mem), &lensed.convolve_mem);
+            if(err != CL_SUCCESS)
+                error("failed to set convolve kernel arguments");
+        }
+        else
+        {
+            // no kernel: used to determine whether to convolve
+            lensed.convolve = 0;
+        }
+        
         verbose("  create loglike buffer");
         
         lensed.loglike_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
@@ -530,14 +589,14 @@ int main(int argc, char* argv[])
         
         verbose("  create loglike kernel");
         
-        // loglike kernel 
+        // loglike kernel, take care: the buffer it works on depends on PSF
         lensed.loglike = clCreateKernel(program, "loglike", &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike kernel");
         err = 0;
         err |= clSetKernelArg(lensed.loglike, 0, sizeof(cl_mem), &image_mem);
         err |= clSetKernelArg(lensed.loglike, 1, sizeof(cl_mem), &weight_mem);
-        err |= clSetKernelArg(lensed.loglike, 2, sizeof(cl_mem), &lensed.value_mem);
+        err |= clSetKernelArg(lensed.loglike, 2, sizeof(cl_mem), psf ? &lensed.convolve_mem : &lensed.value_mem);
         err |= clSetKernelArg(lensed.loglike, 3, sizeof(cl_mem), &lensed.loglike_mem);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
@@ -694,6 +753,11 @@ int main(int argc, char* argv[])
     clReleaseKernel(lensed.render);
     clReleaseMemObject(lensed.value_mem);
     clReleaseMemObject(lensed.error_mem);
+    if(psf)
+    {
+        clReleaseKernel(lensed.convolve);
+        clReleaseMemObject(lensed.convolve_mem);
+    }
     clReleaseKernel(lensed.loglike);
     clReleaseMemObject(lensed.loglike_mem);
     
@@ -711,6 +775,8 @@ int main(int argc, char* argv[])
     // free data
     clReleaseMemObject(image_mem);
     clReleaseMemObject(weight_mem);
+    if(psf)
+        clReleaseMemObject(psf_mem);
     
     // free worker
     clReleaseProgram(program);
@@ -731,6 +797,7 @@ int main(int argc, char* argv[])
     // free data
     free(lensed.image);
     free(lensed.weight);
+    free(psf);
     
     // free input
     free_input(inp);

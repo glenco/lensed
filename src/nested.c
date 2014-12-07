@@ -49,6 +49,8 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     // run kernels
     err = 0;
     err |= clEnqueueNDRangeKernel(lensed->queue, lensed->render, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+    if(lensed->convolve)
+        err |= clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
     err |= clEnqueueNDRangeKernel(lensed->queue, lensed->loglike, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
     
     // check for errors
@@ -82,7 +84,8 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
     struct lensed* lensed = lensed_;
     
     cl_int err;
-    cl_float* output[2] = {0};
+    size_t noutput;
+    cl_float* output[3] = {0};
     
     // copy parameters to results
     for(size_t i = 0; i < lensed->npars; ++i)
@@ -123,22 +126,46 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         // run kernel
         err = 0;
         err |= clEnqueueNDRangeKernel(lensed->queue, lensed->render, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+        if(lensed->convolve)
+            err |= clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
         
         // check for errors
         if(err != CL_SUCCESS)
             error("failed to run kernel");
         
         // map output from device
-        output[0] = clEnqueueMapBuffer(lensed->queue, lensed->value_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
-        output[1] = clEnqueueMapBuffer(lensed->queue, lensed->error_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
-        if(!output[0] || !output[1])
-            error("failed to map output buffer");
+        if(lensed->convolve)
+        {
+            noutput = 3;
+            output[0] = clEnqueueMapBuffer(lensed->queue, lensed->convolve_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+            output[1] = clEnqueueMapBuffer(lensed->queue, lensed->value_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+            output[2] = clEnqueueMapBuffer(lensed->queue, lensed->error_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+            if(!output[0] || !output[1] || !output[2])
+                error("failed to map output buffer");
+        }
+        else
+        {
+            noutput = 2;
+            output[0] = clEnqueueMapBuffer(lensed->queue, lensed->value_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+            output[1] = clEnqueueMapBuffer(lensed->queue, lensed->error_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+            if(!output[0] || !output[1])
+                error("failed to map output buffer");
+        }
         
         // write output to FITS
-        write_output(lensed->fits, lensed->width, lensed->height, 2, output);
+        write_output(lensed->fits, lensed->width, lensed->height, noutput, output);
         
         // unmap buffers
-        clEnqueueUnmapMemObject(lensed->queue, lensed->value_mem, output[0], 0, NULL, NULL);
-        clEnqueueUnmapMemObject(lensed->queue, lensed->error_mem, output[1], 0, NULL, NULL);
+        if(lensed->convolve)
+        {
+            clEnqueueUnmapMemObject(lensed->queue, lensed->convolve_mem, output[0], 0, NULL, NULL);
+            clEnqueueUnmapMemObject(lensed->queue, lensed->value_mem, output[1], 0, NULL, NULL);
+            clEnqueueUnmapMemObject(lensed->queue, lensed->error_mem, output[2], 0, NULL, NULL);
+        }
+        else
+        {
+            clEnqueueUnmapMemObject(lensed->queue, lensed->value_mem, output[0], 0, NULL, NULL);
+            clEnqueueUnmapMemObject(lensed->queue, lensed->error_mem, output[1], 0, NULL, NULL);
+        }
     }
 }

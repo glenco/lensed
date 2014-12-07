@@ -40,6 +40,8 @@ struct lensed
     cl_kernel render;
     cl_mem value_mem;
     cl_mem error_mem;
+    cl_kernel convolve;
+    cl_mem convolve_mem;
     cl_kernel loglike;
     cl_mem loglike_mem;
 };

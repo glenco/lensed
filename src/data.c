@@ -184,6 +184,28 @@ void read_mask(const char* filename, size_t width, size_t height, int** mask)
         errorf(filename, 0, "wrong dimensions %zu x %zu for mask (should be %zu x %zu)", msk_w, msk_h, width, height);
 }
 
+void read_psf(const char* filename, size_t* width, size_t* height, cl_float** psf)
+{
+    // normalisation
+    double norm;
+    size_t size, i;
+    
+    // read PSF from FITS file
+    read_fits(filename, TFLOAT, width, height, (void**)psf);
+    
+    // make PSF has odd number of pixels
+    if(!(*width % 2) || !(*height % 2))
+        errorf(filename, 0, "wrong dimensions %zu x %zu for PSF (should be odd numbers)", *width, *height);
+    
+    // normalise PSF
+    norm = 0;
+    size = (*width)*(*height);
+    for(i = 0; i < size; ++i)
+        norm += (*psf)[i];
+    for(i = 0; i < size; ++i)
+        (*psf)[i] /= norm;
+}
+
 void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[])
 {
     // write FITS file

@@ -108,6 +108,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(mask)
     },
     {
+        "psf",
+        "Point-spread function, FITS file",
+        OPTION_OPTIONAL(path, NULL),
+        OPTION_FIELD(psf)
+    },
+    {
         "nlive",
         "Number of live points",
         OPTION_OPTIONAL(int, 300),

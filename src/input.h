@@ -13,6 +13,7 @@ typedef struct
     char* image;
     char* weight;
     char* mask;
+    char* psf;
     double gain;
     double offset;
     
