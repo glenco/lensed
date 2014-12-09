@@ -22,39 +22,12 @@
 #include "log.h"
 #include "version.h"
 
+// TODO: should be "NUL" on Windows
+static const char NUL_DEV[] = "/dev/null";
+
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
-    if(LOG_LEVEL <= LOG_VERBOSE)
-        fprintf(stderr, LOG_DARK "%s\n" LOG_RESET, errinfo);
-}
-
-static int redirect_stdout(FILE* fnew)
-{
-    int old;
-    
-    // flush old standard output
-    fflush(stdout);
-    
-    // copy old standard output
-    old = dup(STDOUT_FILENO);
-    
-    // redirect standard output to fnew
-    dup2(fileno(fnew), STDOUT_FILENO);
-    
-    // return old standard output
-    return old;
-}
-
-static void reset_stdout(int old)
-{
-    // flush current stdout
-    fflush(stdout);
-    
-    // restore original standard output
-    dup2(old, STDOUT_FILENO);
-    
-    // close copy
-    close(old);
+    verbose("%s", errinfo);
 }
 
 int main(int argc, char* argv[])
@@ -88,7 +61,7 @@ int main(int argc, char* argv[])
     cl_mem weight_mem;
     
     // log file for capturing library output
-    FILE* log_file;
+    char* logfil;
     
     // timer for duration
     time_t start, end;
@@ -584,29 +557,20 @@ int main(int argc, char* argv[])
     
     info("find posterior");
     
-    // open log file
+    // name of log file
     if(inp->opts->output)
     {
-        // build log file name
-        char* log_name = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
-        if(!log_name)
+        logfil = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
+        if(!logfil)
             errori(NULL);
-        sprintf(log_name, "%slog.txt", inp->opts->root);
-        
-        // open log file
-        log_file = fopen(log_name, "w");
-        if(!log_file)
-            errori("could not open log file: %s", log_name);
-        
-        // name no longer needed
-        free(log_name);
+        sprintf(logfil, "%slog.txt", inp->opts->root);
     }
     else
     {
-        // redirect log to null device
-        log_file = fopen("/dev/null", "w");
-        if(!log_file)
+        logfil = malloc(sizeof(NUL_DEV));
+        if(!logfil)
             errori(NULL);
+        strcpy(logfil, NUL_DEV);
     }
     
     // take start time
@@ -624,7 +588,6 @@ int main(int argc, char* argv[])
         int fb = (LOG_LEVEL <= LOG_VERBOSE);
         double logzero = -DBL_MAX;
         int* wrap;
-        int out;
         
         // copy root element for file output if given
         if(inp->opts->root)
@@ -638,7 +601,7 @@ int main(int argc, char* argv[])
             wrap[i] = lensed.pars[i]->wrap;
         
         // redirect MultiNest's output to log file
-        out = redirect_stdout(log_file);
+        logfile(logfil);
         
         // run MultiNest
         run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
@@ -649,7 +612,7 @@ int main(int argc, char* argv[])
             loglike, dumper, &lensed);
         
         // restore standard output
-        reset_stdout(out);
+        logfile(NULL);
         
         // free MultiNest data
         free(wrap);
@@ -792,7 +755,8 @@ int main(int argc, char* argv[])
     
     // there might be output left in Fortran's buffer, so redirect again
     // to log file, which is not closed on purpose
-    redirect_stdout(log_file);
+    logfile(logfil);
+    free(logfil);
     
     return EXIT_SUCCESS;
 }
