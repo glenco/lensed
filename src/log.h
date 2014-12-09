@@ -32,6 +32,12 @@ void errorf(const char* file, size_t line, const char* msg, ...);
 // print an internal error message and exit
 void errori(const char* msg, ...);
 
+// print an internal error message in a file and exit
+void errorfi(const char* file, size_t line, const char* msg, ...);
+
+// redirect standard output to logfile, restore stdout when NULL is passed
+void logfile(const char* logfile);
+
 // some output codes for Unix-like terminals
 #define LOG_BOLD "\033[1m"
 #define LOG_DARK "\033[2m"

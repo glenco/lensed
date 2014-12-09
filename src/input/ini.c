@@ -95,7 +95,7 @@ void read_ini(const char* ini, input* inp)
     // try to open file
     file = fopen(ini, "r");
     if(!file)
-        errori(NULL);
+        errorf(ini, 0, "could not open file");
     
     // start with first line
     line = 0;

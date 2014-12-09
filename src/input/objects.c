@@ -24,8 +24,7 @@ struct kernel_param
 
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
-    if(LOG_LEVEL <= LOG_VERBOSE)
-        fprintf(stderr, LOG_DARK "%s\n" LOG_RESET, errinfo);
+    verbose("%s", errinfo);
 }
 
 void add_object(input* inp, const char* id, const char* name)
