@@ -1,6 +1,29 @@
 Changelog
 =========
 
+v0.3.0 (2014-12-10)
+-------------------
+
+  * Output of residuals and relative errors.
+  * Convolution with PSF.
+  * Separate kernels for rendering and likelihood.
+  * Automatic freeing of options.
+  * Paths are read relative to input files.
+  * Better log file handling.
+  * Warn if background is zero but no offset was given.
+  * Warn user if a sky should be used.
+  * Foreground objects, sky.
+  * Delta function prior.
+  * Disentangled options and parser.
+  * Output numerical constants.
+  * Simplified data handling with optional weight map.
+  * Linear kernel execution.
+  * Output kernel device information.
+  * Output kernel notifications to stderr.
+  * Kernel works in two dimensions.
+  * Added info on how to contribute.
+  * Example added.
+
 v0.2.0 (2014-11-30)
 -------------------
 
