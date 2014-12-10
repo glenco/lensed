@@ -24,6 +24,7 @@ struct option
         int default_bool;
         int default_int;
         double default_real;
+        const char* default_path;
     } default_value;
     size_t offset;
     size_t size;
@@ -52,6 +53,7 @@ OPTION_TYPE(string)
 OPTION_TYPE(bool)
 OPTION_TYPE(int)
 OPTION_TYPE(real)
+OPTION_TYPE(path)
 
 // list of known options
 struct option OPTIONS[] = {
@@ -76,7 +78,7 @@ struct option OPTIONS[] = {
     {
         "image",
         "Input image, FITS file in counts/sec",
-        OPTION_REQUIRED(string),
+        OPTION_REQUIRED(path),
         OPTION_FIELD(image)
     },
     {
@@ -94,13 +96,13 @@ struct option OPTIONS[] = {
     {
         "weight",
         "Weight map in 1/(counts/sec)^2",
-        OPTION_OPTIONAL(string, NULL),
+        OPTION_OPTIONAL(path, NULL),
         OPTION_FIELD(weight)
     },
     {
         "mask",
         "Input mask, FITS file",
-        OPTION_OPTIONAL(string, NULL),
+        OPTION_OPTIONAL(path, NULL),
         OPTION_FIELD(mask)
     },
     {
@@ -176,6 +178,9 @@ struct option OPTIONS[] = {
 
 // last error message
 static char ERROR_MSG[1024] = {0};
+
+// current path for option reading
+static const char* OPTIONS_CWD = NULL;
 
 options* create_options()
 {
@@ -313,6 +318,13 @@ int option_value(char* buf, size_t buf_size, const input* inp, size_t n)
     return OPTIONS[n].write(buf, (char*)inp->opts + OPTIONS[n].offset, buf_size);
 }
 
+const char* options_cwd(const char* cwd)
+{
+    const char* old = OPTIONS_CWD;
+    OPTIONS_CWD = cwd;
+    return old;
+}
+
 // wrappers for option reading and writing
 
 int option_read_string(void* out, const char* in)
@@ -364,4 +376,42 @@ int option_write_real(char* out, const void* in, size_t n)
 {
     const double* in_real = in;
     return write_real(out, *in_real, n);
+}
+
+int option_read_path(void* out, const char* in)
+{
+    int r;
+    char* str;
+    char* abs;
+    
+    // read string
+    r = option_read_string(out, in);
+    if(r != 0)
+        return r;
+    str = *(char**)out;
+    
+    // check for absolute path
+    if(str[0] == '/')
+        return 0;
+    
+    // check if there is a cwd for options
+    if(OPTIONS_CWD == NULL)
+        return 0;
+    
+    // append relative path to current path
+    abs = malloc(strlen(OPTIONS_CWD) + strlen("/") + strlen(str) + 1);
+    if(!abs)
+        errori(NULL);
+    sprintf(abs, "%s%s%s", OPTIONS_CWD, "/", str);
+    
+    // swap strings
+    *(char**)out = abs;
+    free(str);
+    
+    return 0;
+}
+
+int option_write_path(char* out, const void* in, size_t n)
+{
+    return option_write_string(out, in, n);
 }

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,6 +52,32 @@ static char* split(char* str, const char* spl)
     return pos + 1;
 }
 
+// get directory part from path
+char* dirname(const char* path)
+{
+    char* dir;
+    char* sep;
+    
+    // make a copy of input string
+    dir = malloc(strlen(path) + 1);
+    if(!dir)
+        errori(NULL);
+    strcpy(dir, path);
+    
+    // find last directory separator in path
+    sep = strrchr(dir, '/');
+    
+    // no directory if separator was not found
+    if(!sep)
+        return NULL;
+    
+    // terminate directory at last separator
+    *sep = '\0';
+    
+    // done
+    return dir;
+}
+
 // known groups in ini file
 enum
 {
@@ -81,6 +108,8 @@ int findgrp(const char* name)
 
 void read_ini(const char* ini, input* inp)
 {
+    const char* cwd;
+    char* path;
     FILE* file;
     char buf[LINE_LEN];
     size_t len, line;
@@ -96,6 +125,10 @@ void read_ini(const char* ini, input* inp)
     file = fopen(ini, "r");
     if(!file)
         errorf(ini, 0, "could not open file");
+    
+    // set path of file as working directory for options
+    path = dirname(ini);
+    cwd = options_cwd(path);
     
     // start with first line
     line = 0;
@@ -220,4 +253,8 @@ void read_ini(const char* ini, input* inp)
     
     // close ini file
     fclose(file);
+    
+    // reset working directory for options
+    options_cwd(cwd);
+    free(path);
 }
