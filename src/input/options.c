@@ -18,6 +18,7 @@ struct option
     const char* type;
     int (*read)(void*, const char*);
     int (*write)(char*, const void*, size_t);
+    void (*free)(void*);
     union {
         void* default_null;
         const char* default_string;
@@ -31,10 +32,10 @@ struct option
 };
 
 // mark option as required or optional
-#define OPTION_REQUIRED(type) 1, 0, #type, option_read_##type, option_write_##type, { .default_null = NULL }
-#define OPTION_OPTIONAL(type, value) 0, 0, #type, option_read_##type, option_write_##type, { .default_##type = value }
-#define OPTION_REQIFSET(type, value, depend) 2, offsetof(options, depend), #type, option_read_##type, option_write_##type, { .default_##type = value }
-#define OPTION_REQIFNOT(type, value, depend) 3, offsetof(options, depend), #type, option_read_##type, option_write_##type, { .default_##type = value }
+#define OPTION_REQUIRED(type) 1, 0, #type, option_read_##type, option_write_##type, option_free_##type, { .default_null = NULL }
+#define OPTION_OPTIONAL(type, value) 0, 0, #type, option_read_##type, option_write_##type, option_free_##type, { .default_##type = value }
+#define OPTION_REQIFSET(type, value, depend) 2, offsetof(options, depend), #type, option_read_##type, option_write_##type, option_free_##type, { .default_##type = value }
+#define OPTION_REQIFNOT(type, value, depend) 3, offsetof(options, depend), #type, option_read_##type, option_write_##type, option_free_##type, { .default_##type = value }
 
 // get offset of option field in input
 #define OPTION_FIELD(field) offsetof(options, field), sizeof(((options*)0)->field)
@@ -46,7 +47,8 @@ struct option
 // declare option types
 #define OPTION_TYPE(type) \
     static int option_read_##type(void*, const char*); \
-    static int option_write_##type(char*, const void*, size_t);
+    static int option_write_##type(char*, const void*, size_t); \
+    static void option_free_##type(void*);
 
 // list known option types
 OPTION_TYPE(string)
@@ -193,10 +195,8 @@ options* create_options()
 
 void free_options(options* opts)
 {
-    free(opts->image);
-    free(opts->weight);
-    free(opts->mask);
-    free(opts->root);
+    for(int i = 0; i < NOPTIONS; ++i)
+        OPTIONS[i].free((char*)opts + OPTIONS[i].offset);
     free(opts);
 }
 
@@ -342,6 +342,12 @@ int option_write_string(char* out, const void* in, size_t n)
     return 0;
 }
 
+void option_free_string(void* p)
+{
+    char** str = p;
+    free(*str);
+}
+
 int option_read_bool(void* out, const char* in)
 {
     int* out_bool = out;
@@ -352,6 +358,10 @@ int option_write_bool(char* out, const void* in, size_t n)
 {
     const int* in_bool = in;
     return write_bool(out, *in_bool, n);
+}
+
+void option_free_bool(void* p)
+{
 }
 
 int option_read_int(void* out, const char* in)
@@ -366,6 +376,10 @@ int option_write_int(char* out, const void* in, size_t n)
     return write_int(out, *in_int, n);
 }
 
+void option_free_int(void* p)
+{
+}
+
 int option_read_real(void* out, const char* in)
 {
     double* out_real = out;
@@ -376,6 +390,10 @@ int option_write_real(char* out, const void* in, size_t n)
 {
     const double* in_real = in;
     return write_real(out, *in_real, n);
+}
+
+void option_free_real(void* p)
+{
 }
 
 int option_read_path(void* out, const char* in)
@@ -414,4 +432,10 @@ int option_read_path(void* out, const char* in)
 int option_write_path(char* out, const void* in, size_t n)
 {
     return option_write_string(out, in, n);
+}
+
+void option_free_path(void* p)
+{
+    char** str = p;
+    free(*str);
 }
