@@ -1,0 +1,2 @@
+src/*       linguist-language=C
+kernel/*    linguist-language=OpenCL
