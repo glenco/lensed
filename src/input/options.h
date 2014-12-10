@@ -41,3 +41,6 @@ int option_default_value(char* buf, size_t buf_size, size_t n);
 
 // write value of n'th option to buffer
 int option_value(char* buf, size_t buf_size, const input* inp, size_t n);
+
+// set current working directory for option reading and return old cwd
+const char* options_cwd(const char* cwd);
