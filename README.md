@@ -1,7 +1,7 @@
 lensed
 ======
 
-A tool to reconstruct lenses and sources from strong lensing observations.
+Reconstruct gravitational lenses and lensed sources from strong lensing observations.
 
 
 Configuration
