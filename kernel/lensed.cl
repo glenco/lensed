@@ -1,58 +1,95 @@
-// integrate flux in pixel and return value and error estimate
-static float2 flux(constant char* data, float2 x,
-    constant float2* qq, constant float2* ww)
+// compute image
+kernel void render(constant char* data,
+                   constant float2* qq, constant float2* ww,
+                   global float* value, global float* error)
 {
-    // flux value and error of pixel
-    float2 flux = 0;
+    // get pixel indices
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int k = mad24(j, IMAGE_WIDTH, i);
     
-    // apply quadrature rule to computed surface brightness
-    for(size_t j = 0; j < QUAD_POINTS; ++j)
-        flux += ww[j]*compute(data, x + qq[j]);
-    
-    // done
-    return flux;
-}
-
-// compute image and calculate log-likelihood
-kernel void loglike(constant char* data, constant float2* qq, constant float2* ww,
-    global const float* image, global const float* weight, global float* output)
-{
-    // get pixel index
-    size_t i = get_global_id(0);
-    
-    // make sure pixel is in image
-    if(i < IMAGE_SIZE)
+    // compute pixel flux if pixel is in image
+    if(i < IMAGE_WIDTH && j < IMAGE_HEIGHT)
     {
         // pixel position
-        float2 x = (float2)(1 + i % IMAGE_WIDTH, 1 + i / IMAGE_WIDTH);
+        float2 x = (float2)(1 + i, 1 + j);
         
-        // integrate flux in pixel
-        float2 f = flux(data, x, qq, ww);
+        // value and error of quadrature
+        float2 f = 0;
         
-        // chi^2 value for pixel
-        float d = f.s0 - image[i];
-        output[i] = weight[i]*d*d;
+        // apply quadrature rule to computed surface brightness
+        for(size_t n = 0; n < QUAD_POINTS; ++n)
+            f += ww[n]*compute(data, x + qq[n]);
+        
+        // done
+        value[k] = f.s0;
+        error[k] = f.s1;
     }
 }
 
-// generate image and errors for dumper output
-kernel void dumper(constant char* data, constant float2* qq, constant float2* ww,
-    global const float* image, global const float* weight, global float4* output)
+// calculate log-likelihood of computed model
+kernel void loglike(global const float* image, global const float* weight,
+                    global const float* model, global float* loglike)
 {
     // get pixel index
-    size_t i = get_global_id(0);
+    int i = get_global_id(0);
+    int j = get_global_id(1);
+    int k = mad24(j, IMAGE_WIDTH, i);
     
-    // make sure pixel is in image
-    if(i < IMAGE_SIZE)
+    // compute chi^2 value if pixel is in image
+    if(i < IMAGE_WIDTH && j < IMAGE_HEIGHT)
     {
-        // pixel position
-        float2 x = (float2)(1 + i % IMAGE_WIDTH, 1 + i / IMAGE_WIDTH);
+        float d = model[k] - image[k];
+        loglike[k] = weight[k]*d*d;
+    }
+}
+
+// convolve input with PSF
+kernel void convolve(global float* input, constant float* psf,
+                     local float* input2, local float* psf2,
+                     global float* output)
+{
+    int i, j;
+    
+    // pixel indices for output
+    int gi = get_global_id(0);
+    int gj = get_global_id(1);
+    
+    // local indices, size and origin
+    int li = get_local_id(0);
+    int lj = get_local_id(1);
+    int lw = get_local_size(0);
+    int lh = get_local_size(1);
+    int ls = lw*lh;
+    
+    // cache size and origin
+    int cw = PSF_WIDTH/2 + lw + PSF_WIDTH/2;
+    int ch = PSF_HEIGHT/2 + lh + PSF_HEIGHT/2;
+    int cs = cw*ch;
+    int cx = mad24(get_group_id(0), lw, - PSF_WIDTH/2);
+    int cy = mad24(get_group_id(1), lh, - PSF_HEIGHT/2);
+    
+    // fill cache
+    for(i = mad24(lj, lw, li); i < cs; i += ls)
+        input2[i] = input[clamp(cy + i/cw, 0, IMAGE_HEIGHT-1)*IMAGE_WIDTH + clamp(cx + i%cw, 0, IMAGE_WIDTH-1)];
+    for(i = mad24(lj, lw, li); i < PSF_WIDTH*PSF_HEIGHT; i += ls)
+        psf2[i] = psf[i];
+    
+    // wait for all items to finish cache filling
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    // check if pixel is in image
+    if(gi < IMAGE_WIDTH && gj < IMAGE_HEIGHT)
+    {
+        // convolved value for pixel 
+        float x = 0;
         
-        // integrate flux in pixel
-        float2 f = flux(data, x, qq, ww);
+        // convolve
+        for(j = 0; j < PSF_HEIGHT; ++j)
+            for(i = 0; i < PSF_WIDTH; ++i)
+                x += psf2[mad24(j, PSF_WIDTH, i)]*input2[mad24(lj + j, cw, li + i)];
         
-        // return flux, error, residual, chi^2
-        float d = f.s0 - image[i];
-        output[i] = (float4)(f, d, weight[i]*d*d);
+        // store convolved value
+        output[mad24(gj, IMAGE_WIDTH, gi)] = x;
     }
 }

@@ -88,8 +88,8 @@ void read_fits(const char* filename, int datatype, size_t* width, size_t* height
         fits_error(filename, status);
 }
 
-void write_fits(const char* filename, size_t width, size_t height,
-                size_t num, double** images)
+void write_fits(const char* filename, int datatype, size_t width, size_t height,
+                size_t num, void** images)
 {
     int status = 0;
     
@@ -119,7 +119,7 @@ void write_fits(const char* filename, size_t width, size_t height,
             fits_error(filename, status);
         
         // write pixels
-        fits_write_pix(fptr, TDOUBLE, fpixel, npix, images[n], &status);
+        fits_write_pix(fptr, datatype, fpixel, npix, images[n], &status);
         if(status)
             fits_error(filename, status);
     }
@@ -184,28 +184,32 @@ void read_mask(const char* filename, size_t width, size_t height, int** mask)
         errorf(filename, 0, "wrong dimensions %zu x %zu for mask (should be %zu x %zu)", msk_w, msk_h, width, height);
 }
 
-void write_output(const char* filename, size_t width, size_t height, size_t num, cl_float4* output)
+void read_psf(const char* filename, size_t* width, size_t* height, cl_float** psf)
 {
-    size_t size = width*height;
+    // normalisation
+    double norm;
+    size_t size, i;
     
-    double** images = malloc(num*sizeof(double*));
+    // read PSF from FITS file
+    read_fits(filename, TFLOAT, width, height, (void**)psf);
     
-    for(size_t n = 0; n < num; ++n)
-    {
-        // allocate image filled with zeros
-        images[n] = calloc(size, sizeof(double));
-        
-        // set pixels
-        for(size_t i = 0; i < size; ++i)
-            images[n][i] = output[i].s[n];
-    }
+    // make PSF has odd number of pixels
+    if(!(*width % 2) || !(*height % 2))
+        errorf(filename, 0, "wrong dimensions %zu x %zu for PSF (should be odd numbers)", *width, *height);
     
+    // normalise PSF
+    norm = 0;
+    size = (*width)*(*height);
+    for(i = 0; i < size; ++i)
+        norm += (*psf)[i];
+    for(i = 0; i < size; ++i)
+        (*psf)[i] /= norm;
+}
+
+void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[])
+{
     // write FITS file
-    write_fits(filename, width, height, num, images);
-    
-    for(size_t n = 0; n < num; ++n)
-        free(images[n]);
-    free(images);
+    write_fits(filename, TFLOAT, width, height, noutput, (void**)output);
 }
 
 void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm)

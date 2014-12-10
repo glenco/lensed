@@ -566,7 +566,7 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
     free(uniq);
 }
 
-const char* kernel_options(size_t width, size_t height, size_t nq, const char* flags[])
+const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, size_t psfh, size_t nq, const char* flags[])
 {
     size_t nopts;
     size_t opts_size;
@@ -577,18 +577,31 @@ const char* kernel_options(size_t width, size_t height, size_t nq, const char* f
     // hard-coded options
     const char* width_opt = " -DIMAGE_WIDTH=%zu";
     const char* height_opt = " -DIMAGE_HEIGHT=%zu";
-    const char* size_opt = " -DIMAGE_SIZE=%zu";
+    const char* psf_opt = " -DPSF=%d";
+    const char* psfw_opt = " -DPSF_WIDTH=%zu";
+    const char* psfh_opt = " -DPSF_HEIGHT=%zu";
     const char* nq_opt = " -DQUAD_POINTS=%zu";
     
     // get number of options and their sizes
     opts_size = 0;
+    nopts = 0;
     opts_size += strlen(width_opt) + log10(width) + 1;
+    nopts += 1;
     opts_size += strlen(height_opt) + log10(height) + 1;
-    opts_size += strlen(size_opt) + log10(width*height) + 1;
+    nopts += 1;
+    opts_size += strlen(psf_opt) + 1 + 1;
+    nopts += 1;
+    opts_size += strlen(psfw_opt) + log10(1+psfw) + 1;
+    nopts += 1;
+    opts_size += strlen(psfh_opt) + log10(1+psfh) + 1;
+    nopts += 1;
     opts_size += strlen(nq_opt) + log10(nq) + 1;
-    nopts = 4;
-    for(f = flags; *f; ++f, ++nopts)
+    nopts += 1;
+    for(f = flags; *f; ++f)
+    {
         opts_size += strlen(*f) + 1;
+        nopts += 1;
+    }
     
     // allocate buffer for options
     opts = malloc(opts_size + 1);
@@ -601,7 +614,9 @@ const char* kernel_options(size_t width, size_t height, size_t nq, const char* f
     // write hard-coded options
     cur += sprintf(cur, width_opt, width);
     cur += sprintf(cur, height_opt, height);
-    cur += sprintf(cur, size_opt, width*height);
+    cur += sprintf(cur, psf_opt, psf ? 1 : 0);
+    cur += sprintf(cur, psfw_opt, psfw);
+    cur += sprintf(cur, psfh_opt, psfh);
     cur += sprintf(cur, nq_opt, nq);
     
     // add flags

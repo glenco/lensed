@@ -12,8 +12,11 @@ void make_weight(const cl_float* image, size_t width, size_t height, double gain
 // read mask from file
 void read_mask(const char* filename, size_t width, size_t height, int** mask);
 
+// read PSF from file
+void read_psf(const char* filename, size_t* width, size_t* height, cl_float** psf);
+
 // write output to FITS file
-void write_output(const char* filename, size_t width, size_t height, size_t num, cl_float4* output);
+void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[]);
 
 // find most common value
 void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm);
