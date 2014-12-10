@@ -3,11 +3,17 @@
 // read image from file
 void read_image(const char* filename, size_t* width, size_t* height, cl_float** image);
 
+// read gain from file
+void read_gain(const char* filename, size_t width, size_t height, double** gain);
+
+// uniform gain
+void make_gain(double value, size_t width, size_t height, double** gain);
+
 // read weights from file
 void read_weight(const char* filename, size_t width, size_t height, cl_float** weight);
 
-// generate weights from image
-void make_weight(const cl_float* image, size_t width, size_t height, double gain, double offset, cl_float** weight);
+// generate weights from image, gain and offset
+void make_weight(const cl_float* image, const double* gain, double offset, size_t width, size_t height, cl_float** weight);
 
 // read mask from file
 void read_mask(const char* filename, size_t width, size_t height, int** mask);

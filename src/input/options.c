@@ -26,6 +26,7 @@ struct option
         int default_int;
         double default_real;
         const char* default_path;
+        struct gain* default_gain;
     } default_value;
     size_t offset;
     size_t size;
@@ -56,6 +57,7 @@ OPTION_TYPE(bool)
 OPTION_TYPE(int)
 OPTION_TYPE(real)
 OPTION_TYPE(path)
+OPTION_TYPE(gain)
 
 // list of known options
 struct option OPTIONS[] = {
@@ -86,7 +88,7 @@ struct option OPTIONS[] = {
     {
         "gain",
         "Conversion factor to counts",
-        OPTION_REQIFNOT(real, 1, weight),
+        OPTION_REQIFNOT(gain, NULL, weight),
         OPTION_FIELD(gain)
     },
     {
@@ -444,4 +446,51 @@ void option_free_path(void* p)
 {
     char** str = p;
     free(*str);
+}
+
+int option_read_gain(void* out, const char* in)
+{
+    int err;
+    struct gain** g = out;
+    
+    // allocate space for struct
+    *g = malloc(sizeof(struct gain));
+    if(!*g)
+        errori(NULL);
+    
+    // try to read real
+    err = option_read_real(&(*g)->value, in);
+    
+    // check if there was a number
+    if(!err)
+    {
+        // no file was given
+        (*g)->file = NULL;
+        return 0;
+    }
+    
+    // no number was given
+    (*g)->value = 0;
+    
+    // read path
+    return option_read_path(&(*g)->file, in);
+}
+
+int option_write_gain(char* out, const void* in, size_t n)
+{
+    struct gain* const* g = in;
+    if((*g)->file)
+        return option_write_string(out, &(*g)->file, n);
+    else
+        return option_write_real(out, &(*g)->value, n);
+}
+
+void option_free_gain(void* p)
+{
+    struct gain** g = p;
+    if((*g)->file)
+        option_free_path(&(*g)->file);
+    else
+        option_free_real(&(*g)->value);
+    free(*g);
 }

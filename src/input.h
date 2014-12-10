@@ -14,8 +14,11 @@ typedef struct
     char* weight;
     char* mask;
     char* psf;
-    double gain;
     double offset;
+    struct gain {
+        char* file;
+        double value;
+    }* gain;
     
     // MultiNest
     int nlive;
