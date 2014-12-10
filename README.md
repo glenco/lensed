@@ -88,3 +88,17 @@ output to the results file.
         done
 
 Note that the above command uses `>>` to append to the results file.
+
+
+Versions
+--------
+
+The lensed project uses a form of [semantic versioning](http://semver.org).
+
+Given a version number MAJOR.MINOR.PATCH, lensed increments the
+
+1.  MAJOR version for changes that render input files incompatible,
+2.  MINOR version for changes that leave input files compatible but might
+    lead to changes in results, and
+3.  PATCH version for bugfix changes that do not alter results, unless the
+    results are affected by the bugs fixed.
