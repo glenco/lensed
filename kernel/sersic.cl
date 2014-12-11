@@ -6,43 +6,43 @@ PARAMS(sersic) = {
     { "r" },
     { "mag" },
     { "n" },
-    { "f" },
+    { "q" },
     { "pa", true },
 };
 
 struct sersic
 {
-    float x;
-    float y;
-    float q;
-    float cos;
-    float sin;
+    float2 x;
+    float4 t;
     float log0;
     float log1;
     float m;
 };
 
-static float sersic(constant struct sersic* src, float2 y)
+static float sersic(constant struct sersic* src, float2 x)
 {
-    float u = (y.x - src->x)*src->cos - (y.y - src->y)*src->sin;
-    float v = (y.y - src->y)*src->cos + (y.x - src->x)*src->sin;
+    float4 t = src->t;
+    float2 y = x - src->x;
     
-    float r2 = u*u + v*v/src->q/src->q;
+    y = (float2)(dot(t.lo, y), dot(t.hi, y));
     
-    return exp(src->log0 - exp(src->log1 + src->m*log(r2)));
+    return exp(src->log0 - exp(src->log1 + src->m*log(dot(y, y))));
 }
 
-static void set_sersic(global struct sersic* src, float x, float y, float r, float mag, float n, float q, float pa)
+static void set_sersic(global struct sersic* src, float x1, float x2, float r, float mag, float n, float q, float pa)
 {
     float b = 1.9992f*n - 0.3271f; // approximation valid for 0.5 < n < 8
     
-    src->x = x;
-    src->y = y;
-    src->q = q;
+    float c = cos(pa*DEG2RAD);
+    float s = sin(pa*DEG2RAD);
     
-    src->cos = cos(pa);
-    src->sin = sin(pa);
-    src->log0 = -0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - log(q) - 2*log(r) - log(tgamma(2*n+1));
-    src->log1 = log(b) - log(r)/n;
+    // source position
+    src->x = (float2)(x1, x2);
+    
+    // transformation matrix: rotate and scale
+    src->t = (float4)(q*c, q*s, -s, c);
+    
+    src->log0 = -0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - 2*log(r) - log(tgamma(2*n+1));
+    src->log1 = log(b) - (0.5f*log(q) + log(r))/n;
     src->m = 0.5f/n;
 }
