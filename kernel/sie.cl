@@ -1,46 +1,58 @@
+// singular isothermal ellipsoid
+// follows Schneider, Kochanek, Wambsganss (2006)
+
 OBJECT(sie) = LENS;
 
 PARAMS(sie) = {
     { "x" },
     { "y" },
     { "r" },
-    { "f" },
+    { "q" },
     { "pa", true }
 };
 
 struct sie
 {
-    float x;
-    float y;
-    float c;
-    float s;
+    float2 x;
+    float4 m;
+    float4 w;
     
-    float f2;
+    float q2;
     float e;
     float d;
 };
 
 static float2 sie(constant struct sie* sie, float2 x)
 {
-    float u, v, r;
+    float2 y;
+    float r;
+    float4 m = sie->m;
+    float4 w = sie->w;
     
-    u = (x.x - sie->x)*sie->c - (x.y - sie->y)*sie->s;
-    v = (x.y - sie->y)*sie->c + (x.x - sie->x)*sie->s;
+    y = (float2)(dot(m.lo, x - sie->x), dot(m.hi, x - sie->x));
     
-    r = sie->e/sqrt(sie->f2*u*u + v*v);
-    u = sie->d*atan(u*r);
-    v = sie->d*atanh(v*r);
+    r = sie->e/sqrt(sie->q2*y.x*y.x + y.y*y.y);
     
-    return (float2)( u*sie->c + v*sie->s, v*sie->c - u*sie->s );
+    y = sie->d*(float2)(atan(y.x*r), atanh(y.y*r));
+    
+    return (float2)(dot(w.lo, y), dot(w.hi, y));
 }
 
-static void set_sie(global struct sie* sie, float x, float y, float r, float f, float pa)
+static void set_sie(global struct sie* sie, float x1, float x2, float r, float q, float pa)
 {
-    sie->x = x;
-    sie->y = y;
-    sie->c = cos(PI_HALF - pa);
-    sie->s = sin(PI_HALF - pa);
-    sie->f2 = f*f;
-    sie->e = sqrt(1.0f - sie->f2);
-    sie->d = r*sqrt(f)/sie->e;
+    float c = cos(pa*DEG2RAD);
+    float s = sin(pa*DEG2RAD);
+    
+    // lens position
+    sie->x = (float2)(x1, x2);
+    
+    // rotation matrix
+    sie->m = (float4)(c, s, -s, c);
+    
+    // inverse rotation matrix
+    sie->w = (float4)(c, -s, s, c);
+    
+    sie->q2 = q*q;
+    sie->e = sqrt(1 - q*q);
+    sie->d = r*sqrt(q)/sqrt(1 - q*q);
 }
