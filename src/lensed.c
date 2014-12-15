@@ -172,11 +172,27 @@ int main(int argc, char* argv[])
     
     verbose("  image pixels: %zu", lensed.size);
     
-    // read weights if given, else generate from image
+    // check if weight map is given
     if(inp->opts->weight)
+    {
+        // read weight map from file as it is
         read_weight(inp->opts->weight, lensed.width, lensed.height, &lensed.weight);
+    }
     else
-        make_weight(lensed.image, lensed.width, lensed.height, inp->opts->gain, inp->opts->offset, &lensed.weight);
+    {
+        double* gain;
+        
+        // read gain if given, else make uniform gain map
+        if(inp->opts->gain->file)
+            read_gain(inp->opts->gain->file, lensed.width, lensed.height, &gain);
+        else
+            make_gain(inp->opts->gain->value, lensed.width, lensed.height, &gain);
+        
+        // make weight map from image, gain and offset
+        make_weight(lensed.image, gain, inp->opts->offset, lensed.width, lensed.height, &lensed.weight);
+        
+        free(gain);
+    }
     
     // start without masked pixels
     masked = 0;

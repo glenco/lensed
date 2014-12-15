@@ -138,6 +138,39 @@ void read_image(const char* filename, size_t* width, size_t* height, cl_float** 
     // TODO process depending on format
 }
 
+void read_gain(const char* filename, size_t width, size_t height, double** gain)
+{
+    // gain width and height
+    size_t gw, gh;
+    
+    // read gain from FITS file
+    read_fits(filename, TDOUBLE, &gw, &gh, (void**)gain);
+    
+    // make sure dimensions agree
+    if(gw != width || gh != height)
+        errorf(filename, 0, "wrong dimensions %zu x %zu for gain (should be %zu x %zu)", gw, gh, width, height);
+    
+    // TODO process depending on format
+}
+
+void make_gain(double value, size_t width, size_t height, double** gain)
+{
+    // total size of gain
+    size_t size = width*height;
+    
+    // make array for gain
+    double* g = malloc(size*sizeof(double));
+    if(!g)
+        errori(NULL);
+    
+    // set uniform gain for each pixel
+    for(size_t i = 0; i < size; ++i)
+        g[i] = value;
+    
+    // output gain
+    *gain = g;
+}
+
 void read_weight(const char* filename, size_t width, size_t height, cl_float** weight)
 {
     // weight width and height
@@ -153,7 +186,7 @@ void read_weight(const char* filename, size_t width, size_t height, cl_float** w
     // TODO process depending on format
 }
 
-void make_weight(const cl_float* image, size_t width, size_t height, double gain, double offset, cl_float** weight)
+void make_weight(const cl_float* image, const double* gain, double offset, size_t width, size_t height, cl_float** weight)
 {
     // total size of weights
     size_t size = width*height;
@@ -165,7 +198,7 @@ void make_weight(const cl_float* image, size_t width, size_t height, double gain
     
     // calculate inverse variance for each pixel
     for(size_t i = 0; i < size; ++i)
-        w[i] = gain/(image[i] + offset);
+        w[i] = gain[i]/(image[i] + offset);
     
     // output weights
     *weight = w;
