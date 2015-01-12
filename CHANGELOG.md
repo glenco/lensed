@@ -1,6 +1,14 @@
 Changelog
 =========
 
+v0.4.0 (2015-01-12)
+-------------------
+
+  * Replace PCC by GK integration rule.
+  * Parameterisation of models.
+  * Read per-pixel effective gain from FITS file.
+  * Make sure no second lensing plane is created.
+
 v0.3.0 (2014-12-10)
 -------------------
 

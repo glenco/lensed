@@ -99,7 +99,6 @@ CONFIG = $(BUILD_DIR)/config.h
 VERSION = $(SOURCE_DIR)/version.h
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
-RELEASE_TOOL = $(BUILD_DIR)/release
 
 .PHONY: all clean
 
@@ -127,16 +126,3 @@ $(LENSED): $(OBJECTS)
 	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
 	@$(CC) $(LDFLAGS) -o $@ $^
-
-.PHONY: $(RELEASE_TOOL) release-major release-minor release-patch
-
-$(RELEASE_TOOL): $(TOOLS_DIR)/release.c
-	@$(ECHO) "building release tool"
-	@$(MKDIR) $(@D)
-	@$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -o $@ $^
-
-release-major release-minor release-patch: release-%: $(RELEASE_TOOL)
-	@$(ECHO) "updating $(STYLE_BOLD)$(VERSION)$(STYLE_RESET)"
-	@$(RELEASE_TOOL) $* > $(VERSION)
-	@$(MAKE) $(LENSED)
-	@$(ECHO) "version $(STYLE_BOLD)`$(LENSED) --version`$(STYLE_RESET)"
