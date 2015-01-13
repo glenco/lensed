@@ -66,8 +66,8 @@ kernel void convolve(global float* input, constant float* psf,
     int cw = PSF_WIDTH/2 + lw + PSF_WIDTH/2;
     int ch = PSF_HEIGHT/2 + lh + PSF_HEIGHT/2;
     int cs = cw*ch;
-    int cx = mad24(get_group_id(0), lw, - PSF_WIDTH/2);
-    int cy = mad24(get_group_id(1), lh, - PSF_HEIGHT/2);
+    int cx = mad24((int)get_group_id(0), lw, -PSF_WIDTH/2);
+    int cy = mad24((int)get_group_id(1), lh, -PSF_HEIGHT/2);
     
     // fill cache
     for(i = mad24(lj, lw, li); i < cs; i += ls)

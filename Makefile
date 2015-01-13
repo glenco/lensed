@@ -93,7 +93,6 @@ endif
 
 BUILD_DIR = build
 SOURCE_DIR = src
-TOOLS_DIR = tools
 BIN_DIR = bin
 CONFIG = $(BUILD_DIR)/config.h
 VERSION = $(SOURCE_DIR)/version.h
