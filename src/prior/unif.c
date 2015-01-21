@@ -71,3 +71,17 @@ double prior_unif(const void* data, double u)
     
     return unif->a + u*(unif->b - unif->a);
 }
+
+double prior_lower_unif(const void* data)
+{
+    const struct uniform* unif = data;
+    
+    return unif->a;
+}
+
+double prior_upper_unif(const void* data)
+{
+    const struct uniform* unif = data;
+    
+    return unif->b;
+}

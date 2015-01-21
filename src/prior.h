@@ -11,3 +11,9 @@ void print_prior(const prior* pri, char* buf, size_t n);
 
 // apply prior to unit variate
 void apply_prior(const prior* pri, double* u);
+
+// get lower bound for prior
+double prior_lower(const prior* pri);
+
+// get upper bound for prior
+double prior_upper(const prior* pri);

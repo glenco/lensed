@@ -11,6 +11,8 @@ typedef void* (*read_func)(size_t, const char*[]);
 typedef void (*free_func)(void*);
 typedef double (*prior_func)(const void*, double);
 typedef void (*print_func)(const void*, char*, size_t);
+typedef double (*lower_func)(const void*);
+typedef double (*upper_func)(const void*);
 
 // item of prior list
 typedef struct
@@ -20,10 +22,12 @@ typedef struct
     free_func free;
     print_func print;
     prior_func prior;
+    lower_func lower;
+    upper_func upper;
 } prior_list;
 
 // macro to simplify definition of prior list
-#define PRIOR(x) { #x, read_prior_##x, free_prior_##x, print_prior_##x, prior_##x }
+#define PRIOR(x) { #x, read_prior_##x, free_prior_##x, print_prior_##x, prior_##x, prior_lower_##x, prior_upper_##x }
 
 // include all prior headers here
 #include "prior/delta.h"
@@ -43,6 +47,8 @@ struct prior
 {
     prior_func prior;
     print_func print;
+    lower_func lower;
+    upper_func upper;
     free_func free;
     void* data;
 };
@@ -124,6 +130,8 @@ prior* read_prior(const char* str)
     // set up prior functions
     pri->prior = PRIORS[pos].prior;
     pri->print = PRIORS[pos].print;
+    pri->lower = PRIORS[pos].lower;
+    pri->upper = PRIORS[pos].upper;
     pri->free = PRIORS[pos].free;
     
     // try to parse prior data
@@ -157,4 +165,14 @@ void print_prior(const prior* pri, char* buf, size_t n)
 void apply_prior(const prior* pri, double* u)
 {
     *u = pri->prior(pri->data, *u);
+}
+
+double prior_lower(const prior* pri)
+{
+    return pri->lower(pri->data);
+}
+
+double prior_upper(const prior* pri)
+{
+    return pri->upper(pri->data);
 }

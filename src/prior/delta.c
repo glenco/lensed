@@ -38,3 +38,15 @@ double prior_delta(const void* data, double u)
 {
     return *(double*)data;
 }
+
+
+double prior_lower_delta(const void* data)
+{
+    return *(double*)data;
+}
+
+
+double prior_upper_delta(const void* data)
+{
+    return *(double*)data;
+}
