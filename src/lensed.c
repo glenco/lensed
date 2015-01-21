@@ -19,6 +19,7 @@
 #include "kernel.h"
 #include "nested.h"
 #include "quadrature.h"
+#include "prior.h"
 #include "log.h"
 #include "version.h"
 
@@ -718,29 +719,47 @@ int main(int argc, char* argv[])
         info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
     info("  ");
     
-    // write parameter names and labels to file
+    // write parameter names, labels and ranges to file
     if(inp->opts->output)
     {
-        FILE* file;
-        char* name;
+        FILE* paramfile;
+        FILE* rangefile;
+        char* paramname;
+        char* rangename;
         
-        name = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
-        if(!name)
+        paramname = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
+        rangename = malloc(strlen(inp->opts->root) + strlen(".ranges") + 1);
+        if(!paramname || !rangename)
             errori(NULL);
         
-        strcpy(name, inp->opts->root);
-        strcat(name, ".paramnames");
+        strcpy(paramname, inp->opts->root);
+        strcat(paramname, ".paramnames");
+        strcpy(rangename, inp->opts->root);
+        strcat(rangename, ".ranges");
         
-        file = fopen(name, "w");
-        if(!file)
-            errori("could not write %s", name);
+        paramfile = fopen(paramname, "w");
+        rangefile = fopen(rangename, "w");
+        if(!paramfile)
+            errori("could not write %s", paramname);
+        if(!rangefile)
+            errori("could not write %s", rangename);
         
         for(size_t i = 0; i < inp->nobjs; ++i)
+        {
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
-                fprintf(file, "%-20s  %s\n", inp->objs[i].pars[j].id, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : "");
+            {
+                // output parameter id and, if set, label
+                fprintf(paramfile, "%-20s  %s\n", inp->objs[i].pars[j].id, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : "");
+                
+                // output parameter range
+                fprintf(rangefile, "%-20s  %10.4f  %10.4f\n", inp->objs[i].pars[j].id, prior_lower(inp->objs[i].pars[j].pri), prior_upper(inp->objs[i].pars[j].pri));
+            }
+        }
         
-        fclose(file);
-        free(name);
+        fclose(paramfile);
+        fclose(rangefile);
+        free(paramname);
+        free(rangename);
     }
     
     // batch output
