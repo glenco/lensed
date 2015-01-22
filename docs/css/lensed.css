@@ -1,0 +1,9 @@
+.math {
+    font-size: 90%;
+}
+
+span.math.displaystyle {
+    display: block;
+    margin: 0.5em 0;
+    text-align: left;
+}
