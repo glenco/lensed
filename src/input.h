@@ -25,8 +25,9 @@ typedef struct
     int ins;
     int mmodal;
     int ceff;
+    double acc;
     double tol;
-    double eff;
+    double shf;
     int maxmodes;
     int updint;
     int seed;

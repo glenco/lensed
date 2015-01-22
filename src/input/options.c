@@ -140,16 +140,22 @@ struct option OPTIONS[] = {
         OPTION_FIELD(ceff)
     },
     {
+        "acc",
+        "Target acceptance rate",
+        OPTION_OPTIONAL(real, 0.05),
+        OPTION_FIELD(acc)
+    },
+    {
         "tol",
-        "Tolerance for evidence",
+        "Tolerance in log-evidence",
         OPTION_OPTIONAL(real, 0.1),
         OPTION_FIELD(tol)
     },
     {
-        "eff",
-        "Sampling efficiency",
-        OPTION_OPTIONAL(real, 0.05),
-        OPTION_FIELD(eff)
+        "shf",
+        "Shrinking factor",
+        OPTION_OPTIONAL(real, 0.8),
+        OPTION_FIELD(shf)
     },
     {
         "maxmodes",

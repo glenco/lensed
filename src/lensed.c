@@ -658,6 +658,9 @@ int main(int argc, char* argv[])
         double logzero = -DBL_MAX;
         int* wrap;
         
+        // efficiency rating can mean different things, depending on ceff
+        double efr = inp->opts->ceff ? inp->opts->acc : inp->opts->shf;
+        
         // copy root element for file output if given
         if(inp->opts->root)
             strncpy(root, inp->opts->root, 99);
@@ -674,11 +677,10 @@ int main(int argc, char* argv[])
         
         // run MultiNest
         run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
-            inp->opts->nlive, inp->opts->tol, inp->opts->eff,
-            ndim, npar, nclspar, inp->opts->maxmodes, inp->opts->updint,
-            ztol, root, inp->opts->seed, wrap, fb, inp->opts->resume,
-            inp->opts->output, initmpi, logzero, inp->opts->maxiter,
-            loglike, dumper, &lensed);
+            inp->opts->nlive, inp->opts->tol, efr, ndim, npar, nclspar,
+            inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
+            wrap, fb, inp->opts->resume, inp->opts->output, initmpi, logzero,
+            inp->opts->maxiter, loglike, dumper, &lensed);
         
         // restore standard output
         logfile(NULL);
