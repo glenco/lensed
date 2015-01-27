@@ -85,13 +85,23 @@ void add_object(input* inp, const char* id, const char* name)
     // load kernel for object meta-data
     object_program(name, &nkernels, &kernels);
     
+    // create the program from kernel sources
     program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create program", id);
     
-    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
-    if(err != CL_SUCCESS)
-        error("object %s: failed to build program", id);
+    // build the program
+    {
+        // this is to satisfy the preprocessor
+        const char* build_flags[] = { 0 };
+        const char* build_options = kernel_options(0, 0, 0, 0, 0, 0, build_flags);
+        
+        err = clBuildProgram(program, 1, &device, build_options, NULL, NULL);
+        if(err != CL_SUCCESS)
+            error("object %s: failed to build program", id);
+        
+        free((char*)build_options);
+    }
     
     // buffers for object meta-data
     meta_type_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int), NULL, NULL);
@@ -128,7 +138,7 @@ void add_object(input* inp, const char* id, const char* name)
     
     // check meta-data
     if(obj->type != OBJ_LENS && obj->type != OBJ_SOURCE && obj->type != OBJ_FOREGROUND)
-        error("object %s: invalid type (should be LENS, SOURCE or FOREGROUD)", id);
+        error("object %s: invalid type (should be LENS, SOURCE or FOREGROUND)", id);
     
     // buffer for kernel parameters
     params_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(struct kernel_param), NULL, &err);
