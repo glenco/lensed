@@ -152,7 +152,7 @@ void read_ini(const char* ini, input* inp)
         len = strcspn(buf, EOL);
         
         // make sure a whole line was read (i.e. line ends with EOL character)
-        if(buf[len] == '\0')
+        if(buf[len] == '\0' && !feof(file))
             errorf(ini, line, "line too long (max. %zu characters)", sizeof(buf));
         
         // terminate string at EOL
