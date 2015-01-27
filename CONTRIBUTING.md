@@ -11,7 +11,8 @@ There is **one rule** for using the repository: **do not push to master**.
 Instead, push to a branch under your initials, e.g. `nt/my-branch` if you have
 write access (or create a fork if you do not, as usual). Then, when you want to
 merge your completed changes into the master branch, open a pull request (PR)
-so that others are aware of your changes and can comment on them.
+so that others are aware of your changes and can comment on them. This is the
+usual [GitHub flow][flow].
 
 **The master branch must always remain usable.**
 
@@ -43,3 +44,18 @@ Issues can be closed and given one of the following labels as reason:
 -   *invalid* -- the issue is not appropriate
 -   *wontfix* -- while the issue is acknowledged as such, it will not change
 
+
+Pull Requests
+-------------
+
+Since all code changes should come through Pull Requests, please take care to
+make them as informative and well-written as possible. Keep in mind that PRs
+are a part of the project's history, and that users will look at past PRs when
+trying to solve their problems. The GitHub team has written a blog post on
+[writing Pull Requests][prs], and it is generally a good guideline.
+
+Once a PR is opened, someone else from the lensed team should look it over, and
+comment or merge as appropriate.
+
+[flow]: https://guides.github.com/introduction/flow/index.html
+[prs]: https://github.com/blog/1943-how-to-write-the-perfect-pull-request
