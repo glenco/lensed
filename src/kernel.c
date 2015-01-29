@@ -585,17 +585,17 @@ const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, si
     // get number of options and their sizes
     opts_size = 0;
     nopts = 0;
-    opts_size += strlen(width_opt) + log10(width) + 1;
+    opts_size += strlen(width_opt) + log10(width + 1) + 1;
     nopts += 1;
-    opts_size += strlen(height_opt) + log10(height) + 1;
+    opts_size += strlen(height_opt) + log10(height + 1) + 1;
     nopts += 1;
     opts_size += strlen(psf_opt) + 1 + 1;
     nopts += 1;
-    opts_size += strlen(psfw_opt) + log10(1+psfw) + 1;
+    opts_size += strlen(psfw_opt) + log10(psfw + 1) + 1;
     nopts += 1;
-    opts_size += strlen(psfh_opt) + log10(1+psfh) + 1;
+    opts_size += strlen(psfh_opt) + log10(psfh + 1) + 1;
     nopts += 1;
-    opts_size += strlen(nq_opt) + log10(nq) + 1;
+    opts_size += strlen(nq_opt) + log10(nq + 1) + 1;
     nopts += 1;
     for(f = flags; *f; ++f)
     {
