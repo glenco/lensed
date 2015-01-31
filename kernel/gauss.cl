@@ -11,35 +11,30 @@ PARAMS(gauss) = {
 
 struct gauss
 {
-    float2 x;
-    float4 t;
-    float s2;
-    float norm;
+    float2 x;   // source position
+    mat22 t;    // coordinate transformation matrix
+    float s2;   // variance
+    float norm; // normalisation
 };
 
-static float gauss(constant struct gauss* src, float2 x)
+static float gauss(constant struct gauss* data, float2 x)
 {
-    float4 t = src->t;
-    float2 y = x - src->x;
-    
-    y = (float2)(dot(t.lo, y), dot(t.hi, y));
-
-    float d2 = dot(y, y);
-	
-    return src->norm*exp(-0.5f*d2/src->s2);
+    // Gaussian profile for centered and rotated coordinate system
+    float2 y = mv22(data->t, x - data->x);
+    return data->norm*exp(-0.5f*dot(y, y)/data->s2);
 }
 
-static void set_gauss(global struct gauss* src, float x1, float x2, float sigma, float mag, float q, float pa)
+static void set_gauss(global struct gauss* data, float x1, float x2, float sigma, float mag, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);
     
     // source position
-    src->x = (float2)(x1, x2);
+    data->x = (float2)(x1, x2);
     
     // transformation matrix: rotate and scale
-    src->t = (float4)(q*c, q*s, -s, c);
+    data->t = (mat22)(q*c, q*s, -s, c);
     
-    src->s2 = sigma*sigma;
-    src->norm = exp(-0.4f*mag*LOG_10)*0.5f/PI/src->s2/q;
+    data->s2 = sigma*sigma;
+    data->norm = exp(-0.4f*mag*LOG_10)*0.5f/PI/data->s2/q;
 }

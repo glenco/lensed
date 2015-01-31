@@ -1,37 +1,31 @@
 // singular isothermal sphere
+// follows Schneider, Kochanek, Wambsganss (2006)
 
 OBJECT(sis) = LENS;
 
 PARAMS(sis) = {
     { "x" },
     { "y" },
-    { "r" },
+    { "r" }
 };
 
 struct sis
 {
-    float2 x;
-    float d;
+    float2 x; // lens position
+    float r;  // Einstein radius
 };
 
-static float2 sis(constant struct sis* sis, float2 x)
+static float2 sis(constant struct sis* data, float2 x)
 {
-    float2 y;
-    float r;
-    
-    y = x - sis->x;
-
-    r = 1./sqrt(y.x*y.x + y.y*y.y);
-
-    y = sis->d*(float2)(y.x*r, y.y*r);
-    
-    return y;
+    // SIS deflection
+    return data->r*normalize(x - data->x);
 }
 
-static void set_sis(global struct sis* sis, float x1, float x2, float r)
+static void set_sis(global struct sis* data, float x1, float x2, float r)
 {
     // lens position
-    sis->x = (float2)(x1, x2);
+    data->x = (float2)(x1, x2);
+    
     // Einstein radius
-    sis->d = r;
+    data->r = r;
 }
