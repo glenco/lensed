@@ -19,7 +19,7 @@ struct eplp
     
     float q2;
     float e;
-    float d;
+    float re;
     float alpha;
 };
 
@@ -30,13 +30,13 @@ static float2 eplp(constant struct eplp* eplp, float2 x)
  
     dy = (float2)(dot(eplp->m.lo, x - eplp->x), dot(eplp->m.hi, x - eplp->x));
     
-    r = sqrt(dy.x*dy.x + dy.y*dy.y);
+    r = length(dy);
 
     float g = sqrt(dy.x*dy.x + eplp->q2*dy.y*dy.y)/r;
-    float a_iso = eplp->d*pow(r*g/eplp->d , eplp->alpha);
+    float a_iso = eplp->re*powr(r*g/eplp->re , eplp->alpha);
 
-    y.x = a_iso * g * dy.x * ( 1 + eplp->e*dy.y*dy.y/r/r/g/g ) / r;
-    y.y = a_iso * g * dy.y * ( 1 - eplp->e*dy.x*dy.x/r/r/g/g ) / r;
+    y.x = a_iso * g * dy.x * ( 1 + eplp->e*pown(dy.y/r/g,2) ) / r;
+    y.y = a_iso * g * dy.y * ( 1 - eplp->e*pown(dy.x/r/g,2) ) / r;
     
     return (float2)(dot(eplp->w.lo, y), dot(eplp->w.hi, y));
 }
@@ -57,7 +57,7 @@ static void set_eplp(global struct eplp* eplp, float x1, float x2, float re, flo
     
     eplp->q2 = q*q;
     eplp->e = 1 - q*q;
-    eplp->d = re*sqrt(q)/sqrt(1 - q*q);
+    eplp->re = re;
     eplp->alpha = alpha;
     
 }
