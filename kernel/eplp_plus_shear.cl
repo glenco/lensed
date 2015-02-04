@@ -23,7 +23,7 @@ struct eplp_plus_shear
     
     float q2;
     float e;
-    float d;
+    float re;
     float alpha;
 
     float4 g;
@@ -37,19 +37,17 @@ static float2 eplp_plus_shear(constant struct eplp_plus_shear* eplp_plus_shear, 
     float2 dx = x - eplp_plus_shear->x;
     float2 dy = (float2)(dot(eplp_plus_shear->m.lo, dx), dot(eplp_plus_shear->m.hi, dx));
     
-    r = sqrt(dy.x*dy.x + dy.y*dy.y);
+    r = length(dy);
 
     float g = sqrt(dy.x*dy.x + eplp_plus_shear->q2*dy.y*dy.y)/r;
-    float a_iso = eplp_plus_shear->d*pow(r*g/eplp_plus_shear->d , eplp_plus_shear->alpha);
+    float a_iso = eplp_plus_shear->re*powr(r*g/eplp_plus_shear->re , eplp_plus_shear->alpha);
 
-    y.x = a_iso * g * dy.x * ( 1 + eplp_plus_shear->e*dy.y*dy.y/r/r/g/g ) / r;
-    y.y = a_iso * g * dy.y * ( 1 - eplp_plus_shear->e*dy.x*dy.x/r/r/g/g ) / r;
+    y.x = a_iso * g * dy.x * ( 1 + eplp_plus_shear->e*pown(dy.y/r/g,2) ) / r;
+    y.y = a_iso * g * dy.y * ( 1 - eplp_plus_shear->e*pown(dy.x/r/g,2) ) / r;
 
     y = (float2)(dot(eplp_plus_shear->w.lo, y), dot(eplp_plus_shear->w.hi, y));
     
-    y = y + (float2)(dot(eplp_plus_shear->g.lo, dx), dot(eplp_plus_shear->g.hi, dx)); 
-    
-    return y;
+    return y + (float2)(dot(eplp_plus_shear->g.lo, dx), dot(eplp_plus_shear->g.hi, dx)); 
 }
 
 static void set_eplp_plus_shear(global struct eplp_plus_shear* eplp_plus_shear, float x1, float x2, float re, float alpha, float q, float pa, float g1, float g2)
@@ -68,7 +66,7 @@ static void set_eplp_plus_shear(global struct eplp_plus_shear* eplp_plus_shear, 
     
     eplp_plus_shear->q2 = q*q;
     eplp_plus_shear->e = 1 - q*q;
-    eplp_plus_shear->d = re*sqrt(q)/sqrt(1 - q*q);
+    eplp_plus_shear->re = re;
     eplp_plus_shear->alpha = alpha;
 
     eplp_plus_shear->g = (float4)(g1,g2,g2,-g1);
