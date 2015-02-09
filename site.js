@@ -19,7 +19,7 @@ $.extend($.easing,
 
     $.fn.navScroller = function(options) {
         settings = $.extend({
-            scrollToOffset: 170,
+            scrollToOffset: 80,
             scrollSpeed: 800,
             activateParentNode: true,
         }, options );
@@ -76,7 +76,7 @@ $(document).ready(function (){
 
     //section divider icon click gently scrolls to reveal the section
 	$(".sectiondivider").on('click', function(event) {
-    	$('html,body').animate({scrollTop: $(event.target.parentNode).offset().top - 50}, 400, "linear");
+    	$('html,body').animate({scrollTop: $(event.target.parentNode).offset().top - 80}, 400, "linear");
 	});
 
     //links going to other sections nicely scroll
@@ -86,7 +86,7 @@ $(document).ready(function (){
         		event.preventDefault();
                 var target = $(event.target).closest("a");
                 var targetHight =  $(target.attr("href")).offset().top
-            	$('html,body').animate({scrollTop: targetHight - 170}, 800, "easeInOutExpo");
+            	$('html,body').animate({scrollTop: targetHight - 80}, 800, "easeInOutExpo");
             });
         }
 	});

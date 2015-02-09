@@ -1,8 +1,5 @@
-
-
-Design by Tim O'Brien [t413.com](http://t413.com/)
+&copy; 2015 Lensed
 &mdash;
-[SinglePaged theme](https://github.com/t413/SinglePaged)
+[GitHub](https://github.com/glenco/lensed)
 &mdash;
-this site is [open source]({{ site.source_link }})
-
+Lensed theme based on [SinglePaged](https://github.com/t413/SinglePaged)

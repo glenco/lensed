@@ -1,3 +1,1 @@
-
-This is a compressed-commit version of
-[github.com/t413/SinglePaged](https://github.com/t413/SinglePaged)
+This is the published website of lensed at http://glenco.github.io/lensed.
