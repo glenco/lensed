@@ -13,29 +13,33 @@ PARAMS(sie) = {
 
 struct sie
 {
-    float2 x;
-    float4 m;
-    float4 w;
+    float2 x; // lens position
+    mat22 m;  // rotation matrix for position angle
+    mat22 w;  // inverse rotation matrix
     
+    // auxiliary
     float q2;
     float e;
     float d;
 };
 
-static float2 sie(constant struct sie* sie, float2 x)
+static float2 sie(constant struct sie* data, float2 x)
 {
     float2 y;
     float r;
-    float4 m = sie->m;
-    float4 w = sie->w;
     
-    y = (float2)(dot(m.lo, x - sie->x), dot(m.hi, x - sie->x));
+    // move to central coordinates
+    x -= data->x;
     
-    r = sie->e/sqrt(sie->q2*y.x*y.x + y.y*y.y);
+    // rotate coordinates by position angle
+    y = mv22(data->m, x);
     
-    y = sie->d*(float2)(atan(y.x*r), atanh(y.y*r));
+    // SIE deflection
+    r = data->e/sqrt(data->q2*y.x*y.x + y.y*y.y);
+    y = data->d*(float2)(atan(y.x*r), atanh(y.y*r));
     
-    return (float2)(dot(w.lo, y), dot(w.hi, y));
+    // reverse coordinate rotation
+    return mv22(data->w, y);
 }
 
 static void set_sie(global struct sie* sie, float x1, float x2, float r, float q, float pa)
@@ -47,11 +51,12 @@ static void set_sie(global struct sie* sie, float x1, float x2, float r, float q
     sie->x = (float2)(x1, x2);
     
     // rotation matrix
-    sie->m = (float4)(c, s, -s, c);
+    sie->m = (mat22)(c, s, -s, c);
     
     // inverse rotation matrix
-    sie->w = (float4)(c, -s, s, c);
+    sie->w = (mat22)(c, -s, s, c);
     
+    // auxiliary quantities
     sie->q2 = q*q;
     sie->e = sqrt(1 - q*q);
     sie->d = r*sqrt(q)/sqrt(1 - q*q);
