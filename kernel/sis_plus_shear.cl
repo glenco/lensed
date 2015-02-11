@@ -12,37 +12,28 @@ PARAMS(sis_plus_shear) = {
 
 struct sis_plus_shear
 {
-    float2 x;
-    float g1;
-    float g2;
-    float d;
+    float2 x; // lens position
+    mat22 g;  // shear matrix
+    float r;  // Einstein radius
 };
 
-static float2 sis_plus_shear(constant struct sis_plus_shear* sis_plus_shear, float2 x)
+static float2 sis_plus_shear(constant struct sis_plus_shear* data, float2 x)
 {
-    float2 y,dx;
-    float r;
+    // move to central coordinates
+    x -= data->x;
     
-    dx = x - sis_plus_shear->x;
-
-    r = 1./sqrt(dx.x*dx.x + dx.y*dx.y);
-
-    y = sis_plus_shear->d*(float2)(dx.x*r, dx.y*r);
-    y = y + (float2)(sis_plus_shear->g1*dx.x + sis_plus_shear->g2*dx.y
-      	            ,sis_plus_shear->g2*dx.x - sis_plus_shear->g1*dx.y)  ; 
-    
-    
-    
-    return y;
+    // SIS deflection plus external shear
+    return data->r*normalize(x) + mv22(data->g, x);
 }
 
-static void set_sis_plus_shear(global struct sis_plus_shear* sis_plus_shear, float x1, float x2
-, float r, float g1, float g2)
+static void set_sis_plus_shear(global struct sis_plus_shear* data, float x1, float x2, float r, float g1, float g2)
 {
     // lens position
-    sis_plus_shear->x = (float2)(x1, x2);
+    data->x = (float2)(x1, x2);
+    
     // Einstein radius
-    sis_plus_shear->d = r;
-    sis_plus_shear->g1 = g1;
-    sis_plus_shear->g2 = g2;
+    data->r = r;
+    
+    // shear matrix
+    data->g = (mat22)(g1, g2, g2, -g1);
 }

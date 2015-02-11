@@ -9,56 +9,60 @@ PARAMS(nsie) = {
     { "r" },
     { "rc" },
     { "q" },
-    { "pa", true },
+    { "pa", true }
 };
 
 struct nsie
 {
-    float2 x;
-    float4 m;
-    float4 w;
+    float2 x; // lens position
+    mat22 m;  // rotation matrix for position angle
+    mat22 w;  // inverse rotation matrix
+    float rc; // core radius
     
+    // auxiliary
     float q2;
     float e;
     float d;
-    float rc;
 };
 
-static float2 nsie(constant struct nsie* nsie, float2 x)
+static float2 nsie(constant struct nsie* data, float2 x)
 {
     float2 y;
-    float rx;
-    float ry;
-    float4 m = nsie->m;
-    float4 w = nsie->w;
+    float r;
     
-    y = (float2)(dot(m.lo, x - nsie->x), dot(m.hi, x - nsie->x));
+    // move to central coordinates
+    x -= data->x;
     
-    rx = nsie->e/(nsie->rc+sqrt(nsie->q2*y.x*y.x + y.y*y.y));
-    ry = nsie->e/(nsie->rc*nsie->q2+sqrt(nsie->q2*y.x*y.x + y.y*y.y));
+    // rotate coordinates by position angle
+    y = mv22(data->m, x);
     
-    y = nsie->d*(float2)(atan(y.x*rx), atanh(y.y*ry));
+    // NSIE deflection
+    r = sqrt(data->q2*y.x*y.x + y.y*y.y);
+    y = data->d*(float2)(atan(y.x*data->e/(data->rc + r)), atanh(y.y*data->e/(data->rc*data->q2 + r)));
     
-    return (float2)(dot(w.lo, y), dot(w.hi, y));
+    // reverse coordinate rotation
+    return mv22(data->w, y);
 }
 
-static void set_nsie(global struct nsie* nsie, float x1, float x2, float r, float rc, float q, float pa)
+static void set_nsie(global struct nsie* data, float x1, float x2, float r, float rc, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);
     
     // lens position
-    nsie->x = (float2)(x1, x2);
+    data->x = (float2)(x1, x2);
     
     // rotation matrix
-    nsie->m = (float4)(c, s, -s, c);
+    data->m = (mat22)(c, s, -s, c);
     
     // inverse rotation matrix
-    nsie->w = (float4)(c, -s, s, c);
+    data->w = (mat22)(c, -s, s, c);
     
-    nsie->q2 = q*q;
-    nsie->e = sqrt(1 - q*q);
-    nsie->d = r*sqrt(q)/sqrt(1 - q*q);
-
-    nsie->rc = rc;
+    // core radius
+    data->rc = rc;
+    
+    // auxiliary quantities
+    data->q2 = q*q;
+    data->e = sqrt(1 - q*q);
+    data->d = r*sqrt(q)/sqrt(1 - q*q);
 }
