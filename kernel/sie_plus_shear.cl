@@ -42,7 +42,7 @@ static float2 sie_plus_shear(constant struct sie_plus_shear* data, float2 x)
     y = data->d*(float2)(atan(y.x*r), atanh(y.y*r));
     
     // reverse coordinate rotation, apply shear
-    return mv(data->w, y) + mv22(data->g, x);
+    return mv22(data->w, y) + mv22(data->g, x);
 }
 
 static void set_sie_plus_shear(global struct sie_plus_shear* data, float x1, float x2, float r, float q, float pa, float g1, float g2)
