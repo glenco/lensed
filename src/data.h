@@ -1,7 +1,19 @@
 #pragma once
 
+// pixel coordinate system
+typedef struct
+{
+    long rx;    // x reference pixel
+    long ry;    // y reference pixel
+    double sx;  // x pixel scale
+    double sy;  // y pixel scale
+} pcsdata;
+
 // read image from file
 void read_image(const char* filename, size_t* width, size_t* height, cl_float** image);
+
+// read pixel coordinate system from image file
+void read_pcs(const char* filename, pcsdata* pcs);
 
 // read gain from file
 void read_gain(const char* filename, size_t width, size_t height, double** gain);
