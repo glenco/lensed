@@ -113,6 +113,92 @@ int main(int argc, char* argv[])
      * special modes *
      *****************/
     
+    // list devices
+    if(inp->opts->devices)
+    {
+        cl_uint nplatforms;
+        cl_platform_id* platforms;
+        cl_uint ndevices;
+        cl_device_id* devices;
+        
+        cl_device_type device_type;
+        char device_name[128];
+        char device_vendor[128];
+        char device_version[128];
+        char device_compiler[128];
+        char driver_version[128];
+        cl_uint compute_units;
+        
+        // get all platforms
+        clGetPlatformIDs(0, NULL, &nplatforms);
+        platforms = malloc(nplatforms*sizeof(cl_platform_id));
+        clGetPlatformIDs(nplatforms, platforms, NULL);
+        
+        // output devices for all platforms
+        for(int i = 0; i < nplatforms; ++i)
+        {
+            // get all devices
+            clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &ndevices);
+            devices = malloc(ndevices*sizeof(cl_device_id));
+            clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, ndevices, devices, NULL);
+            
+            // query each devices
+            for(int j = 0; j < ndevices; ++j)
+            {
+                // query device name
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device name");
+                printf("device: %s\n", device_name);
+                
+                // query device type
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device type");
+                printf("  type: %s\n", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "other"));
+                
+                // query device vendor
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device vendor");
+                printf("  vendor: %s\n", device_vendor);
+                
+                // query device version
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device version");
+                printf("  version: %s\n", device_version);
+                
+                // query device compiler
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device compiler");
+                printf("  compiler: %s\n", device_compiler);
+                
+                // query driver version
+                err = clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get driver version");
+                printf("  driver: %s\n", driver_version);
+                
+                // query maximum compute units
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get number of compute units");
+                printf("  units: %u\n", compute_units);
+            }
+            
+            // done with devices for this platform
+            free(devices);
+        }
+        
+        // done with platforms
+        free(platforms);
+        
+        // stop here
+        exit(0);
+    }
+    
     // output header for batch mode
     if(inp->opts->batch_header)
     {
@@ -343,52 +429,63 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
-        char device_name[128];
-        char device_vendor[128];
-        char device_version[128];
-        char device_compiler[128];
-        char driver_version[128];
-        
-        verbose("  device: %s", inp->opts->gpu ? "GPU" : "CPU");
-        
         err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
         if(err != CL_SUCCESS)
-            error("failed to get device");
+            error("failed to get %s device", inp->opts->gpu ? "GPU" : "CPU");
         
-        // query device name
-        err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get device name");
-        
-        verbose("  device name: %s", device_name);
-        
-        // query device vendor
-        err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get device vendor");
-        
-        verbose("  device vendor: %s", device_vendor);
-        
-        // query device version
-        err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get device version");
-        
-        verbose("  device version: %s", device_version);
-        
-        // query device compiler
-        err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get device compiler");
-        
-        verbose("  device compiler: %s", device_compiler);
-        
-        // query driver version
-        err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get driver version");
-        
-        verbose("  driver version: %s", driver_version);
+        // output device info
+        if(LOG_LEVEL <= LOG_VERBOSE)
+        {
+            cl_device_type device_type;
+            char device_name[128];
+            char device_vendor[128];
+            char device_version[128];
+            char device_compiler[128];
+            char driver_version[128];
+            cl_uint compute_units;
+            
+            // query device name
+            err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device name");
+            verbose("  device: %s", device_name);
+            
+            // query device type
+            err = clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device type");
+            verbose("    type: %s", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "other"));
+            
+            // query device vendor
+            err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device vendor");
+            verbose("    vendor: %s", device_vendor);
+            
+            // query device version
+            err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device version");
+            verbose("    version: %s", device_version);
+            
+            // query device compiler
+            err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device compiler");
+            verbose("    compiler: %s", device_compiler);
+            
+            // query driver version
+            err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get driver version");
+            verbose("    driver: %s", driver_version);
+            
+            // query maximum compute units
+            err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get maximum compute units");
+            verbose("    units: %u", compute_units);
+        }
         
         context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
         if(!context || err != CL_SUCCESS)
