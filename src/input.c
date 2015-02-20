@@ -36,6 +36,7 @@ void usage(int help)
         printf("  %-16s  %s\n", "-b, --batch", "Batch output.");
         printf("  %-16s  %s\n", "-q, --quiet", "Suppress all output.");
         printf("  %-16s  %s\n", "--version", "Show version number.");
+        printf("  %-16s  %s\n", "--devices", "List computation devices.");
         printf("  %-16s  %s\n", "--batch-header", "Batch output header.");
         for(size_t i = 0, n = noptions(); i < n; ++i)
         {
@@ -132,6 +133,8 @@ input* read_input(int argc, char* argv[])
                     log_level(LOG_QUIET);
                 else if(strcmp(argv[i]+2, "version") == 0)
                     version();
+                else if(strcmp(argv[i]+2, "devices") == 0)
+                    inp->opts->devices = 1;
                 else if(strcmp(argv[i]+2, "batch-header") == 0)
                     inp->opts->batch_header = 1;
                 else
@@ -175,7 +178,7 @@ input* read_input(int argc, char* argv[])
     }
     
     // check input if not in a special mode
-    if(!(inp->opts->batch_header))
+    if(!(inp->opts->devices || inp->opts->batch_header))
     {
         // make sure all required options are resolved
         for(size_t i = 0, n = noptions(); i < n; ++i)

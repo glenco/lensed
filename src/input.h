@@ -7,6 +7,7 @@ typedef struct
     int gpu;
     int output;
     char* root;
+    int devices;
     int batch_header;
     
     // data
