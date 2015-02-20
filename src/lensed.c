@@ -562,9 +562,27 @@ int main(int argc, char* argv[])
     
     // set up work-groups
     {
+        cl_uint work_item_dims;
+        size_t* work_item_sizes;
+        
+        // get number of work item dimensions for device
+        err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(work_item_dims), &work_item_dims, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get maximum work item dimensions");
+        
+        // allocate space for work item sizes
+        work_item_sizes = malloc(work_item_dims*sizeof(size_t));
+        if(!work_item_sizes)
+            errori(NULL);
+        
+        // get maximum work group size supported by device
+        err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, work_item_dims*sizeof(size_t), work_item_sizes, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get maximum work item sizes");
+        
         // local work size is size of a block of pixels processed together
-        lensed.lws[0] = BLOCK_SIZE;
-        lensed.lws[1] = BLOCK_SIZE;
+        lensed.lws[0] = BLOCK_SIZE < work_item_sizes[0] ? BLOCK_SIZE : work_item_sizes[0];
+        lensed.lws[1] = BLOCK_SIZE < work_item_sizes[1] ? BLOCK_SIZE : work_item_sizes[1];
         
         // global work size must be padded to block size
         lensed.gws[0] = lensed.width + (lensed.lws[0] - lensed.width%lensed.lws[0])%lensed.lws[0];
@@ -572,6 +590,8 @@ int main(int argc, char* argv[])
         
         verbose("  block size: %zu x %zu", lensed.lws[0], lensed.lws[1]);
         verbose("  work size: %zu x %zu", lensed.gws[0], lensed.gws[1]);
+        
+        free(work_item_sizes);
     }
     
     // allocate device memory for data
