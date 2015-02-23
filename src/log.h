@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdio.h>
+
 // the individual levels of logging
 extern enum log_level
 {
@@ -36,7 +38,7 @@ void errori(const char* msg, ...);
 void errorfi(const char* file, size_t line, const char* msg, ...);
 
 // redirect standard output to logfile, restore stdout when NULL is passed
-void logfile(const char* logfile);
+void logfile(FILE* f);
 
 // some output codes for Unix-like terminals
 #define LOG_BOLD "\033[1m"

@@ -71,7 +71,8 @@ int main(int argc, char* argv[])
     cl_mem psf_mem;
     
     // log file for capturing library output
-    char* logfil;
+    char* lognam;
+    FILE* logfil;
     
     // timer for duration
     time_t start, end;
@@ -765,18 +766,23 @@ int main(int argc, char* argv[])
     // name of log file
     if(inp->opts->output)
     {
-        logfil = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
-        if(!logfil)
+        lognam = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
+        if(!lognam)
             errori(NULL);
-        sprintf(logfil, "%slog.txt", inp->opts->root);
+        sprintf(lognam, "%slog.txt", inp->opts->root);
     }
     else
     {
-        logfil = malloc(sizeof(NUL_DEV));
-        if(!logfil)
+        lognam = malloc(sizeof(NUL_DEV));
+        if(!lognam)
             errori(NULL);
-        strcpy(logfil, NUL_DEV);
+        strcpy(lognam, NUL_DEV);
     }
+    
+    // open log file
+    logfil = fopen(lognam, "w");
+    if(!logfil)
+        errorf(lognam, 0, "could not write log file");
     
     // take start time
     start = time(0);
@@ -979,7 +985,7 @@ int main(int argc, char* argv[])
     // there might be output left in Fortran's buffer, so redirect again
     // to log file, which is not closed on purpose
     logfile(logfil);
-    free(logfil);
+    free(lognam);
     
     return EXIT_SUCCESS;
 }
