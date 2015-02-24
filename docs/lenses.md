@@ -74,5 +74,33 @@ diverges. Use the `nsis` lens in this case.
 When the core radius `s` is fixed to zero, the lens becomes a
 [singular isothermal ellipsoid](#sie). Use the `sie` lens in this case.
 
+EPLP
+----
+
+The `eplp` lens is an elliptical power-law potential model.  The 
+lensing potential is
+$$
+  \phi(x,y) = \frac{r_E^2}{\alpha+1} (\xi(x,y) / r_E)^{\alpha + 1}
+$$
+$$
+  \xi(x,y) = \sqrt{ x^2 + q^2 y^2}
+  $$
+  This results in the deflections
+  $$
+    \alpha_x = r_E \, \left( \frac{\xi(x,y)}{ r_E } \right)^{\alpha} \frac{x}{\xi(x,y) }
+$$
+$$
+    \alpha_y = r_E \, q^2 \left( \frac{\xi(x,y)}{ r_E } \right)^{\alpha} \frac{y}{\xi(x,y) }
+$$
+
+### Notes
+
+When the axis ratio `q` is fixed to unity and `alpha` is fixed to zero
+the lens becomes a [singular isothermal sphere](#sis).  Use the `sis`
+lens in this case.  When `q` is close to 1 and `alpha` is zero this
+model is very close to the `sie` model.
+
+
+
 [^1]: P. Schneider, C. S. Kochanek, and J. Wambsganss, Gravitational Lensing:
       Strong, Weak and Micro (Springer, 2006).
