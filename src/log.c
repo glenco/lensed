@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
@@ -163,18 +162,11 @@ void errorfi(const char* file, size_t line, const char* msg, ...)
     exit(EXIT_FAILURE);
 }
 
-void logfile(const char* logfile)
+void logfile(FILE* f)
 {
-    // redirect if logfile is given, else restore stdout
-    if(logfile)
+    // redirect if file is given, else restore stdout
+    if(f)
     {
-        FILE* f;
-        
-        // open logfile
-        f = fopen(logfile, "w");
-        if(!f)
-            errorf(logfile, 0, "could not write logfile", logfile);
-        
         // flush standard output
         fflush(stdout);
         
@@ -185,9 +177,6 @@ void logfile(const char* logfile)
         
         // redirect standard output to logfile
         dup2(fileno(f), STDOUT_FILENO);
-        
-        // a copy of logfile lives in stdout
-        fclose(f);
     }
     else
     {
