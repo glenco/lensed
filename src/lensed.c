@@ -26,8 +26,6 @@
 // TODO: should be "NUL" on Windows
 static const char NUL_DEV[] = "/dev/null";
 
-#define BLOCK_SIZE 16
-
 static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
 {
     verbose("%s", errinfo);
@@ -57,6 +55,11 @@ int main(int argc, char* argv[])
     cl_device_id device;
     cl_context context;
     cl_program program;
+    
+    // OpenCL device info
+    cl_uint work_item_dims;
+    size_t* work_item_sizes;
+    cl_ulong local_mem_size;
     
     // buffer for objects
     cl_mem object_mem;
@@ -571,11 +574,8 @@ int main(int argc, char* argv[])
         free((char*)build_options);
     }
     
-    // set up work-groups
+    // gather device info
     {
-        cl_uint work_item_dims;
-        size_t* work_item_sizes;
-        
         // get number of work item dimensions for device
         err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(work_item_dims), &work_item_dims, NULL);
         if(err != CL_SUCCESS)
@@ -591,18 +591,10 @@ int main(int argc, char* argv[])
         if(err != CL_SUCCESS)
             error("failed to get maximum work item sizes");
         
-        // local work size is size of a block of pixels processed together
-        lensed.lws[0] = BLOCK_SIZE < work_item_sizes[0] ? BLOCK_SIZE : work_item_sizes[0];
-        lensed.lws[1] = BLOCK_SIZE < work_item_sizes[1] ? BLOCK_SIZE : work_item_sizes[1];
-        
-        // global work size must be padded to block size
-        lensed.gws[0] = lensed.width + (lensed.lws[0] - lensed.width%lensed.lws[0])%lensed.lws[0];
-        lensed.gws[1] = lensed.height + (lensed.lws[1] - lensed.height%lensed.lws[1])%lensed.lws[1];
-        
-        verbose("  block size: %zu x %zu", lensed.lws[0], lensed.lws[1]);
-        verbose("  work size: %zu x %zu", lensed.gws[0], lensed.gws[1]);
-        
-        free(work_item_sizes);
+        // get size of local memory
+        err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(local_mem_size), &local_mem_size, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get local memory size");
     }
     
     // allocate device memory for data
@@ -667,11 +659,13 @@ int main(int argc, char* argv[])
             error("failed to set kernel arguments for parameters");
     }
     
-    // create kernel
+    // render kernel
+    verbose("  render");
     {
         cl_float4 pcs4;
+        size_t wgs, wgm;
         
-        verbose("  create render buffer");
+        verbose("    buffer");
         
         lensed.value_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
         lensed.error_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
@@ -684,12 +678,16 @@ int main(int argc, char* argv[])
         pcs4.s[2] = pcs->sx;
         pcs4.s[3] = pcs->sy;
         
-        verbose("  create render kernel");
+        verbose("    kernel");
         
         // render kernel 
         lensed.render = clCreateKernel(program, "render", &err);
         if(err != CL_SUCCESS)
             error("failed to create render kernel");
+        
+        verbose("    arguments");
+        
+        // set kernel arguments
         err = 0;
         err |= clSetKernelArg(lensed.render, 0, sizeof(cl_mem), &object_mem);
         err |= clSetKernelArg(lensed.render, 1, sizeof(cl_float4), &pcs4);
@@ -700,53 +698,151 @@ int main(int argc, char* argv[])
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         
-        // convolution kernel if there is a PSF
-        if(psf)
+        verbose("    info");
+        
+        // get work group size info for kernel
+        err = 0;
+        err |= clGetKernelWorkGroupInfo(lensed.render, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err |= clGetKernelWorkGroupInfo(lensed.render, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get render kernel work group information");
+        
+        verbose("    work size");
+        
+        // local work size
+        lensed.render_lws[0] = wgs;
+        
+        // make sure work group size is allowed
+        if(lensed.render_lws[0] > work_item_sizes[0])
+            lensed.render_lws[0] = work_item_sizes[0];
+        
+        // make sure work group size is a multiple of the preferred size
+        lensed.render_lws[0] = (lensed.render_lws[0]/wgm)*wgm;
+        
+        // global work size
+        lensed.render_gws[0] = lensed.size + (lensed.render_lws[0] - lensed.size%lensed.render_lws[0])%lensed.render_lws[0];
+        
+        verbose("      local:  %zu", lensed.render_lws[0]);
+        verbose("      global: %zu", lensed.render_gws[0]);
+    }
+    
+    // convolution kernel if there is a PSF
+    if(psf)
+    {
+        size_t wgs, wgm;
+        cl_ulong lm;
+        size_t cache_size;
+        
+        verbose("  convolve");
+        
+        verbose("    buffer");
+        
+        lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        if(err != CL_SUCCESS)
+            error("failed to create convolve buffer");
+        
+        verbose("    kernel");
+        
+        // convolve kernel 
+        lensed.convolve = clCreateKernel(program, "convolve", &err);
+        if(err != CL_SUCCESS)
+            error("failed to create convolve kernel");
+        
+        verbose("    arguments");
+        
+        // set kernel arguments
+        err = 0;
+        err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.value_mem);
+        err |= clSetKernelArg(lensed.convolve, 1, sizeof(cl_mem), &psf_mem);
+        err |= clSetKernelArg(lensed.convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
+        err |= clSetKernelArg(lensed.convolve, 4, sizeof(cl_mem), &lensed.convolve_mem);
+        if(err != CL_SUCCESS)
+            error("failed to set convolve kernel arguments");
+        
+        verbose("    info");
+        
+        // get work group size info for kernel
+        err = 0;
+        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get convolve kernel work group information");
+        
+        verbose("    work size");
+        
+        // local work size, start at maximum
+        lensed.convolve_lws[0] = work_item_sizes[0];
+        lensed.convolve_lws[1] = work_item_sizes[1];
+        
+        // reduce local work size until it fits into work group
+        while(lensed.convolve_lws[0]*lensed.convolve_lws[1] > wgs)
         {
-            size_t cache_size;
-            
-            verbose("  create convolve buffer");
-            
-            lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
-            if(err != CL_SUCCESS)
-                error("failed to create convolve buffer");
-            
-            verbose("  create convolve kernel");
-            
-            // size of local memory that stores part of the model
-            cache_size = (psfw/2 + lensed.lws[0] + psfw/2)*(psfh/2 + lensed.lws[1] + psfh/2);
-            
-            // convolve kernel 
-            lensed.convolve = clCreateKernel(program, "convolve", &err);
-            if(err != CL_SUCCESS)
-                error("failed to create convolve kernel");
-            err = 0;
-            err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.value_mem);
-            err |= clSetKernelArg(lensed.convolve, 1, sizeof(cl_mem), &psf_mem);
-            err |= clSetKernelArg(lensed.convolve, 2, cache_size*sizeof(cl_float), NULL);
-            err |= clSetKernelArg(lensed.convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
-            err |= clSetKernelArg(lensed.convolve, 4, sizeof(cl_mem), &lensed.convolve_mem);
-            if(err != CL_SUCCESS)
-                error("failed to set convolve kernel arguments");
-        }
-        else
-        {
-            // no kernel: used to determine whether to convolve
-            lensed.convolve = 0;
+            if(lensed.convolve_lws[0] > lensed.convolve_lws[1])
+                lensed.convolve_lws[0] /= 2;
+            else
+                lensed.convolve_lws[1] /= 2;
         }
         
-        verbose("  create loglike buffer");
+        // size of local memory that stores part of the model
+        cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+        
+        // reduce local work size until cache fits into local memory
+        while(2*cache_size > local_mem_size - lm)
+        {
+            if(lensed.convolve_lws[0] > lensed.convolve_lws[1])
+                lensed.convolve_lws[0] /= 2;
+            else
+                lensed.convolve_lws[1] /= 2;
+            
+            // make sure that PSF fits into local memory at all
+            if(lensed.convolve_lws[0]*lensed.convolve_lws[1] < 1)
+                error("PSF too large for local memory on device (%zukB)", local_mem_size/1024);
+            
+            cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+        }
+        
+        // global work size must be padded to block size
+        lensed.convolve_gws[0] = lensed.width + (lensed.convolve_lws[0] - lensed.width%lensed.convolve_lws[0])%lensed.convolve_lws[0];
+        lensed.convolve_gws[1] = lensed.height + (lensed.convolve_lws[1] - lensed.height%lensed.convolve_lws[1])%lensed.convolve_lws[1];
+        
+        verbose("      local:  %zu x %zu", lensed.convolve_lws[0], lensed.convolve_lws[1]);
+        verbose("      global: %zu x %zu", lensed.convolve_gws[0], lensed.convolve_gws[1]);
+        
+        verbose("    cache");
+        
+        // set cache size
+        err = clSetKernelArg(lensed.convolve, 2, cache_size, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to set convolve kernel cache");
+    }
+    else
+    {
+        // no kernel: used to determine whether to convolve
+        lensed.convolve = 0;
+    }
+    
+    // loglike kernel
+    verbose("  loglike");
+    {
+        size_t wgs, wgm;
+        
+        verbose("    buffer");
         
         lensed.loglike_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike buffer");
         
-        verbose("  create loglike kernel");
+        verbose("    kernel");
         
         // loglike kernel, take care: the buffer it works on depends on PSF
         lensed.loglike = clCreateKernel(program, "loglike", &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike kernel");
+        
+        verbose("    arguments");
+        
+        // set kernel arguments
         err = 0;
         err |= clSetKernelArg(lensed.loglike, 0, sizeof(cl_mem), &image_mem);
         err |= clSetKernelArg(lensed.loglike, 1, sizeof(cl_mem), &weight_mem);
@@ -754,6 +850,33 @@ int main(int argc, char* argv[])
         err |= clSetKernelArg(lensed.loglike, 3, sizeof(cl_mem), &lensed.loglike_mem);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
+        
+        verbose("    info");
+        
+        // get work group size info for kernel
+        err = 0;
+        err |= clGetKernelWorkGroupInfo(lensed.loglike, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err |= clGetKernelWorkGroupInfo(lensed.loglike, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get loglike kernel work group information");
+        
+        verbose("    work size");
+        
+        // local work size
+        lensed.loglike_lws[0] = wgs;
+        
+        // make sure work group size is allowed
+        if(lensed.loglike_lws[0] > work_item_sizes[0])
+            lensed.loglike_lws[0] = work_item_sizes[0];
+        
+        // make sure work group size is a multiple of the preferred size
+        lensed.loglike_lws[0] = (lensed.loglike_lws[0]/wgm)*wgm;
+        
+        // global work size for kernel
+        lensed.loglike_gws[0] = lensed.size + (lensed.loglike_lws[0] - lensed.size%lensed.loglike_lws[0])%lensed.loglike_lws[0];
+        
+        verbose("      local:  %zu", lensed.loglike_lws[0]);
+        verbose("      global: %zu", lensed.loglike_gws[0]);
     }
     
     
@@ -928,15 +1051,19 @@ int main(int argc, char* argv[])
         printf("\n");
     }
     
-    // free kernel
+    // free render kernel
     clReleaseKernel(lensed.render);
     clReleaseMemObject(lensed.value_mem);
     clReleaseMemObject(lensed.error_mem);
+    
+    // free convolve kernel
     if(psf)
     {
         clReleaseKernel(lensed.convolve);
         clReleaseMemObject(lensed.convolve_mem);
     }
+    
+    // free loglike kernel
     clReleaseKernel(lensed.loglike);
     clReleaseMemObject(lensed.loglike_mem);
     
@@ -956,6 +1083,9 @@ int main(int argc, char* argv[])
     clReleaseMemObject(weight_mem);
     if(psf)
         clReleaseMemObject(psf_mem);
+    
+    // free device info
+    free(work_item_sizes);
     
     // free worker
     clReleaseProgram(program);

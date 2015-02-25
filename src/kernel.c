@@ -575,6 +575,7 @@ const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, si
     const char** f;
     
     // hard-coded options
+    const char* size_opt = " -DIMAGE_SIZE=%zu";
     const char* width_opt = " -DIMAGE_WIDTH=%zu";
     const char* height_opt = " -DIMAGE_HEIGHT=%zu";
     const char* psf_opt = " -DPSF=%d";
@@ -585,6 +586,8 @@ const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, si
     // get number of options and their sizes
     opts_size = 0;
     nopts = 0;
+    opts_size += strlen(size_opt) + log10(width*height + 1) + 1;
+    nopts += 1;
     opts_size += strlen(width_opt) + log10(width + 1) + 1;
     nopts += 1;
     opts_size += strlen(height_opt) + log10(height + 1) + 1;
@@ -612,6 +615,7 @@ const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, si
     cur = opts;
     
     // write hard-coded options
+    cur += sprintf(cur, size_opt, width*height);
     cur += sprintf(cur, width_opt, width);
     cur += sprintf(cur, height_opt, height);
     cur += sprintf(cur, psf_opt, psf ? 1 : 0);

@@ -47,20 +47,20 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
         error("failed to set parameters");
     
     // simulate objects
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 1, NULL, lensed->render_gws, lensed->render_lws, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("failed to run render kernel");
     
     // convolve with PSF if given
     if(lensed->convolve)
     {
-        err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+        err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->convolve_gws, lensed->convolve_lws, 0, NULL, NULL);
         if(err != CL_SUCCESS)
             error("failed to run convolve kernel");
     }
     
     // compare with observed image
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->loglike, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->loglike, 1, NULL, lensed->loglike_gws, lensed->loglike_lws, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("failed to run loglike kernel");
     
@@ -137,14 +137,14 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
             error("failed to set parameters");
         
         // simulate objects
-        err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+        err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 1, NULL, lensed->render_gws, lensed->render_lws, 0, NULL, NULL);
         if(err != CL_SUCCESS)
             error("failed to run render kernel");
         
         // convolve with PSF if given
         if(lensed->convolve)
         {
-            err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->gws, lensed->lws, 0, NULL, NULL);
+            err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->convolve_gws, lensed->convolve_lws, 0, NULL, NULL);
             if(err != CL_SUCCESS)
                 error("failed to run convolve kernel");
         }
