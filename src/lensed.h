@@ -28,20 +28,26 @@ struct lensed
     // worker queue
     cl_command_queue queue;
     
-    // global and local work size
-    size_t lws[2];
-    size_t gws[2];
-    
     // parameter kernel
     cl_kernel set_params;
     cl_mem params;
     
-    // kernel
-    cl_kernel render;
+    // render kernel
     cl_mem value_mem;
     cl_mem error_mem;
-    cl_kernel convolve;
+    cl_kernel render;
+    size_t render_lws[1];
+    size_t render_gws[1];
+    
+    // convolve kernel
     cl_mem convolve_mem;
-    cl_kernel loglike;
+    cl_kernel convolve;
+    size_t convolve_lws[2];
+    size_t convolve_gws[2];
+    
+    // loglike kernel
     cl_mem loglike_mem;
+    cl_kernel loglike;
+    size_t loglike_lws[1];
+    size_t loglike_gws[1];
 };
