@@ -28,8 +28,8 @@ struct double_sersic
 
 static float double_sersic(constant struct double_sersic* data, float2 x)
 {
+    if( data->log0[0] < data->log0[1] ) return -FLT_MAX;
 
-    if( data->log0[0] < data->log0[1] ) return 0.0f;
 
     float sum = 0;
     float2 y;
@@ -68,7 +68,7 @@ static void set_double_sersic(global struct double_sersic* data
 	c = cos(pa2*DEG2RAD);
     	s = sin(pa2*DEG2RAD);
         // source position
-    	data->x[i] = (float2)(x2, y2);
+    	data->x[i] = (float2)(x2, y2) + data->x[0];
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q2*c, q2*s, -s, c);
         data->log0[i] = -0.4f*mag2*LOG_10 + 2*n2*log(b) - LOG_PI - 2*log(r2) - log(tgamma(2*n2+1));

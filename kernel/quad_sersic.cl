@@ -1,29 +1,29 @@
 OBJECT(quad_sersic) = SOURCE;
 
 PARAMS(quad_sersic) = {
-    { "xo" },
-    { "yo" },
+    { "x1" },
+    { "y1" },
     { "r1" },
     { "mag1" },
     { "n1" },
     { "q1" },
     { "pa1", true },
-    { "x2" },         // this is realtive to xo
-    { "y2" },         // this is realtive to yo
+    { "x2" },         // this is realtive to x1
+    { "y2" },         // this is realtive to y1
     { "r2" },
     { "mag2" },
     { "n2" },
     { "q2" },
     { "pa2", true },
-    { "x3" },         // this is realtive to xo
-    { "y3" },         // this is realtive to yo
+    { "x3" },         // this is realtive to x1
+    { "y3" },         // this is realtive to y1
     { "r3" },
     { "mag3" },
     { "n3" },
     { "q3" },
     { "pa3", true },
-    { "x4" },         // this is realtive to xo
-    { "y4" },         // this is realtive to yo
+    { "x4" },         // this is realtive to x1
+    { "y4" },         // this is realtive to y1
     { "r4" },
     { "mag4" },
     { "n4" },
@@ -42,8 +42,7 @@ struct quad_sersic
 
 static float quad_sersic(constant struct quad_sersic* data, float2 x)
 {
-
-    if( data->log0[0] < data->log0[1] || data->log0[1] < data->log0[2] || data->log0[2] < data->log0[3] ) return 0.0;
+//    if( data->log0[0] < data->log0[1] || data->log0[0] < data->log0[2] || data->log0[0] < data->log0[3] ) return -FLT_MAX;
 
     float sum = 0;
     float2 y;
@@ -55,7 +54,7 @@ static float quad_sersic(constant struct quad_sersic* data, float2 x)
 }
 
 static void set_quad_sersic(global struct quad_sersic* data
-       , float xo, float yo, float r1, float mag1, float n1, float q1, float pa1
+       , float x1, float y1, float r1, float mag1, float n1, float q1, float pa1
        , float x2, float y2, float r2, float mag2, float n2, float q2, float pa2
        , float x3, float y3, float r3, float mag3, float n3, float q3, float pa3
        , float x4, float y4, float r4, float mag4, float n4, float q4, float pa4
@@ -69,7 +68,7 @@ static void set_quad_sersic(global struct quad_sersic* data
     	float s = sin(pa1*DEG2RAD);
     
         // source position
-    	data->x[i] = (float2)(xo, yo);
+    	data->x[i] = (float2)(x1, y1);
     
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q1*c, q1*s, -s, c);
