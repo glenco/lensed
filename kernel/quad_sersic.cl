@@ -1,29 +1,29 @@
 OBJECT(quad_sersic) = SOURCE;
 
 PARAMS(quad_sersic) = {
-    { "x1" },
-    { "y1" },
+    { "xo" },
+    { "yo" },
     { "r1" },
     { "mag1" },
     { "n1" },
     { "q1" },
     { "pa1", true },
-    { "x2" },
-    { "y2" },
+    { "x2" },         // this is realtive to xo
+    { "y2" },         // this is realtive to yo
     { "r2" },
     { "mag2" },
     { "n2" },
     { "q2" },
     { "pa2", true },
-    { "x3" },
-    { "y3" },
+    { "x3" },         // this is realtive to xo
+    { "y3" },         // this is realtive to yo
     { "r3" },
     { "mag3" },
     { "n3" },
     { "q3" },
     { "pa3", true },
-    { "x4" },
-    { "y4" },
+    { "x4" },         // this is realtive to xo
+    { "y4" },         // this is realtive to yo
     { "r4" },
     { "mag4" },
     { "n4" },
@@ -55,7 +55,7 @@ static float quad_sersic(constant struct quad_sersic* data, float2 x)
 }
 
 static void set_quad_sersic(global struct quad_sersic* data
-       , float x1, float y1, float r1, float mag1, float n1, float q1, float pa1
+       , float xo, float yo, float r1, float mag1, float n1, float q1, float pa1
        , float x2, float y2, float r2, float mag2, float n2, float q2, float pa2
        , float x3, float y3, float r3, float mag3, float n3, float q3, float pa3
        , float x4, float y4, float r4, float mag4, float n4, float q4, float pa4
@@ -69,7 +69,7 @@ static void set_quad_sersic(global struct quad_sersic* data
     	float s = sin(pa1*DEG2RAD);
     
         // source position
-    	data->x[i] = (float2)(x1, y1);
+    	data->x[i] = (float2)(xo, yo);
     
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q1*c, q1*s, -s, c);
@@ -84,7 +84,7 @@ static void set_quad_sersic(global struct quad_sersic* data
 	c = cos(pa2*DEG2RAD);
     	s = sin(pa2*DEG2RAD);
         // source position
-    	data->x[i] = (float2)(x2, y2);
+    	data->x[i] = (float2)(x2, y2) + data->x[0];
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q2*c, q2*s, -s, c);
         data->log0[i] = -0.4f*mag2*LOG_10 + 2*n2*log(b) - LOG_PI - 2*log(r2) - log(tgamma(2*n2+1));
@@ -97,7 +97,7 @@ static void set_quad_sersic(global struct quad_sersic* data
 	c = cos(pa3*DEG2RAD);
     	s = sin(pa3*DEG2RAD);
         // source position
-    	data->x[i] = (float2)(x3, y3);
+    	data->x[i] = (float2)(x3, y3)  + data->x[0];
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q3*c, q3*s, -s, c);
         data->log0[i] = -0.4f*mag3*LOG_10 + 2*n3*log(b) - LOG_PI - 2*log(r3) - log(tgamma(2*n3+1));
@@ -110,7 +110,7 @@ static void set_quad_sersic(global struct quad_sersic* data
 	c = cos(pa4*DEG2RAD);
     	s = sin(pa4*DEG2RAD);
         // source position
-    	data->x[i] = (float2)(x4, y4);
+    	data->x[i] = (float2)(x4, y4) + data->x[0];
         // transformation matrix: rotate and scale
    	data->t[i] = (mat22)(q4*c, q4*s, -s, c);
         data->log0[i] = -0.4f*mag4*LOG_10 + 2*n4*log(b) - LOG_PI - 2*log(r4) - log(tgamma(2*n4+1));
