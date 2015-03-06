@@ -42,8 +42,7 @@ struct quad_sersic
 
 static float quad_sersic(constant struct quad_sersic* data, float2 x)
 {
-
-    if( data->log0[0] < data->log0[1] || data->log0[1] < data->log0[2] || data->log0[2] < data->log0[3] ) return 0.0;
+    if( data->log0[0] < data->log0[1] || data->log0[0] < data->log0[2] || data->log0[0] < data->log0[3] ) return -FLT_MAX;
 
     float sum = 0;
     float2 y;

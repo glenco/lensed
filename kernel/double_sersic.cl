@@ -28,8 +28,8 @@ struct double_sersic
 
 static float double_sersic(constant struct double_sersic* data, float2 x)
 {
+    if( data->log0[0] < data->log0[1] ) return -FLT_MAX;
 
-    if( data->log0[0] < data->log0[1] ) return 0.0f;
 
     float sum = 0;
     float2 y;
