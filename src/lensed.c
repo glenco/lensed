@@ -18,7 +18,6 @@
 #include "lensed.h"
 #include "kernel.h"
 #include "nested.h"
-#include "quadrature.h"
 #include "prior.h"
 #include "log.h"
 #include "version.h"
@@ -43,11 +42,6 @@ int main(int argc, char* argv[])
     size_t psfw;
     size_t psfh;
     
-    // quadrature rule
-    cl_ulong nq;
-    cl_float2* qq;
-    cl_float2* ww;
-    
     // OpenCL error code
     cl_int err;
     
@@ -63,10 +57,6 @@ int main(int argc, char* argv[])
     
     // buffer for objects
     cl_mem object_mem;
-    
-    // buffers for quadrature rule
-    cl_mem qq_mem;
-    cl_mem ww_mem;
     
     // buffers for data
     cl_mem image_mem;
@@ -415,25 +405,13 @@ int main(int argc, char* argv[])
         errori(NULL);
     
     
-    /*******************
-     * quadrature rule *
-     *******************/
+    /**************
+     * simulation *
+     **************/
     
-    verbose("quadrature");
+    verbose("simulation");
     
-    // get the number of nodes of quadrature rule
-    nq = quad_points();
-    
-    verbose("  number of points: %zu", nq);
-    
-    // allocate space for quadrature points and weights
-    qq = malloc(nq*sizeof(cl_float2));
-    ww = malloc(nq*sizeof(cl_float2));
-    if(!qq || !ww)
-        errori(NULL);
-    
-    // get quadrature rule
-    quad_rule(qq, ww, pcs->sx, pcs->sy);
+    verbose("  quadrature: %d x %d", inp->opts->nquad, inp->opts->nquad);
     
     
     /****************
@@ -557,7 +535,7 @@ int main(int argc, char* argv[])
         };
         
         // make build options string
-        const char* build_options = kernel_options(lensed.width, lensed.height, !!psf, psfw, psfh, nq, build_flags);
+        const char* build_options = kernel_options(lensed.width, lensed.height, !!psf, psfw, psfh, inp->opts->nquad, build_flags);
         
         // and build program
         verbose("  build program");
@@ -609,17 +587,6 @@ int main(int argc, char* argv[])
             error("failed to allocate data buffers");
     }
     
-    // create buffers for quadrature rule
-    {
-        verbose("  create quadrature buffers");
-        
-        // allocate buffers for quadrature rule
-        qq_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), qq, NULL);
-        ww_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), ww, NULL);
-        if(!qq_mem || !ww_mem)
-            error("failed to allocate quadrature buffers");
-    }
-    
     // create buffer that contains object data
     {
         // collect total size of object data
@@ -667,9 +634,8 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.value_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
-        lensed.error_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
-        if(!lensed.value_mem || !lensed.error_mem)
+        lensed.render_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float2), NULL, NULL);
+        if(!lensed.render_mem)
             error("failed to create render buffer");
         
         // pixel coordinate system
@@ -691,10 +657,7 @@ int main(int argc, char* argv[])
         err = 0;
         err |= clSetKernelArg(lensed.render, 0, sizeof(cl_mem), &object_mem);
         err |= clSetKernelArg(lensed.render, 1, sizeof(cl_float4), &pcs4);
-        err |= clSetKernelArg(lensed.render, 2, sizeof(cl_mem), &qq_mem);
-        err |= clSetKernelArg(lensed.render, 3, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed.render, 4, sizeof(cl_mem), &lensed.value_mem);
-        err |= clSetKernelArg(lensed.render, 5, sizeof(cl_mem), &lensed.error_mem);
+        err |= clSetKernelArg(lensed.render, 2, sizeof(cl_mem), &lensed.render_mem);
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         
@@ -737,7 +700,7 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float2), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create convolve buffer");
         
@@ -752,7 +715,7 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.value_mem);
+        err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.render_mem);
         err |= clSetKernelArg(lensed.convolve, 1, sizeof(cl_mem), &psf_mem);
         err |= clSetKernelArg(lensed.convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
         err |= clSetKernelArg(lensed.convolve, 4, sizeof(cl_mem), &lensed.convolve_mem);
@@ -785,7 +748,7 @@ int main(int argc, char* argv[])
         }
         
         // size of local memory that stores part of the model
-        cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+        cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float2);
         
         // reduce local work size until cache fits into local memory
         while(2*cache_size > local_mem_size - lm)
@@ -799,7 +762,7 @@ int main(int argc, char* argv[])
             if(lensed.convolve_lws[0]*lensed.convolve_lws[1] < 1)
                 error("PSF too large for local memory on device (%zukB)", local_mem_size/1024);
             
-            cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+            cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float2);
         }
         
         // global work size must be padded to block size
@@ -846,7 +809,7 @@ int main(int argc, char* argv[])
         err = 0;
         err |= clSetKernelArg(lensed.loglike, 0, sizeof(cl_mem), &image_mem);
         err |= clSetKernelArg(lensed.loglike, 1, sizeof(cl_mem), &weight_mem);
-        err |= clSetKernelArg(lensed.loglike, 2, sizeof(cl_mem), psf ? &lensed.convolve_mem : &lensed.value_mem);
+        err |= clSetKernelArg(lensed.loglike, 2, sizeof(cl_mem), psf ? &lensed.convolve_mem : &lensed.render_mem);
         err |= clSetKernelArg(lensed.loglike, 3, sizeof(cl_mem), &lensed.loglike_mem);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
@@ -963,7 +926,7 @@ int main(int argc, char* argv[])
      ***********/
     
     // compute chi^2/dof
-    chi2_dof = -2*lensed.max_loglike / (lensed.size - masked - lensed.npars);
+    chi2_dof = lensed.min_chi2/(lensed.size - masked - lensed.npars);
     
     // duration
     dur = difftime(end, start);
@@ -1053,8 +1016,7 @@ int main(int argc, char* argv[])
     
     // free render kernel
     clReleaseKernel(lensed.render);
-    clReleaseMemObject(lensed.value_mem);
-    clReleaseMemObject(lensed.error_mem);
+    clReleaseMemObject(lensed.render_mem);
     
     // free convolve kernel
     if(psf)
@@ -1074,10 +1036,6 @@ int main(int argc, char* argv[])
     // free object buffer
     clReleaseMemObject(object_mem);
     
-    // free quadrature buffers
-    clReleaseMemObject(qq_mem);
-    clReleaseMemObject(ww_mem);
-    
     // free data
     clReleaseMemObject(image_mem);
     clReleaseMemObject(weight_mem);
@@ -1091,10 +1049,6 @@ int main(int argc, char* argv[])
     clReleaseProgram(program);
     clReleaseCommandQueue(lensed.queue);
     clReleaseContext(context);
-    
-    // free quadrature rule
-    free(qq);
-    free(ww);
     
     // free results
     free((char*)lensed.fits);

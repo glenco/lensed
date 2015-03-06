@@ -20,6 +20,7 @@ struct lensed
     double logev_err;
     double logev_ins;
     double max_loglike;
+    double min_chi2;
     double* mean;
     double* sigma;
     double* ml;
@@ -33,8 +34,7 @@ struct lensed
     cl_mem params;
     
     // render kernel
-    cl_mem value_mem;
-    cl_mem error_mem;
+    cl_mem render_mem;
     cl_kernel render;
     size_t render_lws[1];
     size_t render_gws[1];

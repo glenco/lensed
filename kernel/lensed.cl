@@ -1,7 +1,5 @@
 // compute image
-kernel void render(constant char* data, float4 pcs,
-                   constant float2* qq, constant float2* ww,
-                   global float* value, global float* error)
+kernel void render(constant char* data, float4 pcs, global float2* model)
 {
     // get pixel index
     int k = get_global_id(0);
@@ -9,41 +7,58 @@ kernel void render(constant char* data, float4 pcs,
     // compute pixel flux if pixel is in image
     if(k < IMAGE_SIZE)
     {
-        // pixel position
-        float2 x = pcs.xy + pcs.zw*(float2)(k%IMAGE_WIDTH, k/IMAGE_WIDTH);
+        // base position on quadrature grid
+        float2 x = pcs.xy + pcs.zw*(float2)(k%IMAGE_WIDTH - 0.5f + 0.5f/NQ, k/IMAGE_WIDTH - 0.5f + 0.5f/NQ);
         
-        // value and error of quadrature
-        float2 f = 0;
+        // number of points, mean and variance
+        size_t c = 0;
+        float m = 0;
+        float s = 0;
         
-        // apply quadrature rule to computed surface brightness
-        for(size_t n = 0; n < QUAD_POINTS; ++n)
-            f += ww[n]*compute(data, x + qq[n]);
+        // compute mean and variance on quadrature grid
+        for(size_t u = 0; u < NQ; ++u)
+        for(size_t v = 0; v < NQ; ++v)
+        {
+            // function value at grid point
+            float f = compute(data, x + pcs.zw*(float2)(u, v)/NQ);
+            
+            // difference to current mean
+            float df = f - m;
+            
+            // running mean and variance calculation
+            c += 1;
+            m += df/c;
+            s += df*(f - m);
+        }
         
-        // done
-        value[k] = f.s0;
-        error[k] = f.s1;
+        // store model mean and variance of mean
+        model[k] = (float2)(m, s/(c - 1)/c);
     }
 }
 
 // calculate log-likelihood of computed model
 kernel void loglike(global const float* image, global const float* weight,
-                    global const float* model, global float* loglike)
+                    global const float2* model, global float* loglike)
 {
     // get pixel index
     int k = get_global_id(0);
     
-    // compute chi^2 value if pixel is in image
+    // compute log-likelihood value if pixel is in image
     if(k < IMAGE_SIZE)
     {
-        float d = model[k] - image[k];
-        loglike[k] = weight[k]*d*d;
+        float i = image[k];
+        float w = weight[k];
+        float2 m = model[k];
+        float d = i - m.x;
+        float s = 1 + w*m.y;
+        loglike[k] = -0.5f*(w*d*d/s + log(s));
     }
 }
 
 // convolve input with PSF
-kernel void convolve(global float* input, constant float* psf,
-                     local float* input2, local float* psf2,
-                     global float* output)
+kernel void convolve(global const float2* input, constant float* psf,
+                     local float2* input2, local float* psf2,
+                     global float2* output)
 {
     int i, j;
     
@@ -78,12 +93,15 @@ kernel void convolve(global float* input, constant float* psf,
     if(gi < IMAGE_WIDTH && gj < IMAGE_HEIGHT)
     {
         // convolved value for pixel 
-        float x = 0;
+        float2 x = 0;
         
         // convolve
         for(j = 0; j < PSF_HEIGHT; ++j)
-            for(i = 0; i < PSF_WIDTH; ++i)
-                x += psf2[mad24(j, PSF_WIDTH, i)]*input2[mad24(lj + j, cw, li + i)];
+        for(i = 0; i < PSF_WIDTH; ++i)
+        {
+            float w = psf2[mad24(j, PSF_WIDTH, i)];
+            x += (float2)(w, w*w)*input2[mad24(lj + j, cw, li + i)];
+        }
         
         // store convolved value
         output[mad24(gj, IMAGE_WIDTH, gi)] = x;

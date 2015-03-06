@@ -116,6 +116,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(psf)
     },
     {
+        "nquad",
+        "Number of quadrature points",
+        OPTION_OPTIONAL(int, 7),
+        OPTION_FIELD(nquad)
+    },
+    {
         "nlive",
         "Number of live points",
         OPTION_OPTIONAL(int, 300),

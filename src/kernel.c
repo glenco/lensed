@@ -581,7 +581,7 @@ const char* kernel_options(size_t width, size_t height, int psf, size_t psfw, si
     const char* psf_opt = " -DPSF=%d";
     const char* psfw_opt = " -DPSF_WIDTH=%zu";
     const char* psfh_opt = " -DPSF_HEIGHT=%zu";
-    const char* nq_opt = " -DQUAD_POINTS=%zu";
+    const char* nq_opt = " -DNQ=%zu";
     
     // get number of options and their sizes
     opts_size = 0;
