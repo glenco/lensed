@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -136,6 +137,50 @@ void read_image(const char* filename, size_t* width, size_t* height, cl_float** 
     read_fits(filename, TFLOAT, width, height, (void**)image);
     
     // TODO process depending on format
+}
+
+void read_pcs(const char* filename, pcsdata* pcs)
+{
+    int status;
+    char urltype[20], infile[FLEN_FILENAME], outfile[FLEN_FILENAME];
+    char extspec[FLEN_FILENAME], rowfilter[FLEN_FILENAME], binspec[FLEN_FILENAME];
+    char colspec[FLEN_FILENAME], pixfilter[FLEN_FILENAME], compspec[FLEN_FILENAME];
+    char* url;
+    
+    // FITSIO goes crazy if initial status is not zero
+    status = 0;
+    
+    // copy filename so that FITSIO can do whatever it wants
+    url = malloc(strlen(filename) + 1);
+    strcpy(url, filename);
+    
+    // parse the input file specification
+    ffifile2(url, urltype, infile, outfile, extspec, rowfilter, binspec, colspec, pixfilter, compspec, &status);
+    
+    // check if a row filter was given
+    if(*rowfilter)
+    {
+        long smin, smax, sinc;
+        char* cptr = rowfilter;
+        
+        // parse expressions for x axis
+        fits_get_section_range(&cptr, &smin, &smax, &sinc, &status);
+        pcs->rx = smin;
+        pcs->sx = (smax > smin ? +1 : -1)*sinc;
+        
+        // parse expressions for y axis
+        fits_get_section_range(&cptr, &smin, &smax, &sinc, &status);
+        pcs->ry = smin;
+        pcs->sy = (smax > smin ? +1 : -1)*sinc;
+    }
+    else
+    {
+        // set standard pixel coordinate system
+        pcs->rx = 1;
+        pcs->ry = 1;
+        pcs->sx = 1;
+        pcs->sy = 1;
+    }
 }
 
 void read_gain(const char* filename, size_t width, size_t height, double** gain)

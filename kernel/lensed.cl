@@ -1,5 +1,5 @@
 // compute image
-kernel void render(constant char* data,
+kernel void render(constant char* data, float4 pcs,
                    constant float2* qq, constant float2* ww,
                    global float* value, global float* error)
 {
@@ -12,7 +12,7 @@ kernel void render(constant char* data,
     if(i < IMAGE_WIDTH && j < IMAGE_HEIGHT)
     {
         // pixel position
-        float2 x = (float2)(1 + i, 1 + j);
+        float2 x = pcs.xy + pcs.zw*(float2)(i, j);
         
         // value and error of quadrature
         float2 f = 0;

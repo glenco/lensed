@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
     struct lensed lensed;
     
     // data
+    pcsdata* pcs;
     size_t masked;
     cl_float* psf;
     size_t psfw;
@@ -259,6 +260,15 @@ int main(int argc, char* argv[])
     
     verbose("  image pixels: %zu", lensed.size);
     
+    // read image pixel coordinate system
+    pcs = malloc(sizeof(pcsdata));
+    if(!pcs)
+        errori(NULL);
+    read_pcs(inp->opts->image, pcs);
+    
+    verbose("  pixel origin: ( %ld, %ld )", pcs->rx, pcs->ry);
+    verbose("  pixel scale: ( %f, %f )", pcs->sx, pcs->sy);
+    
     // check if weight map is given
     if(inp->opts->weight)
     {
@@ -419,7 +429,7 @@ int main(int argc, char* argv[])
         errori(NULL);
     
     // get quadrature rule
-    quad_rule(qq, ww);
+    quad_rule(qq, ww, pcs->sx, pcs->sy);
     
     
     /****************
@@ -429,15 +439,14 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
-        verbose("  device: %s", inp->opts->gpu ? "GPU" : "CPU");
-        
         err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
         if(err != CL_SUCCESS)
-            error("failed to get device");
+            error("failed to get %s device", inp->opts->gpu ? "GPU" : "CPU");
         
         // output device info
         if(LOG_LEVEL <= LOG_VERBOSE)
         {
+            cl_device_type device_type;
             char device_name[128];
             char device_vendor[128];
             char device_version[128];
@@ -449,42 +458,42 @@ int main(int argc, char* argv[])
             err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get device name");
+            verbose("  device: %s", device_name);
             
-            verbose("    name: %s", device_name);
+            // query device type
+            err = clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get device type");
+            verbose("    type: %s", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "other"));
             
             // query device vendor
             err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get device vendor");
-            
             verbose("    vendor: %s", device_vendor);
             
             // query device version
             err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get device version");
-            
             verbose("    version: %s", device_version);
             
             // query device compiler
             err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get device compiler");
-            
             verbose("    compiler: %s", device_compiler);
             
             // query driver version
             err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get driver version");
-            
             verbose("    driver: %s", driver_version);
             
             // query maximum compute units
             err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get maximum compute units");
-            
             verbose("    units: %u", compute_units);
         }
         
@@ -659,12 +668,20 @@ int main(int argc, char* argv[])
     
     // create kernel
     {
+        cl_float4 pcs4;
+        
         verbose("  create render buffer");
         
         lensed.value_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
         lensed.error_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
         if(!lensed.value_mem || !lensed.error_mem)
             error("failed to create render buffer");
+        
+        // pixel coordinate system
+        pcs4.s[0] = pcs->rx;
+        pcs4.s[1] = pcs->ry;
+        pcs4.s[2] = pcs->sx;
+        pcs4.s[3] = pcs->sy;
         
         verbose("  create render kernel");
         
@@ -674,10 +691,11 @@ int main(int argc, char* argv[])
             error("failed to create render kernel");
         err = 0;
         err |= clSetKernelArg(lensed.render, 0, sizeof(cl_mem), &object_mem);
-        err |= clSetKernelArg(lensed.render, 1, sizeof(cl_mem), &qq_mem);
-        err |= clSetKernelArg(lensed.render, 2, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed.render, 3, sizeof(cl_mem), &lensed.value_mem);
-        err |= clSetKernelArg(lensed.render, 4, sizeof(cl_mem), &lensed.error_mem);
+        err |= clSetKernelArg(lensed.render, 1, sizeof(cl_float4), &pcs4);
+        err |= clSetKernelArg(lensed.render, 2, sizeof(cl_mem), &qq_mem);
+        err |= clSetKernelArg(lensed.render, 3, sizeof(cl_mem), &ww_mem);
+        err |= clSetKernelArg(lensed.render, 4, sizeof(cl_mem), &lensed.value_mem);
+        err |= clSetKernelArg(lensed.render, 5, sizeof(cl_mem), &lensed.error_mem);
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         
@@ -951,6 +969,7 @@ int main(int argc, char* argv[])
     
     // free data
     free(lensed.image);
+    free(pcs);
     free(lensed.weight);
     free(psf);
     
