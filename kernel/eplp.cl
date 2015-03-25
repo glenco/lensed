@@ -14,8 +14,8 @@ PARAMS(eplp) = {
 struct eplp
 {
     float2 x;
-    float4 m;
-    float4 w;
+    mat22 m;
+    mat22 w;
     
     float q2;
     float e;
@@ -28,17 +28,18 @@ static float2 eplp(constant struct eplp* eplp, float2 x)
     float2 dy,y;
     float r;
  
-    dy = (float2)(dot(eplp->m.lo, x - eplp->x), dot(eplp->m.hi, x - eplp->x));
+    dy = mv22(eplp->m, x - eplp->x);
     
     r = length(dy);
 
-    float g = sqrt(dy.x*dy.x + eplp->q2*dy.y*dy.y)/r;
-    float a_iso = eplp->re*powr(r*g/eplp->re , eplp->alpha);
-
-    y.x = a_iso * g * dy.x * ( 1 + eplp->e*pown(dy.y/r/g,2) ) / r;
-    y.y = a_iso * g * dy.y * ( 1 - eplp->e*pown(dy.x/r/g,2) ) / r;
+    float eta = sqrt(dy.x*dy.x + eplp->q2*dy.y*dy.y);
     
-    return (float2)(dot(eplp->w.lo, y), dot(eplp->w.hi, y));
+    float a_iso = eplp->re*powr(eta/eplp->re , eplp->alpha) / eta;
+
+    y.x = a_iso * dy.x ;
+    y.y = a_iso * eplp->q2 * dy.y;
+    
+    return mv22(eplp->w, y);
 }
 
 static void set_eplp(global struct eplp* eplp, float x1, float x2, float re, float alpha, float q, float pa)
@@ -50,10 +51,10 @@ static void set_eplp(global struct eplp* eplp, float x1, float x2, float re, flo
     eplp->x = (float2)(x1, x2);
     
     // rotation matrix
-    eplp->m = (float4)(c, s, -s, c);
+    eplp->m = (mat22)(c, s, -s, c);
     
     // inverse rotation matrix
-    eplp->w = (float4)(c, -s, s, c);
+    eplp->w = (mat22)(c, -s, s, c);
     
     eplp->q2 = q*q;
     eplp->e = 1 - q*q;
