@@ -294,7 +294,7 @@ void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], d
 {
     double min, max, dx;
     size_t* counts;
-    size_t i, j;
+    long i, j;
     
     // make sure there are values
     if(nvalues == 0)
