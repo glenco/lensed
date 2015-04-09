@@ -32,11 +32,13 @@ typedef struct
 // include all prior headers here
 #include "prior/delta.h"
 #include "prior/unif.h"
+#include "prior/norm.h"
 
 // define known priors here
 static const prior_list PRIORS[] = {
     PRIOR(delta),
-    PRIOR(unif)
+    PRIOR(unif),
+    PRIOR(norm)
 };
 
 // number of priors

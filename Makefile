@@ -16,7 +16,8 @@ HEADERS = lensed.h \
           input/options.h \
           input/ini.h \
           prior/delta.h \
-          prior/unif.h
+          prior/unif.h \
+          prior/norm.h
 SOURCES = lensed.c \
           input.c \
           kernel.c \
@@ -30,7 +31,8 @@ SOURCES = lensed.c \
           input/options.c \
           input/ini.c \
           prior/delta.c \
-          prior/unif.c
+          prior/unif.c \
+          prior/norm.c
 
 
 ####
