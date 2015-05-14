@@ -101,9 +101,13 @@ VERSION = $(SOURCE_DIR)/version.h
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
 
-.PHONY: all clean
+.PHONY: all test clean
 
 all: $(LENSED)
+
+test:
+	@$(ECHO) "testing"
+	@$(MAKE) -C tests
 
 clean:
 	@$(ECHO) "cleaning"
