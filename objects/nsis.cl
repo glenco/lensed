@@ -1,39 +1,40 @@
 // non-singular isothermal sphere
 // follows Schneider, Kochanek, Wambsganss (2006)
 
-OBJECT(nsis) = LENS;
+type = LENS;
 
-PARAMS(nsis) = {
+params
+{
     { "x" },
     { "y" },
     { "r" },
     { "rc" }
 };
 
-struct nsis
+data
 {
     float2 x; // lens position
     float r;  // Einstein radius
     float rc; // core radius
 };
 
-static float2 nsis(constant struct nsis* data, float2 x)
+static float2 deflection(constant data* this, float2 x)
 {
     // move to central coordinates
-    x -= data->x;
+    x -= this->x;
     
     // NSIS deflection
-    return data->r/(data->rc + length(x))*x;
+    return this->r/(this->rc + length(x))*x;
 }
 
-static void set_nsis(global struct nsis* nsis, float x1, float x2, float r, float rc)
+static void set(global data* this, float x, float y, float r, float rc)
 {
     // lens position
-    nsis->x = (float2)(x1, x2);
+    this->x = (float2)(x, y);
     
     // Einstein radius
-    nsis->r = r;
+    this->r = r;
     
     // core radius
-    nsis->rc = rc;
+    this->rc = rc;
 }

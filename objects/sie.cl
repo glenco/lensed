@@ -1,9 +1,10 @@
 // singular isothermal ellipsoid
 // follows Schneider, Kochanek, Wambsganss (2006)
 
-OBJECT(sie) = LENS;
+type = LENS;
 
-PARAMS(sie) = {
+params
+{
     { "x" },
     { "y" },
     { "r" },
@@ -11,7 +12,7 @@ PARAMS(sie) = {
     { "pa", true }
 };
 
-struct sie
+data
 {
     float2 x; // lens position
     mat22 m;  // rotation matrix for position angle
@@ -23,41 +24,41 @@ struct sie
     float d;
 };
 
-static float2 sie(constant struct sie* data, float2 x)
+static float2 deflection(constant data* this, float2 x)
 {
     float2 y;
     float r;
     
     // move to central coordinates
-    x -= data->x;
+    x -= this->x;
     
     // rotate coordinates by position angle
-    y = mv22(data->m, x);
+    y = mv22(this->m, x);
     
     // SIE deflection
-    r = data->e/sqrt(data->q2*y.x*y.x + y.y*y.y);
-    y = data->d*(float2)(atan(y.x*r), atanh(y.y*r));
+    r = this->e/sqrt(this->q2*y.x*y.x + y.y*y.y);
+    y = this->d*(float2)(atan(y.x*r), atanh(y.y*r));
     
     // reverse coordinate rotation
-    return mv22(data->w, y);
+    return mv22(this->w, y);
 }
 
-static void set_sie(global struct sie* sie, float x1, float x2, float r, float q, float pa)
+static void set(global data* this, float x, float y, float r, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);
     
     // lens position
-    sie->x = (float2)(x1, x2);
+    this->x = (float2)(x, y);
     
     // rotation matrix
-    sie->m = (mat22)(c, s, -s, c);
+    this->m = (mat22)(c, s, -s, c);
     
     // inverse rotation matrix
-    sie->w = (mat22)(c, -s, s, c);
+    this->w = (mat22)(c, -s, s, c);
     
     // auxiliary quantities
-    sie->q2 = q*q;
-    sie->e = sqrt(1 - q*q);
-    sie->d = r*sqrt(q)/sqrt(1 - q*q);
+    this->q2 = q*q;
+    this->e = sqrt(1 - q*q);
+    this->d = r*sqrt(q)/sqrt(1 - q*q);
 }

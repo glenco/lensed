@@ -8,14 +8,15 @@
 #include "kernel.h"
 #include "log.h"
 
-// parts of kernel files
+// parts of kernel and object files
 static const char KERNEL_DIR[] = "kernel/";
-static const char KERNEL_EXT[] = ".cl";
+static const char OBJECT_DIR[] = "objects/";
+static const char OPENCL_EXT[] = ".cl";
 
 // marker for individual files in kernel code
 static const char FILEHEAD[] = 
     "//----------------------------------------------------------------------------\n"
-    "// %s\n"
+    "// %s%s\n"
     "//----------------------------------------------------------------------------\n"
     "\n"
 ;
@@ -38,24 +39,24 @@ static const size_t NMAINKERNS = sizeof(MAINKERNS)/sizeof(MAINKERNS[0]);
 
 // kernel to get meta-data for object
 static const char METAKERN[] = 
-    "kernel void meta_<name>(global int* type, global ulong* size, global ulong* npars)\n"
+    "kernel void meta_<name>(global int* type, global ulong* size, global ulong* npar)\n"
     "{\n"
-    "    *type = object_<name>;\n"
-    "    *size = sizeof(struct <name>);\n"
-    "    *npars = NPARAMS(<name>);\n"
+    "    *type = type_<name>;\n"
+    "    *size = sizeof(struct data_<name>);\n"
+    "    *npar = sizeof(parlst_<name>)/sizeof(struct param);\n"
     "}\n"
 ;
 
 // kernel to get parameters for object
 static const char PARSKERN[] = 
-    "kernel void params_<name>(global struct param* params)\n"
+    "kernel void params_<name>(global struct param* par)\n"
     "{\n"
-    "    for(size_t i = 0; i < NPARAMS(<name>); ++i)\n"
+    "    for(size_t i = 0; i < sizeof(parlst_<name>)/sizeof(struct param); ++i)\n"
     "    {\n"
-    "        for(size_t j = 0; j < sizeof(params[i].name); ++j)\n"
-    "            params[i].name[j] = PARAM(<name>, i).name[j];\n"
+    "        for(size_t j = 0; j < sizeof(par[i].name); ++j)\n"
+    "            par[i].name[j] = parlst_<name>[i].name[j];\n"
     "        \n"
-    "        params[i].wrap = PARAM(<name>, i).wrap;\n"
+    "        par[i].wrap = parlst_<name>[i].wrap;\n"
     "    }\n"
     "}\n"
 ;
@@ -64,40 +65,43 @@ static const char PARSKERN[] =
 static const char COMPHEAD[] =
     "static float compute(constant char* data, float2 x)\n"
     "{\n"
-    "    // initial ray position\n"
+    "    // ray position\n"
     "    float2 y = x;\n"
-    "    \n"
-    "    // initial deflection is zero\n"
-    "    float2 a = 0;\n"
     "    \n"
     "    // initial surface brightness is zero\n"
     "    float f = 0;\n"
 ;
 static const char COMPLHED[] =
     "    \n"
-    "    // calculate deflection\n"
+    "    // lens plane\n"
+    "    {\n"
+    "        // initial deflection is zero\n"
+    "        float2 a = 0;\n"
+    "        \n"
+    "        // calculate deflection\n"
 ;
 static const char COMPLENS[] =
-    "    a += %s((constant void*)(data + %zu), y);\n"
+    "        a += deflection_%s((constant void*)(data + %zu), y);\n"
 ;
 static const char COMPDEFL[] =
-    "    \n"
-    "    // apply deflection to ray, if finite\n"
-    "    y -= dot(a,a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
+    "        \n"
+    "        // apply deflection to ray, if finite\n"
+    "        y -= dot(a,a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
+    "    }\n"
 ;
 static const char COMPSHED[] =
     "    \n"
     "    // calculate surface brightness\n"
 ;
 static const char COMPSRCE[] =
-    "    f += %s((constant void*)(data + %zu), y);\n"
+    "    f += brightness_%s((constant void*)(data + %zu), y);\n"
 ;
 static const char COMPFHED[] =
     "    \n"
     "    // add foreground\n"
 ;
 static const char COMPFGND[] =
-    "    f += %s((constant void*)(data + %zu), x);\n"
+    "    f += foreground_%s((constant void*)(data + %zu), x);\n"
 ;
 static const char COMPFOOT[] =
     "    \n"
@@ -116,6 +120,28 @@ static const char SETPARGS[] = ", params[%zu]";
 static const char SETPRGHT[] = ");\n";
 static const char SETPFOOT[] =
     "}\n"
+;
+
+// object kernel
+static const char OBJHEAD[] =
+    "#define type constant int type_%s\n"
+    "#define params constant struct param parlst_%s[] = \n"
+    "#define data struct data_%s\n"
+    "#define deflection deflection_%s\n"
+    "#define brightness brightness_%s\n"
+    "#define foreground foreground_%s\n"
+    "#define set set_%s\n"
+    "\n"
+;
+static const char OBJFOOT[] =
+    "\n"
+    "#undef type\n"
+    "#undef params\n"
+    "#undef data\n"
+    "#undef deflection\n"
+    "#undef brightness\n"
+    "#undef foreground\n"
+    "#undef set\n"
 ;
 
 // replace substring, used to fill in object names in kernels
@@ -251,7 +277,7 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     out = buf;
     
     // write file header
-    wri = sprintf(out, FILEHEAD, "compute");
+    wri = sprintf(out, FILEHEAD, "", "compute");
     if(wri < 0)
         errori(NULL);
     out += wri;
@@ -382,7 +408,7 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     out = buf;
     
     // write file header
-    wri = sprintf(out, FILEHEAD, "set_params");
+    wri = sprintf(out, FILEHEAD, "", "set_params");
     if(wri < 0)
         errori(NULL);
     out += wri;
@@ -456,8 +482,8 @@ static const char* load_kernel(const char* name)
     int wri;
     
     // construct filename for kernel
-    filename = malloc(strlen(LENSED_PATH) + strlen(KERNEL_DIR) + strlen(name) + strlen(KERNEL_EXT) + 1);
-    sprintf(filename, "%s%s%s%s", LENSED_PATH, KERNEL_DIR, name, KERNEL_EXT);
+    filename = malloc(strlen(LENSED_PATH) + strlen(KERNEL_DIR) + strlen(name) + strlen(OPENCL_EXT) + 1);
+    sprintf(filename, "%s%s%s%s", LENSED_PATH, KERNEL_DIR, name, OPENCL_EXT);
     
     // try to read file
     f = fopen(filename, "r");
@@ -472,10 +498,12 @@ static const char* load_kernel(const char* name)
     file_size = ftell(f);
     
     // calculate size of buffer
-    buf_size = file_size + sizeof(FILEHEAD) + strlen(name) + sizeof(FILEFOOT);
+    buf_size = file_size
+             + snprintf(NULL, 0, FILEHEAD, KERNEL_DIR, name)
+             + snprintf(NULL, 0, FILEFOOT);
     
     // try to allocate buffer
-    buf = malloc(buf_size);
+    buf = malloc(buf_size + 1);
     if(!buf)
         errori("kernel %s", name);
     
@@ -483,7 +511,7 @@ static const char* load_kernel(const char* name)
     out = buf;
     
     // write file header
-    wri = sprintf(out, FILEHEAD, name);
+    wri = sprintf(out, FILEHEAD, KERNEL_DIR, name);
     if(wri < 0)
         errori("kernel %s", name);
     out += wri;
@@ -507,6 +535,91 @@ static const char* load_kernel(const char* name)
     return buf;
 }
 
+static const char* load_object(const char* name)
+{
+    // file for object
+    char* filename;
+    FILE* f;
+    long file_size;
+    
+    // buffer for object code
+    char* buf;
+    size_t buf_size;
+    
+    // current output position
+    char* out;
+    
+    // number of characters added
+    int wri;
+    
+    // construct filename for object
+    filename = malloc(strlen(LENSED_PATH) + strlen(OBJECT_DIR) + strlen(name) + strlen(OPENCL_EXT) + 1);
+    sprintf(filename, "%s%s%s%s", LENSED_PATH, OBJECT_DIR, name, OPENCL_EXT);
+    
+    // try to read file
+    f = fopen(filename, "r");
+    if(!f)
+    {
+        verbose("file not found: %s", filename);
+        error("could not load object \"%s\"", name);
+    }
+    
+    // go to end of file and get its size
+    fseek(f, 0, SEEK_END);
+    file_size = ftell(f);
+    
+    // calculate size of buffer
+    buf_size = file_size
+             + snprintf(NULL, 0, FILEHEAD, OBJECT_DIR, name)
+             + snprintf(NULL, 0, OBJHEAD, name, name, name, name, name, name, name)
+             + snprintf(NULL, 0, OBJFOOT)
+             + snprintf(NULL, 0, FILEFOOT);
+    
+    // try to allocate buffer
+    buf = malloc(buf_size + 1);
+    if(!buf)
+        errori("object %s", name);
+    
+    // start at beginning
+    out = buf;
+    
+    // write file header
+    wri = sprintf(out, FILEHEAD, OBJECT_DIR, name);
+    if(wri < 0)
+        errori("object %s", name);
+    out += wri;
+    
+    // write object header
+    wri = sprintf(out, OBJHEAD, name, name, name, name, name, name, name);
+    if(wri < 0)
+        errori("object %s", name);
+    out += wri;
+    
+    // write file
+    fseek(f, 0, SEEK_SET);
+    fread(out, 1, file_size, f);
+    out += file_size;
+    
+    // write object footer
+    wri = sprintf(out, OBJFOOT);
+    if(wri < 0)
+        errori("object %s", name);
+    out += wri;
+    
+    // write file footer
+    wri = sprintf(out, FILEFOOT);
+    if(wri < 0)
+        errori("object %s", name);
+    out += wri;
+    
+    // clean up
+    fclose(f);
+    free(filename);
+    
+    // done
+    return buf;
+}
+
 void object_program(const char* name, size_t* nkernels, const char*** kernels)
 {
     // create kernel array with space for object and system kernels
@@ -520,7 +633,7 @@ void object_program(const char* name, size_t* nkernels, const char*** kernels)
         *(k++) = load_kernel(INITKERNS[i]);
     
     // load kernel for object
-    *(k++) = load_kernel(name);
+    *(k++) = load_object(name);
     
     // add kernels for object meta-data and parameters
     *(k++) = str_replace(METAKERN, "<name>", name);
@@ -554,7 +667,7 @@ void main_program(size_t nobjs, object objs[], size_t* nkernels, const char*** k
     
     // load kernels for objects
     for(size_t i = 0; i < nuniq; ++i)
-        *(k++) = load_kernel(uniq[i]);
+        *(k++) = load_object(uniq[i]);
     
     // load compute kernel
     *(k++) = compute_kernel(nobjs, objs);

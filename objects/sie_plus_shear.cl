@@ -1,9 +1,10 @@
 // singular isothermal ellipsoid plus shear
 // follows Schneider, Kochanek, Wambsganss (2006)
 
-OBJECT(sie_plus_shear) = LENS;
+type = LENS;
 
-PARAMS(sie_plus_shear) = {
+params
+{
     { "x" },
     { "y" },
     { "r" },
@@ -13,7 +14,7 @@ PARAMS(sie_plus_shear) = {
     { "g2" }
 };
 
-struct sie_plus_shear
+data
 {
     float2 x; // lens position
     mat22 m;  // rotation matrix for position angle
@@ -26,44 +27,44 @@ struct sie_plus_shear
     float d;
 };
 
-static float2 sie_plus_shear(constant struct sie_plus_shear* data, float2 x)
+static float2 deflection(constant data* this, float2 x)
 {
     float2 y;
     float r;
     
     // move to central coordinates
-    x -= data->x;
+    x -= this->x;
     
     // rotate coordinates by position angle
-    y = mv22(data->m, x);
+    y = mv22(this->m, x);
     
     // SIE deflection
-    r = data->e/sqrt(data->q2*y.x*y.x + y.y*y.y);
-    y = data->d*(float2)(atan(y.x*r), atanh(y.y*r));
+    r = this->e/sqrt(this->q2*y.x*y.x + y.y*y.y);
+    y = this->d*(float2)(atan(y.x*r), atanh(y.y*r));
     
     // reverse coordinate rotation, apply shear
-    return mv22(data->w, y) + mv22(data->g, x);
+    return mv22(this->w, y) + mv22(this->g, x);
 }
 
-static void set_sie_plus_shear(global struct sie_plus_shear* data, float x1, float x2, float r, float q, float pa, float g1, float g2)
+static void set(global data* this, float x, float y, float r, float q, float pa, float g1, float g2)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);
     
     // lens position
-    data->x = (float2)(x1, x2);
+    this->x = (float2)(x, y);
     
     // rotation matrix
-    data->m = (mat22)(c, s, -s, c);
+    this->m = (mat22)(c, s, -s, c);
     
     // inverse rotation matrix
-    data->w = (mat22)(c, -s, s, c);
+    this->w = (mat22)(c, -s, s, c);
     
     // shear matrix
-    data->g = (mat22)(g1, g2, g2, -g1);
+    this->g = (mat22)(g1, g2, g2, -g1);
     
     // auxiliary quantities
-    data->q2 = q*q;
-    data->e = sqrt(1 - q*q);
-    data->d = r*sqrt(q)/sqrt(1 - q*q);
+    this->q2 = q*q;
+    this->e = sqrt(1 - q*q);
+    this->d = r*sqrt(q)/sqrt(1 - q*q);
 }
