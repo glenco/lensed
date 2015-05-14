@@ -7,7 +7,6 @@ HEADERS = lensed.h \
           kernel.h \
           data.h \
           nested.h \
-          quadrature.h \
           prior.h \
           parse.h \
           log.h \
@@ -23,7 +22,6 @@ SOURCES = lensed.c \
           kernel.c \
           data.c \
           nested.c \
-          quadrature.c \
           prior.c \
           parse.c \
           log.c \

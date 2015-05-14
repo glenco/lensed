@@ -21,6 +21,9 @@ typedef struct
         double value;
     }* gain;
     
+    // simulation
+    int nquad;
+    
     // MultiNest
     int nlive;
     int ins;
