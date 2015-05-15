@@ -8,6 +8,10 @@
 #include "kernel.h"
 #include "log.h"
 
+// parts of kernel files
+static const char KERNEL_DIR[] = "kernel/";
+static const char KERNEL_EXT[] = ".cl";
+
 // marker for individual files in kernel code
 static const char FILEHEAD[] = 
     "//----------------------------------------------------------------------------\n"
@@ -452,8 +456,8 @@ static const char* load_kernel(const char* name)
     int wri;
     
     // construct filename for kernel
-    filename = malloc(strlen(KERNEL_PATH) + strlen(name) + strlen(KERNEL_EXT) + 1);
-    sprintf(filename, "%s%s%s", KERNEL_PATH, name, KERNEL_EXT);
+    filename = malloc(strlen(LENSED_PATH) + strlen(KERNEL_DIR) + strlen(name) + strlen(KERNEL_EXT) + 1);
+    sprintf(filename, "%s%s%s%s", LENSED_PATH, KERNEL_DIR, name, KERNEL_EXT);
     
     // try to read file
     f = fopen(filename, "r");

@@ -8,9 +8,13 @@
 #include "input/ini.h"
 #include "prior.h"
 #include "log.h"
+#include "config.h"
 #include "version.h"
 
-/* print usage help */
+// default config file
+const char DEFAULT_INI[] = "default.ini";
+
+// print usage help
 void usage(int help)
 {
     if(help)
@@ -109,7 +113,29 @@ input* read_input(int argc, char* argv[])
     // set default options
     default_options(inp);
     
-    /* go through arguments */
+    // check for a default config file
+    {
+        char* filename;
+        FILE* fp;
+        
+        // get filename of default config file
+        filename = malloc(strlen(LENSED_PATH) + strlen(DEFAULT_INI) + 1);
+        if(!filename)
+            errori(NULL);
+        sprintf(filename, "%s%s", LENSED_PATH, DEFAULT_INI);
+        
+        // check if default config file exists
+        fp = fopen(filename, "r");
+        fclose(fp);
+        
+        // if file exists, read it
+        if(fp)
+            read_ini(filename, inp);
+        
+        free(filename);
+    }
+    
+    // go through arguments
     for(int i = 1; i < argc; ++i)
     {
         // check for option
