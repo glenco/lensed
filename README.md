@@ -148,7 +148,11 @@ The model used for reconstruction is created by listing one or more objects in
 the `[objects]` section of the configuration file, together with a unique name
 for identification.
 
-For example, the configuration
+**Important:** The order of the objects in the configuration file determines the
+physical layout of the system. If a source is meant to be placed before/behind a
+lens, it must appear in the list of objects above/below that lens.
+
+Example:
 
 ```ini
 [objects]
@@ -156,12 +160,19 @@ lens   = sis
 source = sersic
 ```
 
-describes a model that contains a SIS lens called `lens` and a Sérsic source
-called `source`.
+This describes a model that contains a SIS lens called `lens` and a Sérsic source
+called `source`. The source appears behind the lens and will thus be deflected by
+it.
 
-**Important:** The order of the objects in the configuration file determines the
-physical layout of the system. If a source is meant to be placed before/behind a
-lens, it must appear in the list of objects above/below that lens.
+```ini
+[objects]
+host   = sersic
+lens   = sis
+source = sersic
+```
+
+Same as above, but including a foreground Sérsic source hosted on the lens plane.
+As the `host` object appears before the lens, it will not be deflected.
 
 
 ### Priors
@@ -184,7 +195,7 @@ The following priors are known:
 -   `unif <a> <b>` -- uniform prior on the interval [*a*, *b*]
 -   `norm <m> <s>` -- normal prior with mean *m* and standard deviation *s*
 
-Examples:
+Example:
 
 ```ini
 [priors]
@@ -208,7 +219,7 @@ file. The format is
 obj.param = <label>
 ```
 
-Examples:
+Example:
 
 ```ini
 [labels]
