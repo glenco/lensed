@@ -83,7 +83,7 @@ kernel void convolve(global float* input, constant float* psf,
         // convolve
         for(j = 0; j < PSF_HEIGHT; ++j)
             for(i = 0; i < PSF_WIDTH; ++i)
-                x += psf2[mad24(j, PSF_WIDTH, i)]*input2[mad24(lj + PSF_HEIGHT - j, cw, li + PSF_WIDTH - i)];
+                x += psf2[mad24(j, PSF_WIDTH, i)]*input2[mad24(lj + PSF_HEIGHT - j - 1, cw, li + PSF_WIDTH - i - 1)];
         
         // store convolved value
         output[mad24(gj, IMAGE_WIDTH, gi)] = x;
