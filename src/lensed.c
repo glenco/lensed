@@ -142,6 +142,9 @@ int main(int argc, char* argv[])
         // output devices for all platforms
         for(int i = 0; i < nplatforms; ++i)
         {
+            size_t ncpu = 0;
+            size_t ngpu = 0;
+            
             // get all devices
             clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &ndevices);
             devices = malloc(ndevices*sizeof(cl_device_id));
@@ -150,17 +153,17 @@ int main(int argc, char* argv[])
             // query each devices
             for(int j = 0; j < ndevices; ++j)
             {
-                // query device name
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device name");
-                printf("device: %s\n", device_name);
-                
                 // query device type
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
                 if(err != CL_SUCCESS)
                     error("failed to get device type");
-                printf("  type: %s\n", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "other"));
+                printf("%s%zu: ", device_type == CL_DEVICE_TYPE_CPU ? "cpu" : (device_type == CL_DEVICE_TYPE_GPU ? "gpu" : "xxx"), device_type == CL_DEVICE_TYPE_CPU ? (ncpu++) : (device_type == CL_DEVICE_TYPE_GPU ? (ngpu++) : 0));
+                
+                // query device name
+                err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+                if(err != CL_SUCCESS)
+                    error("failed to get device name");
+                printf("%s\n", device_name);
                 
                 // query device vendor
                 err = clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
@@ -443,9 +446,47 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
-        err = clGetDeviceIDs(NULL, inp->opts->gpu ? CL_DEVICE_TYPE_GPU : CL_DEVICE_TYPE_CPU, 1, &device, NULL);
-        if(err != CL_SUCCESS)
-            error("failed to get %s device", inp->opts->gpu ? "GPU" : "CPU");
+        // get the requested device
+        {
+            // device type and index
+            char device_tag;
+            cl_device_type device_type;
+            unsigned int device_index;
+            
+            // list of present devices
+            cl_uint num_devices;
+            cl_device_id* devices;
+            
+            // parse device
+            if(sscanf(inp->opts->device, "%[gc]pu%u", &device_tag, &device_index) != 2)
+                error("invalid device: %s", inp->opts->device);
+            device_type = device_tag == 'c' ? CL_DEVICE_TYPE_CPU : CL_DEVICE_TYPE_GPU;
+            
+            // get total number of devices for type
+            err = clGetDeviceIDs(NULL, device_type, 0, NULL, &num_devices);
+            if(err != CL_SUCCESS)
+                error("failed to get number of devices");
+            
+            // allocate space for all devices
+            devices = malloc(num_devices*sizeof(cl_device_id));
+            if(!devices)
+                errori(NULL);
+            
+            // get all devices
+            err = clGetDeviceIDs(NULL, device_type, num_devices, devices, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get list of devices");
+            
+            // make sure index is valid
+            if(device_index >= num_devices)
+                error("no such device: %s", inp->opts->device);
+            
+            // select device
+            device = devices[device_index];
+            
+            // done with list of devices
+            free(devices);
+        }
         
         // output device info
         if(LOG_LEVEL <= LOG_VERBOSE)

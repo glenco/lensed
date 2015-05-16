@@ -26,6 +26,7 @@ struct option
         int default_int;
         double default_real;
         const char* default_path;
+        const char* default_device;
         struct gain* default_gain;
     } default_value;
     size_t offset;
@@ -57,15 +58,16 @@ OPTION_TYPE(bool)
 OPTION_TYPE(int)
 OPTION_TYPE(real)
 OPTION_TYPE(path)
+OPTION_TYPE(device)
 OPTION_TYPE(gain)
 
 // list of known options
 struct option OPTIONS[] = {
     {
-        "gpu",
-        "Enable computations on GPU",
-        OPTION_OPTIONAL(bool, 1),
-        OPTION_FIELD(gpu)
+        "device",
+        "Select computation device",
+        OPTION_OPTIONAL(device, "gpu0"),
+        OPTION_FIELD(device)
     },
     {
         "output",
@@ -449,6 +451,37 @@ int option_write_path(char* out, const void* in, size_t n)
 }
 
 void option_free_path(void* p)
+{
+    char** str = p;
+    free(*str);
+}
+
+int option_read_device(void* out, const char* in)
+{
+    int r;
+    char* str;
+    char tag;
+    unsigned int index;
+    
+    // read string
+    r = option_read_string(out, in);
+    if(r != 0)
+        return r;
+    str = *(char**)out;
+    
+    // check syntax
+    if(sscanf(str, "%[gc]pu%u", &tag, &index) != 2)
+        return 1;
+    
+    return 0;
+}
+
+int option_write_device(char* out, const void* in, size_t n)
+{
+    return option_write_string(out, in, n);
+}
+
+void option_free_device(void* p)
 {
     char** str = p;
     free(*str);

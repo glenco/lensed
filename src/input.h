@@ -4,7 +4,7 @@
 typedef struct
 {
     // lensed
-    int gpu;
+    char* device;
     int output;
     char* root;
     int devices;
