@@ -1,4 +1,4 @@
-lensed
+Lensed
 ======
 
 Reconstruct gravitational lenses and lensed sources from strong lensing observations.
@@ -11,6 +11,7 @@ Installation
 
 Lensed needs the following libraries in order to compile:
 
+-   OpenCL 1.2
 -   [CFITSIO] 3.370
 -   [MultiNest] 3.9
 
