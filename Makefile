@@ -36,14 +36,6 @@ SOURCES = lensed.c \
 
 
 ####
-# config
-####
-
-KERNEL_PATH = $(shell pwd)/kernel
-KERNEL_EXT = .cl
-
-
-####
 # compiler and linker settings
 ####
 
@@ -90,6 +82,13 @@ endif
 
 
 ####
+# config
+####
+
+LENSED_PATH = $(dir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST)))
+
+
+####
 # build rules
 ####
 
@@ -115,8 +114,7 @@ $(CONFIG): Makefile
 	@$(MKDIR) $(@D)
 	@$(ECHO) "#pragma once" >> $@
 	@$(ECHO) "" >> $@
-	@$(ECHO) "#define KERNEL_PATH \"$(KERNEL_PATH)/\"" >> $@
-	@$(ECHO) "#define KERNEL_EXT \"$(KERNEL_EXT)\"" >> $@
+	@$(ECHO) "#define LENSED_PATH \"$(LENSED_PATH)\"" >> $@
 
 $(OBJECTS): $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG) $(VERSION)
 	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
