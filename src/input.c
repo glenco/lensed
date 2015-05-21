@@ -126,11 +126,13 @@ input* read_input(int argc, char* argv[])
         
         // check if default config file exists
         fp = fopen(filename, "r");
-        fclose(fp);
         
         // if file exists, read it
         if(fp)
+        {
+            fclose(fp);
             read_ini(filename, inp);
+        }
         
         free(filename);
     }
