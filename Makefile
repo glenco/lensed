@@ -1,3 +1,50 @@
+######################################################################
+# Makefile for Lensed                                                #
+# -------------------                                                #
+# you can pass the following variables to make:                      #
+#                                                                    #
+#   CFITSIO_DIR                                                      #
+#     path to a local CFITSIO build                                  #
+#                                                                    #
+#   CFITSIO_INCLUDE_DIR                                              #
+#     path to `fitsio.h`                                             #
+#                                                                    #
+#   CFITSIO_LIB_DIR                                                  #
+#     path to `libcfitsio`                                           #
+#                                                                    #
+#   CFITSIO_LIB                                                      #
+#     CFITSIO library (e.g. `-lcfitsio`)                             #
+#                                                                    #
+#   MULTINEST_DIR                                                    #
+#     path to a local MultiNest CMake build                          #
+#                                                                    #
+#   MULTINEST_INCLUDE_DIR                                            #
+#     path to `multinest.h`                                          #
+#                                                                    #
+#   MULTINEST_LIB_DIR                                                #
+#     path to the MultiNest library                                  #
+#                                                                    #
+#   MULTINEST_LIB                                                    #
+#     MultiNest library (e.g. `-lmultinest` or `-lnest3`)            #
+#                                                                    #
+#   OPENCL_DIR                                                       #
+#     path to the OpenCL implementation                              #
+#                                                                    #
+#   OPENCL_INCLUDE_DIR                                               #
+#     path to the `CL/cl.h` header                                   #
+#                                                                    #
+#   OPENCL_LIB_DIR                                                   #
+#     path to the OpenCL library                                     #
+#                                                                    #
+#   OPENCL_LIB                                                       #
+#     OpenCL runtime library (e.g. `-lOpenCL`)                       #
+#                                                                    #
+#   EXTRA_LIBS                                                       #
+#     additional libraries                                           #
+#                                                                    #
+# variables are cached in build/cache.mk                             #
+######################################################################
+
 ####
 # input files
 ####
@@ -7,11 +54,12 @@ HEADERS = lensed.h \
           kernel.h \
           data.h \
           nested.h \
+          opencl.h \
           quadrature.h \
           prior.h \
           parse.h \
+          path.h \
           log.h \
-          constants.h \
           input/objects.h \
           input/options.h \
           input/ini.h \
@@ -23,9 +71,11 @@ SOURCES = lensed.c \
           kernel.c \
           data.c \
           nested.c \
+          opencl.c \
           quadrature.c \
           prior.c \
           parse.c \
+          path.c \
           log.c \
           input/objects.c \
           input/options.c \
@@ -36,30 +86,76 @@ SOURCES = lensed.c \
 
 
 ####
-# compiler and linker settings
+# environment
 ####
-
-# general settings
-CFLAGS = -std=c99 -Wall -Werror -O3 -pedantic
-CPPFLAGS = 
-LDFLAGS = -lm -lcfitsio -lmultinest
 
 # detect OS
 ifndef OS
-    OS = $(shell uname -s)
+OS = $(shell uname -s)
 endif
 
-# Linux settings
-CFLAGS_Linux = 
-LDFLAGS_Linux = -lOpenCL
 
-# Mac OS X settings
-CFLAGS_Darwin = 
-LDFLAGS_Darwin = -framework OpenCL
+####
+# compiler and linker settings
+####
 
-# append OS dependent settings
-CFLAGS += $(CFLAGS_$(OS))
-LDFLAGS += $(LDFLAGS_$(OS))
+# include cached settings
+-include build/cache.mk
+
+# general settings
+CFLAGS = -std=c99 -Wall -Werror -O3 -pedantic
+LDFLAGS = 
+LDLIBS = 
+
+# CFITSIO library
+CFITSIO_LIB ?= -lcfitsio
+
+ifdef CFITSIO_DIR
+CFITSIO_INCLUDE_DIR = $(CFITSIO_DIR)
+CFITSIO_LIB_DIR = $(CFITSIO_DIR)
+endif
+ifdef CFITSIO_INCLUDE_DIR
+CFLAGS += -I$(CFITSIO_INCLUDE_DIR)
+endif
+ifdef CFITSIO_LIB_DIR
+LDFLAGS += -L$(CFITSIO_LIB_DIR) -Wl,-rpath,$(CFITSIO_LIB_DIR)
+endif
+LDLIBS += $(CFITSIO_LIB)
+
+# MultiNest library
+MULTINEST_LIB ?= -lmultinest
+
+ifdef MULTINEST_DIR
+MULTINEST_INCLUDE_DIR = $(MULTINEST_DIR)/include
+MULTINEST_LIB_DIR = $(MULTINEST_DIR)/lib
+endif
+ifdef MULTINEST_INCLUDE_DIR
+CFLAGS += -I$(MULTINEST_INCLUDE_DIR)
+endif
+ifdef MULTINEST_LIB_DIR
+LDFLAGS += -L$(MULTINEST_LIB_DIR) -Wl,-rpath,$(MULTINEST_LIB_DIR)
+endif
+LDLIBS += $(MULTINEST_LIB)
+
+# system-dependent OpenCL library
+OPENCL_LIB_Linux = -lOpenCL
+OPENCL_LIB_Darwin = -framework OpenCL
+OPENCL_LIB ?= $(OPENCL_LIB_$(OS))
+
+ifdef OPENCL_DIR
+OPENCL_INCLUDE_DIR = $(OPENCL_DIR)/include
+OPENCL_LIB_DIR = $(OPENCL_DIR)/lib
+endif
+ifdef OPENCL_INCLUDE_DIR
+CFLAGS += -I$(OPENCL_INCLUDE_DIR)
+endif
+ifdef OPENCL_LIB_DIR
+LDFLAGS += -L$(OPENCL_LIB_DIR) -Wl,-rpath,$(OPENCL_LIB_DIR)
+endif
+LDLIBS += $(OPENCL_LIB)
+
+# append extra libraries
+LDLIBS += $(EXTRA_LIBS) -lm
 
 
 ####
@@ -68,6 +164,12 @@ LDFLAGS += $(LDFLAGS_$(OS))
 
 MKDIR = mkdir -p
 ECHO = echo
+CAT = cat
+CD = cd
+CP = cp
+TAR_Linux = tar
+TAR_Darwin = COPYFILE_DISABLE=1 tar
+TAR = $(TAR_$(OS))
 
 
 ####
@@ -75,32 +177,25 @@ ECHO = echo
 ####
 
 ifdef TERM
-    STYLE_BOLD=`tput bold`
-    STYLE_DARK=`tput dim`
-    STYLE_RESET=`tput sgr0`
+STYLE_BOLD  = $(shell tput bold)
+STYLE_DARK  = $(shell tput dim)
+STYLE_RESET = $(shell tput sgr0)
 endif
-
-
-####
-# config
-####
-
-LENSED_PATH = $(dir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST)))
 
 
 ####
 # build rules
 ####
 
-BUILD_DIR = build
+BUILD_DIR  = build
 SOURCE_DIR = src
 BIN_DIR = bin
-CONFIG = $(BUILD_DIR)/config.h
+CACHE = $(BUILD_DIR)/cache.mk
 VERSION = $(SOURCE_DIR)/version.h
 OBJECTS = $(patsubst %.c,$(BUILD_DIR)/%.o,$(SOURCES))
 LENSED = $(BIN_DIR)/lensed
 
-.PHONY: all test clean
+.PHONY: all test clean distclean
 
 all: $(LENSED)
 
@@ -110,22 +205,86 @@ test:
 
 clean:
 	@$(ECHO) "cleaning"
-	@$(RM) $(CONFIG) $(OBJECTS) $(LENSED) $(RELEASE_TOOL)
+	@$(RM) $(OBJECTS) $(LENSED)
 
-$(CONFIG): Makefile
-	@$(ECHO) "updating $(STYLE_BOLD)$@$(STYLE_RESET)"
-	@$(RM) $@
-	@$(MKDIR) $(@D)
-	@$(ECHO) "#pragma once" >> $@
-	@$(ECHO) "" >> $@
-	@$(ECHO) "#define LENSED_PATH \"$(LENSED_PATH)\"" >> $@
+distclean: clean
+	@$(RM) -r $(BUILD_DIR) $(BIN_DIR)
 
-$(OBJECTS): $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(CONFIG) $(VERSION)
+$(OBJECTS): $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(VERSION)
 	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
-	@$(CC) $(CFLAGS) $(CPPFLAGS) -I$(BUILD_DIR) -c -o $@ $<
+	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 $(LENSED): $(OBJECTS)
 	@$(ECHO) "linking $(STYLE_BOLD)$@$(STYLE_RESET)"
 	@$(MKDIR) $(@D)
-	@$(CC) $(LDFLAGS) -o $@ $^
+	@$(CC) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+
+####
+# cache for make
+####
+
+.PHONY: cache show-cache
+
+cache:
+	@$(MKDIR) $(BUILD_DIR)
+	@$(ECHO) "# cached settings for make" > $(CACHE)
+	@$(ECHO) "CFITSIO_INCLUDE_DIR = $(CFITSIO_INCLUDE_DIR)" >> $(CACHE)
+	@$(ECHO) "CFITSIO_LIB_DIR = $(CFITSIO_LIB_DIR)" >> $(CACHE)
+	@$(ECHO) "CFITSIO_LIB = $(CFITSIO_LIB)" >> $(CACHE)
+	@$(ECHO) "MULTINEST_INCLUDE_DIR = $(MULTINEST_INCLUDE_DIR)" >> $(CACHE)
+	@$(ECHO) "MULTINEST_LIB_DIR = $(MULTINEST_LIB_DIR)" >> $(CACHE)
+	@$(ECHO) "MULTINEST_LIB = $(MULTINEST_LIB)" >> $(CACHE)
+	@$(ECHO) "OPENCL_INCLUDE_DIR = $(OPENCL_INCLUDE_DIR)" >> $(CACHE)
+	@$(ECHO) "OPENCL_LIB_DIR = $(OPENCL_LIB_DIR)" >> $(CACHE)
+	@$(ECHO) "OPENCL_LIB = $(OPENCL_LIB)" >> $(CACHE)
+	@$(ECHO) "EXTRA_LIBS = $(EXTRA_LIBS)" >> $(CACHE)
+
+show-cache:
+	@$(CAT) $(CACHE)
+
+$(CACHE): cache
+
+
+####
+# deploy rules
+####
+
+# files to include in release
+RELFILES = \
+    $(LENSED) \
+    README.md LICENSE.txt CHANGELOG.md \
+    $(wildcard docs/*.md) docs/lensed.js docs/lensed.css \
+    $(wildcard examples/*.ini) $(wildcard examples/*.fits) \
+    examples/chains/chains.txt \
+    $(wildcard extras/*.*) \
+    $(wildcard kernel/*.cl) $(wildcard objects/*.cl)
+
+# release version from git
+RELVER = $(shell git describe --tags)
+
+# release OS
+RELOS_Linux = linux
+RELOS_Darwin = osx
+RELOS = $(RELOS_$(OS))
+
+# name of release
+RELNAME = lensed-$(RELVER)
+
+# release product
+RELEASE = $(BUILD_DIR)/$(RELNAME).$(RELOS).tar.gz
+
+.PHONY: release $(RELEASE)
+
+release: $(RELEASE)
+
+$(RELEASE): $(RELFILES:%=$(BUILD_DIR)/$(RELNAME)/%)
+	@$(RM) $@
+	@$(ECHO) "release $(STYLE_BOLD)$@$(STYLE_RESET)"
+	@$(CD) $(@D) && $(TAR) -czf $(@F) $(RELNAME)
+	@$(RM) -r $(BUILD_DIR)/$(RELNAME)
+
+$(BUILD_DIR)/$(RELNAME)/%: %
+	@$(MKDIR) $(@D)
+	@$(CP) -a $< $@

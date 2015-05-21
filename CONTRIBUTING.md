@@ -1,8 +1,8 @@
-Working on lensed
+Working on Lensed
 =================
 
 This document describes the procedure for contributing to the development of
-lensed.
+Lensed.
 
 Using the repository
 --------------------
@@ -54,7 +54,7 @@ are a part of the project's history, and that users will look at past PRs when
 trying to solve their problems. The GitHub team has written a blog post on
 [writing Pull Requests][prs], and it is generally a good guideline.
 
-Once a PR is opened, someone else from the lensed team should look it over, and
+Once a PR is opened, someone else from the Lensed team should look it over, and
 comment or merge as appropriate.
 
 [flow]: https://guides.github.com/introduction/flow/index.html

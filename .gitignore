@@ -1,4 +1,6 @@
-build
 bin
+build
+cache.mk
+deps/cfitsio
+deps/multinest
 examples/chains
-site

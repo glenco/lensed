@@ -1,0 +1,43 @@
+language: c
+compiler:
+- gcc
+- clang
+os:
+- linux
+- osx
+notifications:
+  email: false
+before_install:
+- case "$TRAVIS_OS_NAME" in
+  linux)
+    sudo apt-get update -qq -y;
+    sudo apt-get install -qq -y gfortran fglrx opencl-headers cfitsio-dev;
+    pushd /tmp;
+    git clone git://github.com/JohannesBuchner/MultiNest.git;
+    cd MultiNest/build && cmake .. -G "Unix Makefiles" && make && sudo make install;
+    sudo ldconfig;
+    popd;
+    ;;
+  osx)
+    brew tap ntessore/nt;
+    brew update;
+    brew install cfitsio multinest;
+    ;;
+  esac
+install:
+- make
+script:
+- bin/lensed --version
+- bin/lensed --devices
+- make test
+before_deploy:
+- make release
+- export RELVER=`git describe --tags`
+deploy:
+  provider: releases
+  api_key:
+    secure: HtIvDAdeKl44IdOJKKHFLnXfa7EOvjFKraB3gVR2RUMJNi2CBrFVfdkHOHxh2n9c4I9nrx9IP7N24wls8VYVZ3s3RyAAGfjMNHKEMu66vQ9RATur58g2GdabMhAQh69OFWHkwSGXKRzhUSS9qIhxeon4vE+zVvkCbVOHM6qDSRzF7l1ZJdfpDqzdb0ZUltOwXz8hLSXmoM3GCLbCcoPTn0JqwrReHHYKSMshs0Rd1j9F9dYQwVtnAuX6mvsxf/q75dxQGy4QyH0Z25BJxKtrGCHo6sBApoysyOoBxiMRpw8irEQThRjwkixBXTDUC5CA75gqec1hpOaHIwlhsEJMVeFrQ0EI3wcp/taV6ta93aA5othrAWkUYlOmPUAyY3DPzSg35d81+sFMKVkFZeZOgvPJnXg9V6Pc8r59Aa9Pf6c2fOXF36oiGMvh55ZPz0ddYo04BXqIpJ389DGigzrXhEh6yzD7ko/68yo2iIjM+kJE64YBFR2S39Se6z0MvfpDRH/t3/Gh1kA5mmwMLQ5Tute1g3qLRP3SjH9XJH+FhyrY0Fr7XpxuFbCKKcU1hkLDFTQOY81IZsVIQR4D7oYhplib8G17go25XHriWaAtZ5QWeeUjyET2KV22UG1TFL0ttj2qcSfh6/n+gXXloh8vdYri/FCnNunLR6r6F8uQbb0=
+  file: build/lensed-${RELVER}.${TRAVIS_OS_NAME}.tar.gz
+  on:
+    tags: true
+    condition: ($TRAVIS_OS_NAME = linux && $CC = gcc) || ($TRAVIS_OS_NAME = osx && $CC = clang)
