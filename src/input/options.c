@@ -211,8 +211,9 @@ options* create_options()
 
 void free_options(options* opts)
 {
-    for(int i = 0; i < NOPTIONS; ++i)
-        OPTIONS[i].free((char*)opts + OPTIONS[i].offset);
+    // TODO: free options only when they were set, and when they are reset
+    //for(int i = 0; i < NOPTIONS; ++i)
+    //    OPTIONS[i].free((char*)opts + OPTIONS[i].offset);
     free(opts);
 }
 
