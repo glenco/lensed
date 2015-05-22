@@ -82,8 +82,8 @@ static const char COMPLENS[] =
 ;
 static const char COMPDEFL[] =
     "    \n"
-    "    // apply deflection to ray\n"
-    "    y -= a;\n"
+    "    // apply deflection to ray, if finite\n"
+    "    y -= dot(a,a) < HUGE_VALF ? a : (float2)(1E10, 1E10);\n"
 ;
 static const char COMPSHED[] =
     "    \n"
