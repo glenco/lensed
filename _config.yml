@@ -15,8 +15,8 @@ markdown: kramdown
 
 ### content configuration ###
 title:       "Lensed"
-keywords:    "lensed, lensing, gravitational lensing, reconstruction, fits, mcmc, observations, models"
-description: "Forward reconstruction of lenses and sources from strong lensing observations"
+keywords:    "lensed, lensing, gravitational lensing, reconstruction, fits, mcmc, observations, models, astronomy"
+description: "Reconstruct gravitational lenses and lensed sources from strong lensing observations."
 source_link: "https://github.com/glenco/lensed"
 favicon:     #put a path like: "img/favicon.ico"
 touch_icon:  #put a path like: "img/apple-touch-icon.png"
