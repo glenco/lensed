@@ -1,16 +1,16 @@
-site_name:   lensed Documentation
-site_url:    https://glenco.github.io/lensed
-site_author: The lensed team
+site_name:   Lensed Documentation
+site_url:    https://glenco.github.io/lensed/
+site_author: The Lensed team
 
 site_description: >
     Reconstruct gravitational lenses and lensed sources from
     strong lensing observations.
 
-repo_url: https://github.com/GLENCO/lensed
+repo_url: https://github.com/glenco/lensed
 
 pages:
-    - [ 'index.md', 'Documentation', 'Getting started']
-    - [ 'coordinates.md', 'Documentation', 'Coordinates']
+    - [ 'index.md', 'Documentation', 'Getting started' ]
+    - [ 'coordinates.md', 'Documentation', 'Coordinates' ]
     - [ 'lenses.md', 'Objects', 'Lenses' ]
     - [ 'sources.md', 'Objects', 'Sources' ]
     - [ 'foregrounds.md', 'Objects', 'Foregrounds' ]
@@ -20,14 +20,14 @@ theme: readthedocs
 include_search: true
 
 extra_css:
-    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.1.1/katex.min.css'
+    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.css'
     - 'css/lensed.css'
 
 extra_javascript:
-    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.1.1/katex.min.js'
-    - 'js/lensed.js'
+    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.js'
+    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/contrib/auto-render.min.js'
+    - 'lensed.js'
 
 markdown_extensions:
     - footnotes
     - fenced_code
-    - katex

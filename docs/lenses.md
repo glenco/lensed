@@ -5,12 +5,12 @@ SIS
 ---
 
 The `sis` lens is a singular isothermal sphere with deflection[^1]
-$$
+\\[
     \alpha_x = r_E \, \frac{x}{r} \;,
-$$
-$$
+\\]
+\\[
     \alpha_y = r_E \, \frac{y}{r} \;,
-$$
+\\]
 where $r_E$ is the Einstein radius, and $r$ is the distance to the position of
 the lens.
 
@@ -19,14 +19,12 @@ SIE
 ---
 
 The `sie` lens is a singular isothermal ellipsoid with deflection[^1]
-$$
-    \alpha_x = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \,
-        \text{arc tan}\! \left( \frac{x \, \sqrt{1 - q^2}}{\omega} \right) \;,
-$$
-$$
-    \alpha_y = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \,
-        \text{arc tanh}\! \left( \frac{y \, \sqrt{1 - q^2}}{\omega} \right)
-$$
+\\[
+    \alpha_x = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \, \text{arctan} \left( \frac{x \, \sqrt{1 - q^2}}{\sqrt{q^2 x^2 + y^2}} \right) \;,
+\\]
+\\[
+    \alpha_y = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \, \text{arctanh} \left( \frac{y \, \sqrt{1 - q^2}}{\sqrt{q^2 x^2 + y^2}} \right)
+\\]
 
 ### Notes
 
@@ -39,12 +37,12 @@ NSIS
 ----
 
 The `nsis` lens is a non-singular isothermal sphere with deflection[^1]
-$$
+\\[
     \alpha_x = r_E \, \frac{x}{r + s} \;,
-$$
-$$
+\\]
+\\[
     \alpha_y = r_E \, \frac{y}{r + s}
-$$
+\\]
 
 ### Notes
 
@@ -56,14 +54,12 @@ NSIE
 ----
 
 The `nsie` lens is a non-singular isothermal ellipsoid with deflection[^1]
-$$
-    \alpha_x = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \,
-        \text{arc tan}\! \left( \frac{x \, \sqrt{1 - q^2}}{\omega + s} \right) \;,
-$$
-$$
-    \alpha_y = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \,
-        \text{arc tanh}\! \left( \frac{y \, \sqrt{1 - q^2}}{\omega + q^2 s} \right)
-$$
+\\[
+    \alpha_x = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \, \text{arctan} \left( \frac{x \, \sqrt{1 - q^2}}{\sqrt{q^2 x^2 + y^2} + s} \right) \;,
+\\]
+\\[
+    \alpha_y = r_E \, \frac{\sqrt{q}}{\sqrt{1 - q^2}} \, \text{arctanh} \left( \frac{y \, \sqrt{1 - q^2}}{\sqrt{q^2 x^2 + y^2} + q^2 s} \right)
+\\]
 
 ### Notes
 
@@ -79,19 +75,19 @@ EPLP
 
 The `eplp` lens is an elliptical power-law potential model.  The 
 lensing potential is
-$$
-  \phi(x,y) = \frac{r_E^2}{\alpha+1} (\xi(x,y) / r_E)^{\alpha + 1}
-$$
-$$
-  \xi(x,y) = \sqrt{ x^2 + q^2 y^2}
-  $$
-  This results in the deflections
-  $$
+\\[
+    \phi(x,y) = \frac{r_E^2}{\alpha+1} (\xi(x,y) / r_E)^{\alpha + 1}
+\\]
+\\[
+    \xi(x,y) = \sqrt{ x^2 + q^2 y^2}
+\\]
+This results in the deflections
+\\[
     \alpha_x = r_E \, \left( \frac{\xi(x,y)}{ r_E } \right)^{\alpha} \frac{x}{\xi(x,y) }
-$$
-$$
+\\]
+\\[
     \alpha_y = r_E \, q^2 \left( \frac{\xi(x,y)}{ r_E } \right)^{\alpha} \frac{y}{\xi(x,y) }
-$$
+\\]
 
 ### Notes
 

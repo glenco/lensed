@@ -1,10 +1,10 @@
 Coordinate system
 =================
 
-When dealing with positions, lensed uses the pixel coordinate system as it is
-read from the input FITS image.
+When dealing with positions, Lensed uses the pixel coordinate system as read
+from the input FITS image.
 
-A brief summary of the coordinate system:
+By default, the coordinate system is positioned and oriented as follows.
 
 -   The centre of each pixel is at an integer coordinate.
 -   The centre of the bottom-left pixel has coordinates `(1, 1)`.
@@ -13,6 +13,8 @@ A brief summary of the coordinate system:
     `x = IMAGE_WIDTH + 0.5` and `y = IMAGE_HEIGHT + 0.5`, respectively.
 
 These are the same coordinates that one would get, for example, by looking at
-the FITS file in [SAOImage DS9].
+the FITS file in [SAOImage DS9](http://ds9.si.edu/).
 
-[SAOImage DS9]: http://ds9.si.edu/site/Home.html
+In case the FITS file was cropped using the extended filename syntax (e.g.
+`image = observation.fits[400:500,600:700]`), the coordinate system is adapted
+accordingly.
