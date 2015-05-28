@@ -9,15 +9,21 @@ site_description: >
 repo_url: https://github.com/glenco/lensed
 
 pages:
-    - [ 'index.md', 'Documentation' ]
-    - [ 'download.md', 'Getting started', 'Get Lensed' ]
-    - [ 'dependencies.md', 'Getting started', 'Dependencies' ]
-    - [ 'building.md', 'Getting started', 'Building' ]
-    - [ 'troubleshooting.md', 'Getting started', 'Troubleshooting' ]
-    - [ 'coordinates.md', 'Running Lensed', 'Coordinates' ]
-    - [ 'lenses.md', 'Objects', 'Lenses' ]
-    - [ 'sources.md', 'Objects', 'Sources' ]
-    - [ 'foregrounds.md', 'Objects', 'Foregrounds' ]
+    - [ 'index.md',             'Documentation'                             ]
+    - [ 'download.md',          'Getting started',  'Get Lensed'            ]
+    - [ 'dependencies.md',      'Getting started',  'Dependencies'          ]
+    - [ 'building.md',          'Getting started',  'Building'              ]
+    - [ 'troubleshooting.md',   'Getting started',  'Troubleshooting'       ]
+    - [ 'usage.md',             'Running Lensed',   'Usage'                 ]
+    - [ 'configuration.md',     'Running Lensed',   'Configuration files'   ]
+    - [ 'units.md',             'Running Lensed',   'Units'                 ]
+    - [ 'results.md',           'Running Lensed',   'Results'               ]
+    - [ 'strategies.md',        'Running Lensed',   'Modelling strategies'  ]
+    - [ 'performance.md',       'Running Lensed',   'Performance'           ]
+    - [ 'lenses.md',            'Objects',          'Lenses'                ]
+    - [ 'sources.md',           'Objects',          'Sources'               ]
+    - [ 'foregrounds.md',       'Objects',          'Foregrounds'           ]
+    - [ 'create.md',            'Objects',          'Creating objects'      ]
 
 theme: readthedocs
 
