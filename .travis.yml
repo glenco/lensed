@@ -7,6 +7,9 @@ os:
 - osx
 notifications:
   email: false
+branches:
+  only:
+    - master
 before_install:
 - case "$TRAVIS_OS_NAME" in
   linux)
