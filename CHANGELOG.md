@@ -1,6 +1,47 @@
 Changelog
 =========
 
+v1.0.0 (2015-05-28)
+-------------------
+
+  * changed spelling of Lensed
+  * documentation for Lensed
+  * platform support
+  * smarter object definitions
+  * MIT license added
+  * fix invalid memory being freed by options
+  * fix infinite deflections
+  * fixed bug when no default config was present
+  * compatibility with older CFITSIO
+  * added OpenCL to list of requirements
+  * support for default config file
+  * OpenCL device selection
+  * New example with simultaneous optimization of lens mass, lens light and
+    background source
+  * Added extras/pl_density2d.pro for simple visualisation using IDL.
+  * tests for existing objects
+  * Inverting the directions of the psf convolution
+  * fix FWHM estimation of background counts
+  * normal distribution prior
+  * Individual work sizes for kernels.
+  * Fix the blank log files for MultiNest.
+  * Limit block size by OpenCL device capabilities.
+  * Flag to list computation devices.
+  * Pixel coordinate system.
+  * Added Elliptical Power-Law Potential models, eplp.cl and eplp_plus_shear.cl
+  * Optimised and unified object code.
+  * Added sis_plus_shear and sie_plus_shear lens models. Removed shear model.
+  * Define kernel constants also in object code.
+  * Added some helpful links and PR info.
+  * Fix line-too-long if there's no final newline in ini.
+  * Fixes incorrect allocation of PSF buffer.
+  * Added point mass lens.
+  * Split `efr` option into separate `acc` and `shf` options.
+  * Functions for and output of prior bounds.
+  * New lens models: sis, nsis, nsie
+  * Adding new source models.
+  * Fix ambiguous `mad24` overload in kernel. Clean up Makefile.
+
 v0.4.0 (2015-01-12)
 -------------------
 
