@@ -199,13 +199,13 @@ int main(int argc, char* argv[])
      *****************/
     
     // print banner
-    info(LOG_BOLD "  _                         _ " LOG_DARK " ___" LOG_RESET);
-    info(LOG_BOLD " | |                       | |" LOG_DARK "/   \\" LOG_RESET);
-    info(LOG_BOLD " | | ___ _ __  ___  ___  __| |" LOG_DARK "  A  \\" LOG_RESET "  " LOG_BOLD "lensed" LOG_RESET " %d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-    info(LOG_BOLD " | |/ _ \\ '_ \\/ __|/ _ \\/ _` |" LOG_DARK " < > |" LOG_RESET);
-    info(LOG_BOLD " | |  __/ | | \\__ \\  __/ (_| |" LOG_DARK "  V  /" LOG_RESET);
-    info(LOG_BOLD " |_|\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
-    info(LOG_BOLD "                              " LOG_RESET);
+    info(LOG_BOLD "  _                             _ " LOG_DARK " ___" LOG_RESET);
+    info(LOG_BOLD " | |                           | |" LOG_DARK "/   \\" LOG_RESET);
+    info(LOG_BOLD " | |     ___ _ __  ___  ___  __| |" LOG_DARK "  A  \\" LOG_RESET "  " LOG_BOLD "Lensed" LOG_RESET " %s", LENSED_VERSION);
+    info(LOG_BOLD " | |    / _ \\ '_ \\/ __|/ _ \\/ _` |" LOG_DARK " < > |" LOG_RESET);
+    info(LOG_BOLD " | |___|  __/ | | \\__ \\  __/ (_| |" LOG_DARK "  V  /" LOG_RESET "  " LOG_DARK "http://glenco.github.io/lensed/" LOG_RESET);
+    info(LOG_BOLD " |______\\___|_| |_|___/\\___|\\__,_|" LOG_DARK "\\___/ " LOG_RESET);
+    info(LOG_BOLD "                                  " LOG_RESET);
     
     // print input
     print_input(inp);
