@@ -277,15 +277,16 @@ ul.downloads li a,
 ul.downloads li a:hover,
 ul.downloads li a:visited {
   display: block;
-  width: 120px;
+  width: 180px;
   height: 120px;
   text-decoration: none;
   margin: 0;
   padding: 20px;
   line-height: 1em;
   border-radius: 10px;
-  box-shadow: 0 0 10px #ccc;
+  border: 1px solid #ccc;
 }
+
 ul.downloads li a,
 ul.downloads li a:visited {
   opacity: 0.5;

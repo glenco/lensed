@@ -8,5 +8,8 @@ fa-icon:    code-fork
 
 ## Your contribution is welcome!
 
-For an overview on how to start extending Lensed, please see the [developer
-documentation](#developer-documentation).
+Lensed is meant to be a community project. Your help is welcome, be it the
+reporting and fixing of bugs, asking for or providing clarification of the
+documentation, extending Lensed with new objects for lenses or sources, or
+simply providing your impressions and feedback regarding the code. Please head
+over to the [GitHub project](http://glenco.github.io/lensed/) to get involved.
