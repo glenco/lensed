@@ -5,14 +5,9 @@
 #include <math.h>
 #include <time.h>
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
-#else
-#include <CL/cl.h>
-#endif
-
 #include "multinest.h"
 
+#include "opencl.h"
 #include "input.h"
 #include "data.h"
 #include "lensed.h"
@@ -21,15 +16,11 @@
 #include "quadrature.h"
 #include "prior.h"
 #include "log.h"
+#include "path.h"
 #include "version.h"
 
 // TODO: should be "NUL" on Windows
 static const char NUL_DEV[] = "/dev/null";
-
-static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
-{
-    verbose("%s", errinfo);
-}
 
 int main(int argc, char* argv[])
 {
@@ -52,11 +43,11 @@ int main(int argc, char* argv[])
     cl_int err;
     
     // OpenCL structures
-    cl_device_id device;
-    cl_context context;
+    lensed_cl* lcl;
     cl_program program;
     
     // OpenCL device info
+    unsigned opencl_version;
     cl_uint work_item_dims;
     size_t* work_item_sizes;
     cl_ulong local_mem_size;
@@ -83,6 +74,9 @@ int main(int argc, char* argv[])
     
     // chi^2/dof value for maximum likelihood result
     double chi2_dof;
+    
+    // initialise the path to Lensed
+    init_lensed_path();
     
     
     /*********
@@ -121,89 +115,55 @@ int main(int argc, char* argv[])
     // list devices
     if(inp->opts->devices)
     {
-        cl_uint nplatforms;
-        cl_platform_id* platforms;
-        cl_uint ndevices;
-        cl_device_id* devices;
-        
-        cl_device_type device_type;
         char device_name[128];
         char device_vendor[128];
         char device_version[128];
         char device_compiler[128];
         char driver_version[128];
+        char platform_name[128];
         cl_uint compute_units;
         
-        // get all platforms
-        clGetPlatformIDs(0, NULL, &nplatforms);
-        platforms = malloc(nplatforms*sizeof(cl_platform_id));
-        clGetPlatformIDs(nplatforms, platforms, NULL);
-        
-        // output devices for all platforms
-        for(int i = 0; i < nplatforms; ++i)
+        // go through devices and show info
+        for(lensed_device* d = get_lensed_devices(); d->device_id; ++d)
         {
-            size_t ncpu = 0;
-            size_t ngpu = 0;
+            // show device
+            printf("%s: ", d->name);
             
-            // get all devices
-            clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 0, NULL, &ndevices);
-            devices = malloc(ndevices*sizeof(cl_device_id));
-            clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, ndevices, devices, NULL);
+            // query device name
+            err = clGetDeviceInfo(d->device_id, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+            printf("%s\n", err == CL_SUCCESS ? device_name : "(unknown)");
             
-            // query each devices
-            for(int j = 0; j < ndevices; ++j)
-            {
-                // query device type
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device type");
-                printf("%s%zu: ", device_type == CL_DEVICE_TYPE_CPU ? "cpu" : (device_type == CL_DEVICE_TYPE_GPU ? "gpu" : "xxx"), device_type == CL_DEVICE_TYPE_CPU ? (ncpu++) : (device_type == CL_DEVICE_TYPE_GPU ? (ngpu++) : 0));
-                
-                // query device name
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device name");
-                printf("%s\n", device_name);
-                
-                // query device vendor
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device vendor");
-                printf("  vendor: %s\n", device_vendor);
-                
-                // query device version
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device version");
-                printf("  version: %s\n", device_version);
-                
-                // query device compiler
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get device compiler");
-                printf("  compiler: %s\n", device_compiler);
-                
-                // query driver version
-                err = clGetDeviceInfo(devices[j], CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get driver version");
-                printf("  driver: %s\n", driver_version);
-                
-                // query maximum compute units
-                err = clGetDeviceInfo(devices[j], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
-                if(err != CL_SUCCESS)
-                    error("failed to get number of compute units");
-                printf("  units: %u\n", compute_units);
-            }
+            // query device vendor
+            err = clGetDeviceInfo(d->device_id, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+            printf("  vendor:   %s\n", err == CL_SUCCESS ? device_vendor : "(unknown)");
             
-            // done with devices for this platform
-            free(devices);
+            // query device version
+            err = clGetDeviceInfo(d->device_id, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+            printf("  version:  %s\n", err == CL_SUCCESS ? device_version : "(unknown)");
+            
+            // query device compiler
+            err = clGetDeviceInfo(d->device_id, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+            printf("  compiler: %s\n", err == CL_SUCCESS ? device_compiler : "(unknown)");
+            
+            // query driver version
+            err = clGetDeviceInfo(d->device_id, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+            printf("  driver:   %s\n", err == CL_SUCCESS ? driver_version : "(unknown)");
+            
+            // query platform name
+            err = clGetPlatformInfo(d->platform_id, CL_PLATFORM_NAME, sizeof(platform_name), platform_name, NULL);
+            printf("  platform: %s\n", err == CL_SUCCESS ? platform_name : "(unknown)");
+            
+            // query maximum compute units
+            err = clGetDeviceInfo(d->device_id, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
+            printf("  units:    ");
+            if(err == CL_SUCCESS)
+                printf("%u\n", compute_units);
+            else
+                printf("%s\n", "(unknown)");
+            
+            printf("\n");
         }
         
-        // done with platforms
-        free(platforms);
-        
-        // stop here
         exit(0);
     }
     
@@ -446,47 +406,8 @@ int main(int argc, char* argv[])
     verbose("kernel");
     
     {
-        // get the requested device
-        {
-            // device type and index
-            char device_tag;
-            cl_device_type device_type;
-            unsigned int device_index;
-            
-            // list of present devices
-            cl_uint num_devices;
-            cl_device_id* devices;
-            
-            // parse device
-            if(sscanf(inp->opts->device, "%[gc]pu%u", &device_tag, &device_index) != 2)
-                error("invalid device: %s", inp->opts->device);
-            device_type = device_tag == 'c' ? CL_DEVICE_TYPE_CPU : CL_DEVICE_TYPE_GPU;
-            
-            // get total number of devices for type
-            err = clGetDeviceIDs(NULL, device_type, 0, NULL, &num_devices);
-            if(err != CL_SUCCESS)
-                error("failed to get number of devices");
-            
-            // allocate space for all devices
-            devices = malloc(num_devices*sizeof(cl_device_id));
-            if(!devices)
-                errori(NULL);
-            
-            // get all devices
-            err = clGetDeviceIDs(NULL, device_type, num_devices, devices, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get list of devices");
-            
-            // make sure index is valid
-            if(device_index >= num_devices)
-                error("no such device: %s", inp->opts->device);
-            
-            // select device
-            device = devices[device_index];
-            
-            // done with list of devices
-            free(devices);
-        }
+        // get the OpenCL environment
+        lcl = get_lensed_cl(inp->opts->device);
         
         // output device info
         if(LOG_LEVEL <= LOG_VERBOSE)
@@ -500,53 +421,35 @@ int main(int argc, char* argv[])
             cl_uint compute_units;
             
             // query device name
-            err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get device name");
-            verbose("  device: %s", device_name);
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
+            verbose("  device: %s", err == CL_SUCCESS ? device_name : "(unknown)");
             
             // query device type
-            err = clGetDeviceInfo(device, CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get device type");
-            verbose("    type: %s", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "other"));
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_TYPE, sizeof(device_type), &device_type, NULL);
+            verbose("    type: %s", device_type == CL_DEVICE_TYPE_CPU ? "CPU" : (device_type == CL_DEVICE_TYPE_GPU ? "GPU" : "(unknown)"));
             
             // query device vendor
-            err = clGetDeviceInfo(device, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get device vendor");
-            verbose("    vendor: %s", device_vendor);
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
+            verbose("    vendor: %s", err == CL_SUCCESS ? device_vendor : "(unknown)");
             
             // query device version
-            err = clGetDeviceInfo(device, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get device version");
-            verbose("    version: %s", device_version);
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
+            verbose("    version: %s", err == CL_SUCCESS ? device_version : "(unknown)");
             
             // query device compiler
-            err = clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get device compiler");
-            verbose("    compiler: %s", device_compiler);
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
+            verbose("    compiler: %s", err == CL_SUCCESS ? device_compiler : "(unknown)");
             
             // query driver version
-            err = clGetDeviceInfo(device, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get driver version");
-            verbose("    driver: %s", driver_version);
+            err = clGetDeviceInfo(lcl->device_id, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
+            verbose("    driver: %s", err == CL_SUCCESS ? driver_version : "(unknown)");
             
             // query maximum compute units
-            err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get maximum compute units");
-            verbose("    units: %u", compute_units);
+            err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(compute_units), &compute_units, NULL);
+            verbose("    units: %u", err == CL_SUCCESS ? compute_units : 0);
         }
         
-        context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
-        if(!context || err != CL_SUCCESS)
-            error("failed to create device context");
-        
-        lensed.queue = clCreateCommandQueue(context, device, 0, &err);
+        lensed.queue = clCreateCommandQueue(lcl->context, lcl->device_id, 0, &err);
         if(!lensed.queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
@@ -583,7 +486,7 @@ int main(int argc, char* argv[])
         
         // create program
         verbose("  create program");
-        program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
+        program = clCreateProgramWithSource(lcl->context, nkernels, kernels, NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create program");
         
@@ -602,7 +505,17 @@ int main(int argc, char* argv[])
         
         // and build program
         verbose("  build program");
-        err = clBuildProgram(program, 1, &device, build_options, NULL, NULL);
+        err = clBuildProgram(program, 1, &lcl->device_id, build_options, NULL, NULL);
+// build log is reported in the notifications on Apple's implementation
+#ifndef __APPLE__
+        if(LOG_LEVEL <= LOG_VERBOSE)
+        {
+            char log[4096];
+            clGetProgramBuildInfo(program, lcl->device_id, CL_PROGRAM_BUILD_LOG, sizeof(log), log, NULL);
+            if(strlen(log) > 0)
+                verbose("  build log: %s", log);
+        }
+#endif
         if(err != CL_SUCCESS)
             error("failed to build program%s", LOG_LEVEL > LOG_VERBOSE ? " (use --verbose to see build log)" : "");
         
@@ -617,8 +530,18 @@ int main(int argc, char* argv[])
     
     // gather device info
     {
+        char version_string[128];
+        unsigned major, minor;
+        
+        // get version string
+        err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_VERSION, sizeof(version_string), version_string, NULL);
+        if(err != CL_SUCCESS || sscanf(version_string, "OpenCL %u.%u", &major, &minor) != 2)
+            opencl_version = 100;
+        else
+            opencl_version = 100*major + 10*minor;
+        
         // get number of work item dimensions for device
-        err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(work_item_dims), &work_item_dims, NULL);
+        err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(work_item_dims), &work_item_dims, NULL);
         if(err != CL_SUCCESS)
             error("failed to get maximum work item dimensions");
         
@@ -628,12 +551,12 @@ int main(int argc, char* argv[])
             errori(NULL);
         
         // get maximum work group size supported by device
-        err = clGetDeviceInfo(device, CL_DEVICE_MAX_WORK_ITEM_SIZES, work_item_dims*sizeof(size_t), work_item_sizes, NULL);
+        err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_MAX_WORK_ITEM_SIZES, work_item_dims*sizeof(size_t), work_item_sizes, NULL);
         if(err != CL_SUCCESS)
             error("failed to get maximum work item sizes");
         
         // get size of local memory
-        err = clGetDeviceInfo(device, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(local_mem_size), &local_mem_size, NULL);
+        err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(local_mem_size), &local_mem_size, NULL);
         if(err != CL_SUCCESS)
             error("failed to get local memory size");
     }
@@ -642,10 +565,10 @@ int main(int argc, char* argv[])
     {
         verbose("  create data buffers");
         
-        image_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.image, NULL);
-        weight_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.weight, NULL);
+        image_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.image, NULL);
+        weight_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.weight, NULL);
         if(psf)
-            psf_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, psfw*psfh*sizeof(cl_float), psf, &err);
+            psf_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, psfw*psfh*sizeof(cl_float), psf, &err);
         if(!image_mem || !weight_mem || err)
             error("failed to allocate data buffers");
     }
@@ -655,8 +578,8 @@ int main(int argc, char* argv[])
         verbose("  create quadrature buffers");
         
         // allocate buffers for quadrature rule
-        qq_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), qq, NULL);
-        ww_mem = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), ww, NULL);
+        qq_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), qq, NULL);
+        ww_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, nq*sizeof(cl_float2), ww, NULL);
         if(!qq_mem || !ww_mem)
             error("failed to allocate quadrature buffers");
     }
@@ -671,7 +594,7 @@ int main(int argc, char* argv[])
         verbose("  create object buffer");
         
         // allocate buffer for object data
-        object_mem = clCreateBuffer(context, CL_MEM_READ_WRITE, object_size, NULL, &err);
+        object_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE, object_size, NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create object buffer");
     }
@@ -681,7 +604,7 @@ int main(int argc, char* argv[])
         verbose("  create parameter buffer");
         
         // create the memory containing physical parameters on the device
-        lensed.params = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.npars*sizeof(cl_float), NULL, &err);
+        lensed.params = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.npars*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create buffer for parameters");
         
@@ -708,8 +631,8 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.value_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
-        lensed.error_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
+        lensed.value_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
+        lensed.error_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
         if(!lensed.value_mem || !lensed.error_mem)
             error("failed to create render buffer");
         
@@ -741,12 +664,23 @@ int main(int argc, char* argv[])
         
         verbose("    info");
         
-        // get work group size info for kernel
-        err = 0;
-        err |= clGetKernelWorkGroupInfo(lensed.render, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
-        err |= clGetKernelWorkGroupInfo(lensed.render, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+        // get work group size for kernel
+        err = clGetKernelWorkGroupInfo(lensed.render, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
-            error("failed to get render kernel work group information");
+            error("failed to get render kernel work group size");
+        
+        // get work group size multiple for kernel if OpenCL version > 1.0
+        if(opencl_version > 100)
+        {
+            err = clGetKernelWorkGroupInfo(lensed.render, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get render kernel work group size multiple");
+        }
+        else
+        {
+            // fixed work group size multiple of 16 for OpenCL 1.0
+            wgm = 16;
+        }
         
         verbose("    work size");
         
@@ -778,7 +712,7 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.convolve_mem = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        lensed.convolve_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create convolve buffer");
         
@@ -802,13 +736,28 @@ int main(int argc, char* argv[])
         
         verbose("    info");
         
-        // get work group size info for kernel
-        err = 0;
-        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
-        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
-        err |= clGetKernelWorkGroupInfo(lensed.convolve, NULL, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
+        // get work group size for kernel
+        err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
-            error("failed to get convolve kernel work group information");
+            error("failed to get convolve kernel work group size");
+        
+        // get work group size multiple for kernel if OpenCL version > 1.0
+        if(opencl_version > 100)
+        {
+            err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get convolve kernel work group size multiple");
+        }
+        else
+        {
+            // fixed work group size multiple of 16 for OpenCL 1.0
+            wgm = 16;
+        }
+        
+        // get local memory size for kernel
+        err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
+        if(err != CL_SUCCESS)
+            error("failed to get convolve kernel local memory size");
         
         verbose("    work size");
         
@@ -870,7 +819,7 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.loglike_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        lensed.loglike_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike buffer");
         
@@ -894,12 +843,23 @@ int main(int argc, char* argv[])
         
         verbose("    info");
         
-        // get work group size info for kernel
-        err = 0;
-        err |= clGetKernelWorkGroupInfo(lensed.loglike, NULL, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
-        err |= clGetKernelWorkGroupInfo(lensed.loglike, NULL, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+        // get work group size for kernel
+        err = clGetKernelWorkGroupInfo(lensed.loglike, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
             error("failed to get loglike kernel work group information");
+        
+        // get work group size multiple for kernel if OpenCL version > 1.0
+        if(opencl_version > 100)
+        {
+            err = clGetKernelWorkGroupInfo(lensed.loglike, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            if(err != CL_SUCCESS)
+                error("failed to get loglike kernel work group size multiple");
+        }
+        else
+        {
+            // fixed work group size multiple of 16 for OpenCL 1.0
+            wgm = 16;
+        }
         
         verbose("    work size");
         
@@ -1131,7 +1091,7 @@ int main(int argc, char* argv[])
     // free worker
     clReleaseProgram(program);
     clReleaseCommandQueue(lensed.queue);
-    clReleaseContext(context);
+    free_lensed_cl(lcl);
     
     // free quadrature rule
     free(qq);

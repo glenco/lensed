@@ -4,9 +4,9 @@
 #include <math.h>
 
 #include "input.h"
-#include "config.h"
 #include "kernel.h"
 #include "log.h"
+#include "path.h"
 
 // parts of kernel and object files
 static const char KERNEL_DIR[] = "kernel/";
@@ -518,8 +518,10 @@ static const char* load_kernel(const char* name)
     
     // write file
     fseek(f, 0, SEEK_SET);
-    fread(out, 1, file_size, f);
-    out += file_size;
+    wri = fread(out, 1, file_size, f);
+    if(wri != file_size)
+        errori("kernel %s", name);
+    out += wri;
     
     // write file footer
     wri = sprintf(out, FILEFOOT);
@@ -597,8 +599,10 @@ static const char* load_object(const char* name)
     
     // write file
     fseek(f, 0, SEEK_SET);
-    fread(out, 1, file_size, f);
-    out += file_size;
+    wri = fread(out, 1, file_size, f);
+    if(wri != file_size)
+        errori("object %s", name);
+    out += wri;
     
     // write object footer
     wri = sprintf(out, OBJFOOT);

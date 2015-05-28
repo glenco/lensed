@@ -123,6 +123,10 @@ void read_ini(const char* ini, input* inp)
     size_t nplanes;
     int err;
     
+    // no initial object or param
+    obj = NULL;
+    par = NULL;
+    
     // try to open file
     file = fopen(ini, "r");
     if(!file)

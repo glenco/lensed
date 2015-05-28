@@ -2,12 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
-#else
-#include <CL/cl.h>
-#endif
-
+#include "../opencl.h"
 #include "../input.h"
 #include "../prior.h"
 #include "objects.h"
@@ -22,19 +17,13 @@ struct kernel_param
 };
 #pragma pack(pop)
 
-static void opencl_notify(const char* errinfo, const void* private_info,  size_t cb, void* user_data)
-{
-    verbose("%s", errinfo);
-}
-
 void add_object(input* inp, const char* id, const char* name)
 {
     object* obj;
     
     // OpenCL
     cl_int err;
-    cl_device_id device;
-    cl_context context;
+    lensed_cl* lcl;
     cl_command_queue queue;
     cl_program program;
     size_t nkernels;
@@ -70,15 +59,8 @@ void add_object(input* inp, const char* id, const char* name)
     strcpy((char*)obj->name, name);
     
     // set up host device
-    err = clGetDeviceIDs(NULL, CL_DEVICE_TYPE_CPU, 1, &device, NULL);
-    if(err != CL_SUCCESS)
-        error("object %s: failed to get device", id);
-    
-    context = clCreateContext(0, 1, &device, opencl_notify, NULL, &err);
-    if(err != CL_SUCCESS)
-        error("object %s: failed to create device context", id);
-    
-    queue = clCreateCommandQueue(context, device, 0, &err);
+    lcl = get_lensed_cl(NULL);
+    queue = clCreateCommandQueue(lcl->context, lcl->device_id, 0, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create command queue", id);
     
@@ -86,7 +68,7 @@ void add_object(input* inp, const char* id, const char* name)
     object_program(name, &nkernels, &kernels);
     
     // create the program from kernel sources
-    program = clCreateProgramWithSource(context, nkernels, kernels, NULL, &err);
+    program = clCreateProgramWithSource(lcl->context, nkernels, kernels, NULL, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create program", id);
     
@@ -96,17 +78,29 @@ void add_object(input* inp, const char* id, const char* name)
         const char* build_flags[] = { 0 };
         const char* build_options = kernel_options(0, 0, 0, 0, 0, 0, build_flags);
         
-        err = clBuildProgram(program, 1, &device, build_options, NULL, NULL);
+        err = clBuildProgram(program, 1, &lcl->device_id, build_options, NULL, NULL);
         if(err != CL_SUCCESS)
+        {
+// build log is reported in the notifications on Apple's implementation
+#ifndef __APPLE__
+            if(LOG_LEVEL <= LOG_VERBOSE)
+            {
+                char log[4096];
+                clGetProgramBuildInfo(program, lcl->device_id, CL_PROGRAM_BUILD_LOG, sizeof(log), log, NULL);
+                verbose("build log:");
+                verbose("%s", log);
+            }
+#endif
             error("object %s: failed to build program", id);
+        }
         
         free((char*)build_options);
     }
     
     // buffers for object meta-data
-    meta_type_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int), NULL, NULL);
-    meta_size_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
-    meta_npars_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
+    meta_type_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_int), NULL, NULL);
+    meta_size_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
+    meta_npars_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
     if(!meta_type_mem || !meta_size_mem || !meta_npars_mem)
         error("object %s: failed to create buffer for meta-data", id);
     
@@ -141,7 +135,7 @@ void add_object(input* inp, const char* id, const char* name)
         error("object %s: invalid type (should be LENS, SOURCE or FOREGROUND)", id);
     
     // buffer for kernel parameters
-    params_mem = clCreateBuffer(context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(struct kernel_param), NULL, &err);
+    params_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(struct kernel_param), NULL, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create buffer for parameters", id);
     
@@ -214,7 +208,7 @@ void add_object(input* inp, const char* id, const char* name)
         free((void*)kernels[i]);
     clReleaseProgram(program);
     clReleaseCommandQueue(queue);
-    clReleaseContext(context);
+    free_lensed_cl(lcl);
 }
 
 object* find_object(const input* inp, const char* id)

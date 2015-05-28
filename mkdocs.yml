@@ -9,19 +9,21 @@ site_description: >
 repo_url: https://github.com/glenco/lensed
 
 pages:
-    - [ 'index.md', 'Documentation', 'Getting started' ]
-    - [ 'coordinates.md', 'Documentation', 'Coordinates' ]
+    - [ 'index.md', 'Documentation' ]
+    - [ 'download.md', 'Getting started', 'Get Lensed' ]
+    - [ 'dependencies.md', 'Getting started', 'Dependencies' ]
+    - [ 'building.md', 'Getting started', 'Building' ]
+    - [ 'troubleshooting.md', 'Getting started', 'Troubleshooting' ]
+    - [ 'coordinates.md', 'Running Lensed', 'Coordinates' ]
     - [ 'lenses.md', 'Objects', 'Lenses' ]
     - [ 'sources.md', 'Objects', 'Sources' ]
     - [ 'foregrounds.md', 'Objects', 'Foregrounds' ]
 
 theme: readthedocs
 
-include_search: true
-
 extra_css:
     - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.css'
-    - 'css/lensed.css'
+    - 'lensed.css'
 
 extra_javascript:
     - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.js'
@@ -29,5 +31,6 @@ extra_javascript:
     - 'lensed.js'
 
 markdown_extensions:
+    - toc
     - footnotes
     - fenced_code

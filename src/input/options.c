@@ -66,7 +66,7 @@ struct option OPTIONS[] = {
     {
         "device",
         "Select computation device",
-        OPTION_OPTIONAL(device, "gpu0"),
+        OPTION_OPTIONAL(device, "auto"),
         OPTION_FIELD(device)
     },
     {

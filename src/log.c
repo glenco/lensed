@@ -1,4 +1,8 @@
+// provide POSIX standard in strict C99 mode
+#define _XOPEN_SOURCE 600
+
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>

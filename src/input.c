@@ -8,7 +8,7 @@
 #include "input/ini.h"
 #include "prior.h"
 #include "log.h"
-#include "config.h"
+#include "path.h"
 #include "version.h"
 
 // default config file

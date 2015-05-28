@@ -1,3 +1,10 @@
+// compatibility
+#ifdef CL_VERSION_1_2
+#define clampi(x, minval, maxval) clamp(x, minval, maxval)
+#else
+#define clampi(x, minval, maxval) min(max(x, minval), maxval)
+#endif
+
 // compute image
 kernel void render(constant char* data, float4 pcs,
                    constant float2* qq, constant float2* ww,
@@ -67,7 +74,7 @@ kernel void convolve(global float* input, constant float* psf,
     
     // fill cache
     for(i = mad24(lj, lw, li); i < cs; i += ls)
-        input2[i] = input[clamp(cy + i/cw, 0, IMAGE_HEIGHT-1)*IMAGE_WIDTH + clamp(cx + i%cw, 0, IMAGE_WIDTH-1)];
+        input2[i] = input[clampi(cy + i/cw, 0, IMAGE_HEIGHT-1)*IMAGE_WIDTH + clampi(cx + i%cw, 0, IMAGE_WIDTH-1)];
     for(i = mad24(lj, lw, li); i < PSF_WIDTH*PSF_HEIGHT; i += ls)
         psf2[i] = psf[i];
     

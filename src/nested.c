@@ -4,18 +4,12 @@
 #include <float.h>
 #include <math.h>
 
-#ifdef __APPLE__
-#include <OpenCL/opencl.h>
-#else
-#include <CL/cl.h>
-#endif
-
+#include "opencl.h"
 #include "input.h"
 #include "prior.h"
 #include "data.h"
 #include "lensed.h"
 #include "nested.h"
-#include "constants.h"
 #include "log.h"
 
 void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
