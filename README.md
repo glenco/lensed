@@ -1,9 +1,6 @@
 Lensed
 ======
 
-![Build Status](https://travis-ci.org/glenco/lensed.svg)
-![Documentation Status](https://readthedocs.org/projects/lensed/badge/)
-
 Reconstruct gravitational lenses and lensed sources from strong lensing
 observations.
 

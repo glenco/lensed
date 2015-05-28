@@ -256,6 +256,7 @@ RELFILES = \
     $(LENSED) \
     README.md LICENSE.txt CHANGELOG.md \
     $(wildcard docs/*.md) docs/lensed.js docs/lensed.css \
+    $(wildcard docs/figures/*.png) \
     $(wildcard examples/*.ini) $(wildcard examples/*.fits) \
     examples/chains/chains.txt \
     $(wildcard extras/*.*) \

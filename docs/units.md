@@ -1,5 +1,13 @@
-Coordinate system
-=================
+Units
+=====
+
+
+Brightness and flux
+-------------------
+
+
+Positions and sizes
+-------------------
 
 When dealing with positions, Lensed uses the pixel coordinate system as read
 from the input FITS image.

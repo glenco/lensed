@@ -1,3 +1,5 @@
+![Logo](figures/logo.png)
+
 Lensed Documentation
 ====================
 
