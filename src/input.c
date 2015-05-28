@@ -19,7 +19,7 @@ void usage(int help)
 {
     if(help)
     {
-        printf("lensed %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+        printf("Lensed %s\n", LENSED_VERSION);
         printf("\n");
         printf("Reconstruct lenses and sources from observations.\n");
         printf("\n");
@@ -63,7 +63,7 @@ void usage(int help)
 // show version number and exit
 void version()
 {
-    printf("lensed %d.%d.%d\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+    printf("Lensed %s\n", LENSED_VERSION);
     exit(EXIT_SUCCESS);
 }
 
