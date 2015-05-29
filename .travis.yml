@@ -5,29 +5,39 @@ compiler:
 os:
 - linux
 - osx
+env:
+- MULTINEST=3.8
+- MULTINEST=3.9
 notifications:
   email: false
 branches:
   only:
     - master
     - /^v.*$/
+    - /travis-.*/
 before_install:
-- case "$TRAVIS_OS_NAME" in
-  linux)
-    sudo apt-get update -qq -y;
-    sudo apt-get install -qq -y gfortran fglrx opencl-headers cfitsio-dev;
-    pushd /tmp;
-    git clone git://github.com/JohannesBuchner/MultiNest.git;
-    cd MultiNest/build && cmake .. -G "Unix Makefiles" && make && sudo make install;
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo apt-get update -qq -y &&
+    sudo apt-get install -qq -y gfortran fglrx opencl-headers libcfitsio3-dev;
+  fi
+- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    brew update &&
+    brew install gcc cfitsio;
+  fi
+- pushd /tmp &&
+  git clone git://github.com/JohannesBuchner/MultiNest.git &&
+  cd MultiNest &&
+  if [ "$MULTINEST" == "3.9" ]; then
+    curl -L http://git.io/vk01k | patch -p1;
+  fi &&
+  cd build &&
+  cmake .. -G "Unix Makefiles" &&
+  make &&
+  sudo make install &&
+  popd
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
     sudo ldconfig;
-    popd;
-    ;;
-  osx)
-    brew tap ntessore/nt;
-    brew update;
-    brew install cfitsio multinest;
-    ;;
-  esac
+  fi
 install:
 - make
 script:
@@ -35,13 +45,28 @@ script:
 - bin/lensed --devices
 - make test
 before_deploy:
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo apt-get install zlib1g-dev;
+    export CFITSIO_LIB="/usr/lib/x86_64-linux-gnu/libcfitsio.a";
+    export EXTRA_LIBS="/usr/lib/x86_64-linux-gnu/libz.a";
+  fi
+- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    export CFITSIO_LIB="/usr/local/lib/libcfitsio.a";
+  fi
+- make clean
+- make
+- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    install_name_tool -change /usr/local/lib/libmultinest.$MULTINEST.dylib libmultinest.$MULTINEST.dylib bin/lensed;
+  fi
+- export RELEASE_VERSION=$(git describe --tags)
+- export RELEASE_TAG=$TRAVIS_OS_NAME.multinest-$MULTINEST
+- export RELEASE=build/lensed-$RELEASE_VERSION.$RELEASE_TAG.tar.gz
 - make release
-- export RELVER=`git describe --tags`
 deploy:
   provider: releases
   api_key:
     secure: HtIvDAdeKl44IdOJKKHFLnXfa7EOvjFKraB3gVR2RUMJNi2CBrFVfdkHOHxh2n9c4I9nrx9IP7N24wls8VYVZ3s3RyAAGfjMNHKEMu66vQ9RATur58g2GdabMhAQh69OFWHkwSGXKRzhUSS9qIhxeon4vE+zVvkCbVOHM6qDSRzF7l1ZJdfpDqzdb0ZUltOwXz8hLSXmoM3GCLbCcoPTn0JqwrReHHYKSMshs0Rd1j9F9dYQwVtnAuX6mvsxf/q75dxQGy4QyH0Z25BJxKtrGCHo6sBApoysyOoBxiMRpw8irEQThRjwkixBXTDUC5CA75gqec1hpOaHIwlhsEJMVeFrQ0EI3wcp/taV6ta93aA5othrAWkUYlOmPUAyY3DPzSg35d81+sFMKVkFZeZOgvPJnXg9V6Pc8r59Aa9Pf6c2fOXF36oiGMvh55ZPz0ddYo04BXqIpJ389DGigzrXhEh6yzD7ko/68yo2iIjM+kJE64YBFR2S39Se6z0MvfpDRH/t3/Gh1kA5mmwMLQ5Tute1g3qLRP3SjH9XJH+FhyrY0Fr7XpxuFbCKKcU1hkLDFTQOY81IZsVIQR4D7oYhplib8G17go25XHriWaAtZ5QWeeUjyET2KV22UG1TFL0ttj2qcSfh6/n+gXXloh8vdYri/FCnNunLR6r6F8uQbb0=
-  file: build/lensed-${RELVER}.${TRAVIS_OS_NAME}.tar.gz
+  file: ${RELEASE}
   on:
     tags: true
     condition: ($TRAVIS_OS_NAME = linux && $CC = gcc) || ($TRAVIS_OS_NAME = osx && $CC = clang)
