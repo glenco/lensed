@@ -34,10 +34,8 @@ before_install:
   cmake .. -G "Unix Makefiles" &&
   make &&
   sudo make install &&
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo ldconfig; fi &&
   popd
-- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    sudo ldconfig;
-  fi
 install:
 - make
 script:
@@ -45,6 +43,9 @@ script:
 - bin/lensed --devices
 - make test
 before_deploy:
+- export RELEASE_VERSION=$(git describe --tags)
+- export RELEASE_TAG=$TRAVIS_OS_NAME.multinest-$MULTINEST
+- export RELEASE=build/lensed-$RELEASE_VERSION.$RELEASE_TAG.tar.gz
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
     export CFITSIO_LIB="/usr/lib/x86_64-linux-gnu/libcfitsio.a";
     export EXTRA_LIBS="/usr/lib/x86_64-linux-gnu/libz.a";
@@ -52,14 +53,8 @@ before_deploy:
 - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
     export CFITSIO_LIB="/usr/local/lib/libcfitsio.a";
   fi
-- make clean
+- make distclean
 - make
-- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-    install_name_tool -change /usr/local/lib/libmultinest.$MULTINEST.dylib libmultinest.$MULTINEST.dylib bin/lensed;
-  fi
-- export RELEASE_VERSION=$(git describe --tags)
-- export RELEASE_TAG=$TRAVIS_OS_NAME.multinest-$MULTINEST
-- export RELEASE=build/lensed-$RELEASE_VERSION.$RELEASE_TAG.tar.gz
 - make release
 deploy:
   provider: releases
