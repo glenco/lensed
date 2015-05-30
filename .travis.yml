@@ -46,7 +46,6 @@ script:
 - make test
 before_deploy:
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    sudo apt-get install zlib1g-dev;
     export CFITSIO_LIB="/usr/lib/x86_64-linux-gnu/libcfitsio.a";
     export EXTRA_LIBS="/usr/lib/x86_64-linux-gnu/libz.a";
   fi
