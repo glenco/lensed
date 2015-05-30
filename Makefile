@@ -252,7 +252,7 @@ $(CACHE): cache
 ####
 
 # files to include in release
-RELFILES = \
+RELEASE_FILES = \
     $(LENSED) \
     README.md LICENSE.txt CHANGELOG.md \
     $(wildcard docs/*.md) docs/lensed.js docs/lensed.css \
@@ -263,29 +263,33 @@ RELFILES = \
     $(wildcard kernel/*.cl) $(wildcard objects/*.cl)
 
 # release version from git
-RELVER = $(shell git describe --tags)
+ifndef RELEASE_VERSION
+RELEASE_VERSION = $(shell git describe --tags)
+endif
 
-# release OS
-RELOS_Linux = linux
-RELOS_Darwin = osx
-RELOS = $(RELOS_$(OS))
+# release tag
+ifndef RELEASE_TAG
+RELEASE_TAG_Linux = linux
+RELEASE_TAG_Darwin = osx
+RELEASE_TAG = $(RELEASE_TAG_$(OS))
+endif
 
 # name of release
-RELNAME = lensed-$(RELVER)
+RELEASE_NAME = lensed-$(RELEASE_VERSION)
 
 # release product
-RELEASE = $(BUILD_DIR)/$(RELNAME).$(RELOS).tar.gz
+RELEASE = $(BUILD_DIR)/$(RELEASE_NAME).$(RELEASE_TAG).tar.gz
 
 .PHONY: release $(RELEASE)
 
 release: $(RELEASE)
 
-$(RELEASE): $(RELFILES:%=$(BUILD_DIR)/$(RELNAME)/%)
+$(RELEASE): $(RELEASE_FILES:%=$(BUILD_DIR)/$(RELEASE_NAME)/%)
 	@$(RM) $@
 	@$(ECHO) "release $(STYLE_BOLD)$@$(STYLE_RESET)"
-	@$(CD) $(@D) && $(TAR) -czf $(@F) $(RELNAME)
-	@$(RM) -r $(BUILD_DIR)/$(RELNAME)
+	@$(CD) $(@D) && $(TAR) -czf $(@F) $(RELEASE_NAME)
+	@$(RM) -r $(BUILD_DIR)/$(RELEASE_NAME)
 
-$(BUILD_DIR)/$(RELNAME)/%: %
+$(BUILD_DIR)/$(RELEASE_NAME)/%: %
 	@$(MKDIR) $(@D)
 	@$(CP) -a $< $@
