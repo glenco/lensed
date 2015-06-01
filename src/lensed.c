@@ -19,9 +19,6 @@
 #include "path.h"
 #include "version.h"
 
-// TODO: should be "NUL" on Windows
-static const char NUL_DEV[] = "/dev/null";
-
 int main(int argc, char* argv[])
 {
     // program data
@@ -63,10 +60,6 @@ int main(int argc, char* argv[])
     cl_mem image_mem;
     cl_mem weight_mem;
     cl_mem psf_mem;
-    
-    // log file for capturing library output
-    char* lognam;
-    FILE* logfil;
     
     // timer for duration
     time_t start, end;
@@ -887,29 +880,11 @@ int main(int argc, char* argv[])
     
     info("find posterior");
     
-    // name of log file
-    if(inp->opts->output)
-    {
-        lognam = malloc(strlen(inp->opts->root) + strlen("log.txt") + 1);
-        if(!lognam)
-            errori(NULL);
-        sprintf(lognam, "%slog.txt", inp->opts->root);
-    }
-    else
-    {
-        lognam = malloc(sizeof(NUL_DEV));
-        if(!lognam)
-            errori(NULL);
-        strcpy(lognam, NUL_DEV);
-    }
-    
-    // open log file
-    logfil = fopen(lognam, "w");
-    if(!logfil)
-        errorf(lognam, 0, "could not write log file");
-    
     // take start time
     start = time(0);
+    
+    // some space
+    info("  ");
     
     // call MultiNest
     {
@@ -920,7 +895,6 @@ int main(int argc, char* argv[])
         double ztol = -1E90;
         char root[100] = {0};
         int initmpi = 1;
-        int fb = (LOG_LEVEL <= LOG_VERBOSE);
         double logzero = -DBL_MAX;
         int* wrap;
         
@@ -938,22 +912,27 @@ int main(int argc, char* argv[])
         for(size_t i = 0; i < lensed.npars; ++i)
             wrap[i] = lensed.pars[i]->wrap;
         
-        // redirect MultiNest's output to log file
-        logfile(logfil);
+        // mute MultiNest when necessary
+        if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
+            mute();
         
         // run MultiNest
         run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
             inp->opts->nlive, inp->opts->tol, efr, ndim, npar, nclspar,
             inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
-            wrap, fb, inp->opts->resume, inp->opts->output, initmpi, logzero,
-            inp->opts->maxiter, loglike, dumper, &lensed);
+            wrap, inp->opts->feedback, inp->opts->resume, inp->opts->output,
+            initmpi, logzero, inp->opts->maxiter, loglike, dumper, &lensed);
         
-        // restore standard output
-        logfile(NULL);
+        // unmute
+        if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
+            unmute();
         
         // free MultiNest data
         free(wrap);
     }
+    
+    // some more space
+    info("  ");
     
     // take end time
     end = time(0);
@@ -1112,11 +1091,6 @@ int main(int argc, char* argv[])
     
     // free input
     free_input(inp);
-    
-    // there might be output left in Fortran's buffer, so redirect again
-    // to log file, which is not closed on purpose
-    logfile(logfil);
-    free(lognam);
     
     return EXIT_SUCCESS;
 }
