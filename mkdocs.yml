@@ -3,40 +3,43 @@ site_url:    https://glenco.github.io/lensed/
 site_author: The Lensed team
 
 site_description: >
-    Reconstruct gravitational lenses and lensed sources from
-    strong lensing observations.
+  Reconstruct gravitational lenses and lensed sources from
+  strong lensing observations.
 
 repo_url: https://github.com/glenco/lensed
 
 pages:
-    - [ 'index.md',             'Documentation'                             ]
-    - [ 'download.md',          'Getting started',  'Get Lensed'            ]
-    - [ 'dependencies.md',      'Getting started',  'Dependencies'          ]
-    - [ 'building.md',          'Getting started',  'Building'              ]
-    - [ 'troubleshooting.md',   'Getting started',  'Troubleshooting'       ]
-    - [ 'usage.md',             'Running Lensed',   'Usage'                 ]
-    - [ 'configuration.md',     'Running Lensed',   'Configuration files'   ]
-    - [ 'units.md',             'Running Lensed',   'Units'                 ]
-    - [ 'results.md',           'Running Lensed',   'Results'               ]
-    - [ 'strategies.md',        'Running Lensed',   'Modelling strategies'  ]
-    - [ 'performance.md',       'Running Lensed',   'Performance'           ]
-    - [ 'lenses.md',            'Objects',          'Lenses'                ]
-    - [ 'sources.md',           'Objects',          'Sources'               ]
-    - [ 'foregrounds.md',       'Objects',          'Foregrounds'           ]
-    - [ 'create.md',            'Objects',          'Creating objects'      ]
+- 'Documentation':              'index.md'
+- 'Getting started':
+  - 'Get Lensed':               'releases.md'
+  - 'Usage':                    'usage.md'
+  - 'Building from source':     'building.md'
+  - 'Dependencies':             'dependencies.md'
+  - 'Troubleshooting':          'troubleshooting.md'
+- 'Running Lensed':
+  - 'Configuration files':      'configuration.md'
+  - 'Units':                    'units.md'
+  - 'Analysing the results':    'results.md'
+  - 'Modelling strategies':     'strategies.md'
+  - 'Performance & tuning':     'performance.md'
+- 'Objects':
+  - 'Lenses':                   'lenses.md'
+  - 'Sources':                  'sources.md'
+  - 'Foregrounds':              'foregrounds.md'
+  - 'Creating objects':         'create.md'
 
 theme: readthedocs
 
 extra_css:
-    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.css'
-    - 'lensed.css'
+- '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.css'
+- 'lensed.css'
 
 extra_javascript:
-    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.js'
-    - '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/contrib/auto-render.min.js'
-    - 'lensed.js'
+- '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/katex.min.js'
+- '//cdnjs.cloudflare.com/ajax/libs/KaTeX/0.3.0/contrib/auto-render.min.js'
+- 'lensed.js'
 
 markdown_extensions:
-    - toc
-    - footnotes
-    - fenced_code
+- toc
+- footnotes
+- fenced_code

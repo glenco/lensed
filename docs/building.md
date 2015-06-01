@@ -1,5 +1,5 @@
-Building Lensed
-===============
+Building from source
+====================
 
 Lensed is a standard Makefile project. On a system where all dependencies can
 be resolved automatically, it should be enough to call
@@ -9,7 +9,7 @@ $ make
 ```
 
 from the root folder of Lensed to build the program. If this fails, further
-[configuration](#configuration) might be necessary.
+[configuration of the build system](#build-configuration) might be necessary.
 
 After compilation has finished, a quick check of
 
@@ -21,8 +21,84 @@ lensed X.Y.Z
 should display the correct version number of Lensed.
 
 
-Configuration
--------------
+Getting the sources
+-------------------
+
+### Releases
+
+Sources are available for each release of Lensed. These can be downloaded from
+the [releases page](https://github.com/glenco/lensed/releases). For details on
+releases, see the [corresponding page](releases.md).
+
+
+### Using Git
+
+Lensed is developed using the [Git version control system](https://git-scm.com)
+and [hosted on GitHub](https://github.com/glenco/lensed). Use Git to get the
+most recent development version of the code, especially if you plan on taking
+part in extending the code or fixing bugs.
+
+With Git installed on your system, use
+
+```sh
+$ git clone https://github.com/glenco/lensed.git
+```
+
+to clone the most recent version of the code into a subfolder of the current
+directory.
+
+There is a lot of information available about Git. For a first introduction,
+please [refer to the documentation](https://git-scm.com/doc), especially the
+first two chapters on [getting started](https://git-scm.com/book/en/v2/Getting-Started-About-Version-Control)
+and the [Git basics](https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository).
+A quick introduction can also be found in the [Git tutorial](http://git-scm.com/docs/gittutorial).
+
+
+### From an archive
+
+On systems where no Git client is available, it is alternatively possible to
+get the latest development version of the sources in the form of an archive.
+A link is provided at the [project page](https://github.com/glenco/lensed).
+
+When working in a terminal environment, it is possible to download and extract
+Lensed using a combination of cURL and tar with the following command:
+
+```sh
+$ curl -L https://github.com/glenco/lensed/archive/master.tar.gz | tar -xz
+```
+
+Alternatively, if `curl` is not available, you can try to use `wget` instead:
+
+```sh
+$ wget https://github.com/glenco/lensed/archive/master.tar.gz
+$ tar -xzf master.tar.gz
+```
+
+Finally, if `tar` is not available you can replace the `.tar.gz` extension by
+`.zip`, and try the `unzip` command.
+
+Please note that using this method to get Lensed, it will not be possible to
+commit your changes or bug fixes back into the code base. Use of this method is
+therefore discouraged for normal development work, and only intended for the
+distribution of the code to "difficult" environments.
+
+
+Dependencies
+------------
+
+Building from source requires a number of dependencies to be met, namely
+
+-   MultiNest >= 3.8 ,
+-   CFITSIO 3 ,
+-   OpenCL headers and runtime library .
+
+If these dependencies are installed in a system-wide, default-accessible path,
+Lensed should be able to find them without any further intervention. For more
+information, refer to the [dependencies page](dependencies.md).
+
+
+Build configuration
+-------------------
 
 There are a number of configuration variables that can be passed to Lensed's
 build system. They are given in the form of `NAME="value"` pairs to `make`,
@@ -69,16 +145,15 @@ OPENCL_LIB = -framework OpenCL
 EXTRA_LIBS = 
 ```
 
-Please note that the `_INCLUDE_DIR` and `_LIB_DIR` variables override the value
-of the corresponding `_DIR` variable, so either the former two or the latter
-should be set.
+Please note that the `XYZ_INCLUDE_DIR` and `XYZ_LIB_DIR` variables override the
+value of the corresponding `XYZ_DIR` variable, so either the former two or the
+latter should be set.
 
 The following sections contain further details on configuring the individual
 components of Lensed.
 
 
-CFITSIO
--------
+### CFITSIO
 
 If CFITSIO has been built from source, the path to the source folder can be
 given to Lensed using the `CFITSIO_DIR` variable.
@@ -106,8 +181,7 @@ $ make CFITSIO_LIB="$HOME/libraries/my-cfitsio-lib.a"
 ```
 
 
-MultiNest
----------
+### MultiNest
 
 In case MultiNest was built using CMake, it is usually enough to pass the path
 to the source folder to make using the `MULTINEST_DIR` variable.
@@ -144,14 +218,18 @@ $ make MULTINEST_INCLUDE_DIR="/path/to/multinest/example_eggbox_C" \
 ```
 
 
-OpenCL
-------
+### OpenCL
+
+*
+**Mac OS X**: Please note that Mac OS X comes with a framework containing the
+OpenCL headers and library. It is not necessary to change the OpenCL settings.
+*
 
 In order to build Lensed, the compiler needs the OpenCL header `CL/cl.h` and
 the OpenCL runtime library.
 
-If these are provided by a vendor SDK, it is usually enough to point the
-`OPENCL_DIR` variable to the root of the SDK:
+If these are provided by a vendor SDK, it can be enough to set the `OPENCL_DIR`
+variable to the root of the SDK:
 
 ```sh
 $ make OPENCL_DIR="/usr/local/cuda"
@@ -174,6 +252,3 @@ This can be a linker flag such as `-lOpenCL` or an explicit path to a library.
 ```sh
 $ make OPENCL_LIB="$HOME/experimental-driver/libOpenCL.so"
 ```
-
-**Mac OS X**: Please note that Mac OS X comes with a framework containing the
-OpenCL headers and library. It is not necessary to change the OpenCL settings.

@@ -1,5 +1,5 @@
-Source models
-=============
+Sources
+=======
 
 The sources in Lensed are two-dimensional surface brightness distributions
 \\[

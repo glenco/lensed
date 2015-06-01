@@ -1,20 +1,19 @@
 Usage
 =====
 
-The most common way to invoke Lensed is to create a configuration file (see
-docs/configuration.md) which contains both the program options and the model
-that is being reconstructed. In this case, the reconstruction is started using
+The usual invocation of Lensed is with a [configuration](configuration.md) file
+which contains program options and the model that is being reconstructed. The
+reconstruction is started using
 
 ```sh
 $ lensed config.ini
 ```
 
-where `config.ini` is the name of the parameter file.
+where `config.ini` is the name of the configuration file.
 
-It is possible to split the configuration into different configuration files,
-in order to e.g. modularise options and individual aspects of the model. For
-example, the following command would run Lensed with the configuration taken
-from three different files:
+It is possible to split the configuration into different files, for example to
+modularise options and individual aspects of the model. The following command
+would run Lensed with the configuration taken from three different files:
 
 ```sh
 $ lensed options.ini lens.ini sources.ini
@@ -22,10 +21,9 @@ $ lensed options.ini lens.ini sources.ini
 
 Repeated options are overwritten by the later configuration files.
 
-Finally, it is possible to give all of the options of a configuration file
-directly on the command line. For example, in order to change the number of
-live points for a quick look at results, one could invoke Lensed in the
-following way:
+Finally, it is possible to give any of the options (but not the model) directly
+on the command line. For example, in order to change the number of live points
+for a quick look at results, one could invoke Lensed in the following way:
 
 ```sh
 $ lensed config.ini --nlive=50
