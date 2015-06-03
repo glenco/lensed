@@ -1,10 +1,10 @@
 Dependencies
 ============
 
-Lensed has a number of dependencies, namely
+Lensed has a number of compile-time dependencies, namely
 
--   [CFITSIO 3.370](#cfitsio) ,
--   [MultiNest 3.9](#multinest) ,
+-   [CFITSIO 3](#cfitsio) ,
+-   [MultiNest >= 3.8](#multinest) ,
 -   [OpenCL](#opencl) .
 
 If these dependencies are installed in a system-wide, default-accessible path,
@@ -17,6 +17,10 @@ CFITSIO
 The [CFITSIO](http://heasarc.gsfc.nasa.gov/docs/software/fitsio/) library is
 the standard for reading and writing FITS files.
 
+Binary releases are statically linked against a recent version of CFITSIO and
+therefore do not depend on it. When building from source, it is necessary to
+have both the CFITSIO library and the header files available.
+
 
 ### Packages
 
@@ -24,7 +28,8 @@ Because CFITSIO is a mature library, pre-compiled binary versions are often
 found in the repositories of package management systems. If it is possible to
 install new packages into the system, this is the easiest way to get CFITSIO.
 
-**Ubuntu Linux**
+
+#### Ubuntu Linux
 
 For running a binary release, it should suffice to install the CFITSIO runtime:
 
@@ -38,7 +43,8 @@ When building Lensed from source, the CFITSIO development package must be used:
 $ sudo apt-get install libcfitsio3-dev
 ```
 
-**Mac OS X (Homebrew)**
+
+#### Mac OS X (Homebrew)
 
 The CFITSIO library can be found in the default Homebrew repository.
 
@@ -147,11 +153,15 @@ Lensed was designed from the start for heterogeneous computing environments,
 using [OpenCL](https://www.khronos.org/opencl/) to communicate with both CPU
 and GPU devices through a unified programming platform.
 
-A OpenCL runtime library for the compute devices present in the system. When
+A OpenCL runtime library for the compute devices must present in the system.
+Such a library usually comes with the driver of an OpenCL-enabled device. When
 building Lensed from source, it is further necessary to have the OpenCL headers
 installed.
 
-**Ubuntu Linux**
+
+### Packages
+
+#### Ubuntu Linux
 
 For the OpenCL runtime library, it is necessary to install the device drivers
 for the CPUs/GPUs present in the system. Please refer to the Ubuntu manual for
@@ -164,7 +174,7 @@ The OpenCL headers necessary for compiling Lensed can be found in package
 $ sudo apt-get install opencl-headers
 ```
 
-**Linux (general)**
+#### Linux (general)
 
 The device vendors usually provide Linux drivers and SDKs for their platforms.
 Some useful links are
@@ -173,7 +183,7 @@ Some useful links are
 -   [AMD APP SDK](http://developer.amd.com/tools-and-sdks/opencl-zone/amd-accelerated-parallel-processing-app-sdk/) ,
 -   [Nvidia OpenCL](https://developer.nvidia.com/opencl) .
 
-**Mac OS X**
+#### Mac OS X
 
 Mac OS X ships with the libraries and headers required to build OpenCL programs
 by default.

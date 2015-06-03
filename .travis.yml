@@ -5,9 +5,6 @@ compiler:
 os:
 - linux
 - osx
-env:
-- MULTINEST=3.8
-- MULTINEST=3.9
 notifications:
   email: false
 branches:
@@ -26,11 +23,7 @@ before_install:
   fi
 - pushd /tmp &&
   git clone git://github.com/JohannesBuchner/MultiNest.git &&
-  cd MultiNest &&
-  if [ "$MULTINEST" == "3.9" ]; then
-    curl -L http://git.io/vk01k | patch -p1;
-  fi &&
-  cd build &&
+  cd MultiNest/build &&
   cmake .. -G "Unix Makefiles" &&
   make &&
   sudo make install &&
@@ -44,15 +37,25 @@ script:
 - make test
 before_deploy:
 - export RELEASE_VERSION=$(git describe --tags)
-- export RELEASE_TAG=$TRAVIS_OS_NAME.multinest-$MULTINEST
+- export RELEASE_TAG=$TRAVIS_OS_NAME
 - export RELEASE=build/lensed-$RELEASE_VERSION.$RELEASE_TAG.tar.gz
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    export CFITSIO_LIB="/usr/lib/x86_64-linux-gnu/libcfitsio.a";
-    export EXTRA_LIBS="/usr/lib/x86_64-linux-gnu/libz.a";
+    export CFITSIO_LIB="-l:libcfitsio.a";
+    export EXTRA_LIBS="-lz -Wl,-rpath='$ORIGIN'";
   fi
 - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
     export CFITSIO_LIB="/usr/local/lib/libcfitsio.a";
+    export EXTRA_LIBS="-Wl,-rpath,@executable_path";
   fi
+- pushd /tmp &&
+  cd MultiNest &&
+  curl -L http://git.io/vkACf | patch -p1 &&
+  cd build &&
+  cmake .. -DCMAKE_MACOSX_RPATH=ON &&
+  make &&
+  sudo make install &&
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo ldconfig; fi &&
+  popd
 - make distclean
 - make
 - make release

@@ -1,5 +1,5 @@
-Lens models
-===========
+Lenses
+======
 
 SIS
 ---

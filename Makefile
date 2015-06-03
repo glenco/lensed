@@ -264,7 +264,7 @@ RELEASE_FILES = \
 
 # release version from git
 ifndef RELEASE_VERSION
-RELEASE_VERSION = $(shell git describe --tags)
+RELEASE_VERSION = release
 endif
 
 # release tag

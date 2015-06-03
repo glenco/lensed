@@ -1,5 +1,5 @@
-Foreground objects
-==================
+Foregrounds
+===========
 
 Foreground objects are not lensed.
 
