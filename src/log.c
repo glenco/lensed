@@ -14,6 +14,9 @@
 // output for logging, or 0 for stdout
 static FILE* logout = 0;
 
+// TODO: should be "NUL" on Windows
+static const char NUL_DEV[] = "/dev/null";
+
 // global log-level
 enum log_level LOG_LEVEL = LOG_INFO;
 
@@ -166,11 +169,16 @@ void errorfi(const char* file, size_t line, const char* msg, ...)
     exit(EXIT_FAILURE);
 }
 
-void logfile(FILE* f)
+void mute()
 {
-    // redirect if file is given, else restore stdout
-    if(f)
+    // mute, if not already muted
+    if(logout == NULL)
     {
+        // open NULL device
+        FILE* nul = fopen(NUL_DEV, "w");
+        if(!nul)
+            errorf(NUL_DEV, 0, "could not open device");
+        
         // flush standard output
         fflush(stdout);
         
@@ -179,10 +187,15 @@ void logfile(FILE* f)
         if(!logout)
             errori("could not redirect output");
         
-        // redirect standard output to logfile
-        dup2(fileno(f), STDOUT_FILENO);
+        // redirect standard output to null device
+        dup2(fileno(nul), STDOUT_FILENO);
     }
-    else
+}
+
+void unmute()
+{
+    // unmute, if muted
+    if(logout != NULL)
     {
         // flush redirected output
         fflush(stdout);
@@ -193,7 +206,7 @@ void logfile(FILE* f)
         // close copy of standard output
         fclose(logout);
         
-        // log to stdout
+        // no longer muted
         logout = 0;
     }
 }

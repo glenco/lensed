@@ -30,6 +30,7 @@ typedef struct
     double tol;
     double shf;
     int maxmodes;
+    int feedback;
     int updint;
     int seed;
     int resume;

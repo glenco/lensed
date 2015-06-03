@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdio.h>
-
 // the individual levels of logging
 extern enum log_level
 {
@@ -12,6 +10,11 @@ extern enum log_level
     LOG_ERROR,
     LOG_QUIET
 } LOG_LEVEL;
+
+// some output codes for Unix-like terminals
+#define LOG_BOLD "\033[1m"
+#define LOG_DARK "\033[2m"
+#define LOG_RESET "\033[0m"
 
 // set the log level
 void log_level(enum log_level);
@@ -37,10 +40,8 @@ void errori(const char* msg, ...);
 // print an internal error message in a file and exit
 void errorfi(const char* file, size_t line, const char* msg, ...);
 
-// redirect standard output to logfile, restore stdout when NULL is passed
-void logfile(FILE* f);
+// mute standard output
+void mute();
 
-// some output codes for Unix-like terminals
-#define LOG_BOLD "\033[1m"
-#define LOG_DARK "\033[2m"
-#define LOG_RESET "\033[0m"
+// unmute standard output
+void unmute();

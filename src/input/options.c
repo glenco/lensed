@@ -166,6 +166,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(maxmodes)
     },
     {
+        "feedback",
+        "Show feedback from MultiNest",
+        OPTION_OPTIONAL(bool, 0),
+        OPTION_FIELD(feedback)
+    },
+    {
         "updint",
         "Update interval for output",
         OPTION_OPTIONAL(int, 1000),
