@@ -1,6 +1,13 @@
 Changelog
 =========
 
+v1.0.1 (2015-06-05)
+-------------------
+
+  * improved handling of binary dependencies
+  * documentation for releases
+  * show feedback from MultiNest
+
 v1.0.0 (2015-05-28)
 -------------------
 
