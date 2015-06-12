@@ -43,3 +43,5 @@ markdown_extensions:
 - toc
 - footnotes
 - fenced_code
+- codehilite:
+    guess_lang: False

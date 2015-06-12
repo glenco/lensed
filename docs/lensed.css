@@ -1,3 +1,9 @@
 li.toctree-l3 {
   display: none;
 }
+
+div.codehilite pre {
+  background: #ffffff;
+  border:     1px solid #cccccc;
+  padding:    8px;
+}
