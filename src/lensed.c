@@ -995,11 +995,23 @@ int main(int argc, char* argv[])
         {
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
             {
+                // parameter range
+                double lower = prior_lower(inp->objs[i].pars[j].pri);
+                double upper = prior_upper(inp->objs[i].pars[j].pri);
+                
                 // output parameter id and, if set, label
                 fprintf(paramfile, "%-20s  %s\n", inp->objs[i].pars[j].id, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : "");
                 
                 // output parameter range
-                fprintf(rangefile, "%-20s  %10.4f  %10.4f\n", inp->objs[i].pars[j].id, prior_lower(inp->objs[i].pars[j].pri), prior_upper(inp->objs[i].pars[j].pri));
+                fprintf(rangefile, "%-20s  ", inp->objs[i].pars[j].id);
+                if(isfinite(lower))
+                    fprintf(rangefile, "%10.4f  ", lower);
+                else
+                    fprintf(rangefile, "%10s  ", "N");
+                if(isfinite(upper))
+                    fprintf(rangefile, "%10.4f\n", upper);
+                else
+                    fprintf(rangefile, "%10s\n", "N");
             }
         }
         
