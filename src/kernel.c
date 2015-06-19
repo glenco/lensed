@@ -55,8 +55,6 @@ static const char PARSKERN[] =
     "    {\n"
     "        for(size_t j = 0; j < sizeof(par[i].name); ++j)\n"
     "            par[i].name[j] = parlst_<name>[i].name[j];\n"
-    "        \n"
-    "        par[i].wrap = parlst_<name>[i].wrap;\n"
     "    }\n"
     "}\n"
 ;

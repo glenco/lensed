@@ -10,5 +10,4 @@ enum
 struct  __attribute__ ((aligned(4))) param
 {
     char name[32];
-    int  wrap;
 };

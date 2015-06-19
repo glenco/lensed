@@ -147,11 +147,16 @@ file. They are given in the format
 
 ```ini
 [priors]
-obj.param = <prior> <arg0> <arg1> ...
+obj.param = [wrap] <prior> <arg0> <arg1> ...
 ```
 
 An exception is the pseudo-prior that fixes the value of a parameter, which is
 given simply as `<value>`, without any name.
+
+The optional `wrap` prefix can be used to indicate that the parameter values
+wrap around at the boundaries of the prior. This is useful to get the correct
+distribution for cyclic parameters such as the orientation, where a mean value
+of 170 ± 20 degrees falls out of the natural [0, 180] degree bounds.
 
 The following priors are known:
 
@@ -174,6 +179,9 @@ lens.y = norm 100 20
 
 ; uniform probability for parameter "r" of object "lens" in interval [10, 20]
 lens.r = unif 10 20
+
+; the orientation angle is between 0 and 180 degrees and wraps around
+lens.pa = wrap unif 0 180
 ```
 
 

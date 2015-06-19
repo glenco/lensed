@@ -7,7 +7,7 @@ params
     { "sigma" },
     { "mag" },
     { "q" },
-    { "pa", true },
+    { "pa" },
 };
 
 data

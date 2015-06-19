@@ -254,7 +254,11 @@ void print_input(const input* inp)
                 char buf[100] = {0};
                 print_prior(inp->objs[i].pars[j].pri, buf, 99);
                 
-                verbose("  %zu: %s ~ %s", p, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].id, buf);
+                verbose("  %zu: %s ~ %s%s", p,
+                        inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label
+                                                   : inp->objs[i].pars[j].id,
+                        buf,
+                        inp->objs[i].pars[j].wrap ? " [wrapped]" : "");
             }
         }
     }

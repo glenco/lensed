@@ -10,7 +10,7 @@ params
     { "r" },
     { "rc" },
     { "q" },
-    { "pa", true }
+    { "pa" }
 };
 
 data

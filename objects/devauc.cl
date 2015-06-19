@@ -12,7 +12,7 @@ params
     { "r" },
     { "mag" },
     { "q" },
-    { "pa", true },
+    { "pa" },
 };
 
 data
