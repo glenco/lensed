@@ -9,7 +9,7 @@ params
     { "re" },
     { "alpha" },
     { "q" },
-    { "pa", true }
+    { "pa" }
 };
 
 data

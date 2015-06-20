@@ -13,9 +13,10 @@
 struct kernel_param
 {
     cl_char name[32];
-    cl_int  wrap;
 };
 #pragma pack(pop)
+
+static const char* WS = " \t\n\v\f\r";
 
 void add_object(input* inp, const char* id, const char* name)
 {
@@ -189,8 +190,8 @@ void add_object(input* inp, const char* id, const char* name)
         // no prior is set
         obj->pars[i].pri = NULL;
         
-        // wrap-around
-        obj->pars[i].wrap = params[i].wrap;
+        // no wrap-around
+        obj->pars[i].wrap = 0;
     }
     
     // clean up
@@ -272,9 +273,25 @@ void set_param_label(param* par, const char* label)
 
 void set_param_prior(param* par, const char* str)
 {
+    size_t len;
+    
     // free existing prior
     free_prior(par->pri);
     
+    // get length of first word
+    len = strcspn(str, WS);
+    
+    // check for wrap keyword
+    if(strncmp(str, "wrap", len) == 0)
+    {
+        // set wrap flag
+        par->wrap = 1;
+        
+        // skip word
+        str += len;
+        str += strspn(str, WS);
+    }
+    
     // parse prior
-    par->pri = read_prior(str);
+    par->pri = *str ? read_prior(str) : NULL;
 }

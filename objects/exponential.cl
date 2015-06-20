@@ -7,7 +7,7 @@ params
     { "rs" },
     { "mag" },
     { "q" },
-    { "pa", true },
+    { "pa" },
 };
 
 data

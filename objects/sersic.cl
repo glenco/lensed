@@ -8,7 +8,7 @@ params
     { "mag" },
     { "n" },
     { "q" },
-    { "pa", true }
+    { "pa" }
 };
 
 data

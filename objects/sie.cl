@@ -9,7 +9,7 @@ params
     { "y" },
     { "r" },
     { "q" },
-    { "pa", true }
+    { "pa" }
 };
 
 data
