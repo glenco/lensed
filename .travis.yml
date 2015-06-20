@@ -15,7 +15,7 @@ branches:
 before_install:
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
     sudo apt-get update -qq -y &&
-    sudo apt-get install -qq -y gfortran fglrx opencl-headers libcfitsio3-dev;
+    sudo apt-get install -qq -y gfortran fglrx=2:8.960-0ubuntu1 opencl-headers libcfitsio3-dev;
   fi
 - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
     brew update &&
