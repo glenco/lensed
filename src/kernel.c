@@ -49,12 +49,17 @@ static const char METAKERN[] =
 
 // kernel to get parameters for object
 static const char PARSKERN[] = 
-    "kernel void params_<name>(global struct param* par)\n"
+    "kernel void params_<name>(global char* names, uint n)\n"
     "{\n"
     "    for(size_t i = 0; i < sizeof(parlst_<name>)/sizeof(struct param); ++i)\n"
     "    {\n"
-    "        for(size_t j = 0; j < sizeof(par[i].name); ++j)\n"
-    "            par[i].name[j] = parlst_<name>[i].name[j];\n"
+    "        // copy names\n"
+    "        {\n"
+    "            constant char* src = parlst_<name>[i].name;\n"
+    "            for(size_t j = 0; *src != '\\0' && j < n - 1; ++j)\n"
+    "                *(names++) = *(src++);\n"
+    "            *(names++) = '\\0';\n"
+    "        }\n"
     "    }\n"
     "}\n"
 ;
