@@ -72,6 +72,11 @@ typedef struct
     // type of parameter
     int type;
     
+    // hard parameter bounds
+    double lower;
+    double upper;
+    int bounded;
+    
     // prior for parameter
     prior* pri;
     

@@ -10,7 +10,7 @@ void free_prior(prior* pri);
 void print_prior(const prior* pri, char* buf, size_t n);
 
 // apply prior to unit variate
-void apply_prior(const prior* pri, double* u);
+double apply_prior(const prior* pri, double u);
 
 // get lower bound for prior
 double prior_lower(const prior* pri);

@@ -83,10 +83,10 @@ double prior_norm(const void* data, double u)
 
 double prior_lower_norm(const void* data)
 {
-    return -INFINITY;
+    return -HUGE_VAL;
 }
 
 double prior_upper_norm(const void* data)
 {
-    return INFINITY;
+    return +HUGE_VAL;
 }

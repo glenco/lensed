@@ -46,6 +46,8 @@ void add_object(input* inp, const char* id, const char* name)
     cl_char*    param_names;
     cl_mem      param_types_mem;
     cl_int*     param_types;
+    cl_mem      param_bounds_mem;
+    cl_float2*  param_bounds;
     
     // realloc space for one more object
     inp->nobjs += 1;
@@ -146,7 +148,8 @@ void add_object(input* inp, const char* id, const char* name)
     // buffers for kernel parameters
     param_names_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*meta_nnam*sizeof(cl_char), NULL, NULL);
     param_types_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_int),            NULL, NULL);
-    if(!param_types_mem || !param_names_mem)
+    param_bounds_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float2),         NULL, NULL);
+    if(!param_types_mem || !param_names_mem || !param_bounds_mem)
         error("object %s: failed to create buffer for parameters", id);
     
     // setup and run kernel to get parameters
@@ -156,6 +159,7 @@ void add_object(input* inp, const char* id, const char* name)
         error("object %s: failed to create kernel for parameters", id);
     err |= clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem );
     err |= clSetKernelArg(param_kernel, 1, sizeof(cl_mem), &param_types_mem );
+    err |= clSetKernelArg(param_kernel, 2, sizeof(cl_mem), &param_bounds_mem);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for parameters", id);
     err = clEnqueueTask(queue, param_kernel, 0, NULL, NULL);
@@ -165,12 +169,14 @@ void add_object(input* inp, const char* id, const char* name)
     // arrays for kernel parameters
     param_names  = malloc(obj->npars*meta_nnam*sizeof(cl_char));
     param_types  = malloc(obj->npars*sizeof(cl_int));
-    if(!param_types || !param_names)
+    param_bounds = malloc(obj->npars*sizeof(cl_float2));
+    if(!param_types || !param_names || !param_bounds)
         errori("object %s", id);
     
     // get kernel parameters from buffer
     err |= clEnqueueReadBuffer(queue, param_names_mem,  CL_TRUE, 0, obj->npars*meta_nnam*sizeof(cl_char), param_names,  0, NULL, NULL);
     err |= clEnqueueReadBuffer(queue, param_types_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_int),            param_types,  0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_bounds_mem, CL_TRUE, 0, obj->npars*sizeof(cl_float2),         param_bounds, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to get parameters", id);
     
@@ -207,6 +213,8 @@ void add_object(input* inp, const char* id, const char* name)
         obj->pars[i].name   = name;
         obj->pars[i].id     = id;
         obj->pars[i].type   = param_types[i];
+        obj->pars[i].lower  = param_bounds[i].s[0];
+        obj->pars[i].upper  = param_bounds[i].s[1];
         obj->pars[i].pri    = NULL;
         obj->pars[i].wrap   = 0;
         obj->pars[i].label  = NULL;
@@ -219,6 +227,8 @@ void add_object(input* inp, const char* id, const char* name)
     free(param_names);
     clReleaseMemObject(param_types_mem);
     free(param_types);
+    clReleaseMemObject(param_bounds_mem);
+    free(param_bounds);
     
     free(param_kernam);
     clReleaseKernel(param_kernel);

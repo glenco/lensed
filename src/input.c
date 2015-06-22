@@ -269,7 +269,7 @@ void print_input(const input* inp)
                 print_prior(inp->objs[i].pars[j].pri, buf, 99);
                 
                 // collect tags
-                snprintf(tag, 100, " [%s%s%s%s%s%s%s",
+                snprintf(tag, 100, " [%s%s%s%s%s%s%s%s",
                     inp->objs[i].pars[j].type == PAR_POSITION_X ?
                         "position x, " : "",
                     inp->objs[i].pars[j].type == PAR_POSITION_Y ?
@@ -282,6 +282,8 @@ void print_input(const input* inp)
                         "axis ratio, " : "",
                     inp->objs[i].pars[j].type == PAR_POS_ANGLE ?
                         "pos. angle, " : "",
+                    inp->objs[i].pars[j].bounded ?
+                        "bounded, " : "",
                     inp->objs[i].pars[j].wrap ?
                         "wrap, " : ""
                 );

@@ -2,13 +2,13 @@ type = SOURCE;
 
 params
 {
-    { "x",      POSITION_X  },
-    { "y",      POSITION_Y  },
-    { "r",      RADIUS      },
-    { "mag",    MAGNITUDE   },
-    { "n",      PARAMETER   },
-    { "q",      AXIS_RATIO  },
-    { "pa",     POS_ANGLE   }
+    { "x",   POSITION_X },
+    { "y",   POSITION_Y },
+    { "r",   RADIUS     },
+    { "mag", MAGNITUDE  },
+    { "n",   PARAMETER, { 0.5f, 8.0f } },
+    { "q",   AXIS_RATIO },
+    { "pa",  POS_ANGLE  }
 };
 
 data
