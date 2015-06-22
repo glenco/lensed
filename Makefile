@@ -42,6 +42,9 @@
 #   EXTRA_LIBS                                                       #
 #     additional libraries                                           #
 #                                                                    #
+#   DEBUG                                                            #
+#     build with debug symbols and no optimisation                   #
+#                                                                    #
 # variables are cached in build/cache.mk                             #
 ######################################################################
 
@@ -103,9 +106,18 @@ endif
 -include build/cache.mk
 
 # general settings
-CFLAGS = -std=c99 -Wall -Werror -O3 -pedantic
+CFLAGS = -std=c99 -Wall -Werror -pedantic
 LDFLAGS = 
 LDLIBS = 
+
+# debug or release settings
+ifdef DEBUG
+CFLAGS += -O0 -g -DLENSED_DEBUG
+DEBUG_TAG = " [debug]"
+else
+CFLAGS += -O3
+DEBUG_TAG = 
+endif
 
 # CFITSIO library
 CFITSIO_LIB ?= -lcfitsio
@@ -211,7 +223,7 @@ distclean: clean
 	@$(RM) -r $(BUILD_DIR) $(BIN_DIR)
 
 $(OBJECTS): $(BUILD_DIR)/%.o: $(SOURCE_DIR)/%.c $(VERSION)
-	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)"
+	@$(ECHO) "building $(STYLE_BOLD)$<$(STYLE_RESET)$(DEBUG_TAG)"
 	@$(MKDIR) $(@D)
 	@$(CC) $(CFLAGS) $(CPPFLAGS) -c -o $@ $<
 
@@ -240,6 +252,7 @@ cache:
 	@$(ECHO) "OPENCL_LIB_DIR = $(OPENCL_LIB_DIR)" >> $(CACHE)
 	@$(ECHO) "OPENCL_LIB = $(OPENCL_LIB)" >> $(CACHE)
 	@$(ECHO) "EXTRA_LIBS = $(EXTRA_LIBS)" >> $(CACHE)
+	@$(ECHO) "DEBUG = $(DEBUG)" >> $(CACHE)
 
 show-cache:
 	@$(CAT) $(CACHE)

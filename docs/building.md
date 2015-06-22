@@ -125,6 +125,7 @@ The following variables can be passed to Lensed:
 | `OPENCL_LIB_DIR`        | path to the OpenCL library                        |
 | `OPENCL_LIB`            | OpenCL runtime library (e.g. `-lOpenCL`)          |
 | `EXTRA_LIBS`            | additional libraries and linker flags             |
+| `DEBUG`                 | build with debug symbols and no optimisation      |
 
 The values of these variables are cached in a file `build/cache.mk` and do not
 have to be repeated on subsequent calls to make. The contents of the cache can
@@ -143,11 +144,18 @@ OPENCL_INCLUDE_DIR =
 OPENCL_LIB_DIR = 
 OPENCL_LIB = -framework OpenCL
 EXTRA_LIBS = 
+DEBUG = 
 ```
 
 Please note that the `XYZ_INCLUDE_DIR` and `XYZ_LIB_DIR` variables override the
 value of the corresponding `XYZ_DIR` variable, so either the former two or the
 latter should be set.
+
+The debug build can be enabled by defining the `DEBUG` symbol, for example by
+calling `make DEBUG=1`. To disable the debug build, the `DEBUG` symbol has to
+be undefined by calling `make DEBUG=` (i.e. with no value). Debug symbols and
+optimisations are set for each individual object file at compile time, hence
+it is necessary to perform a `make clean` in order to fully apply the setting.
 
 The following sections contain further details on configuring the individual
 components of Lensed.

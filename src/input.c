@@ -14,12 +14,19 @@
 // default config file
 const char DEFAULT_INI[] = "default.ini";
 
+// tag for build type
+#ifdef LENSED_DEBUG
+const char* LENSED_BUILD_TAG = " (debug build)";
+#else
+const char* LENSED_BUILD_TAG = "";
+#endif
+
 // print usage help
 void usage(int help)
 {
     if(help)
     {
-        printf("Lensed %s\n", LENSED_VERSION);
+        printf("Lensed %s%s\n", LENSED_VERSION, LENSED_BUILD_TAG);
         printf("\n");
         printf("Reconstruct lenses and sources from observations.\n");
         printf("\n");
@@ -63,7 +70,7 @@ void usage(int help)
 // show version number and exit
 void version()
 {
-    printf("Lensed %s\n", LENSED_VERSION);
+    printf("Lensed %s%s\n", LENSED_VERSION, LENSED_BUILD_TAG);
     exit(EXIT_SUCCESS);
 }
 
