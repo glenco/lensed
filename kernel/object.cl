@@ -7,7 +7,7 @@ enum
 };
 
 // structure that holds parameter definition
-struct  __attribute__ ((aligned(4))) param
+struct param
 {
-    char name[32];
+    constant char* name;
 };

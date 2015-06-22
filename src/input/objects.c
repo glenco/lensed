@@ -9,14 +9,9 @@
 #include "../kernel.h"
 #include "../log.h"
 
-#pragma pack(push, 4)
-struct kernel_param
-{
-    cl_char name[32];
-};
-#pragma pack(pop)
-
 static const char* WS = " \t\n\v\f\r";
+
+static const cl_uint MAX_PAR_NAME = 32;
 
 void add_object(input* inp, const char* id, const char* name)
 {
@@ -37,10 +32,11 @@ void add_object(input* inp, const char* id, const char* name)
     cl_int meta_type;
     cl_ulong meta_size;
     cl_ulong meta_npars;
-    cl_mem params_mem;
-    char* params_name;
-    cl_kernel params_kernel;
-    struct kernel_param* params;
+    char* param_kernam;
+    cl_kernel param_kernel;
+    cl_mem param_names_mem;
+    cl_char* param_names;
+    cl_char* param_cur_name;
     
     // realloc space for one more object
     inp->nobjs += 1;
@@ -135,30 +131,31 @@ void add_object(input* inp, const char* id, const char* name)
     if(obj->type != OBJ_LENS && obj->type != OBJ_SOURCE && obj->type != OBJ_FOREGROUND)
         error("object %s: invalid type (should be LENS, SOURCE or FOREGROUND)", id);
     
-    // buffer for kernel parameters
-    params_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(struct kernel_param), NULL, &err);
-    if(err != CL_SUCCESS)
+    // buffers for kernel parameters
+    param_names_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*MAX_PAR_NAME*sizeof(cl_char), NULL, NULL);
+    if(!param_names_mem)
         error("object %s: failed to create buffer for parameters", id);
     
     // setup and run kernel to get parameters
-    params_name = kernel_name("params_", name);
-    params_kernel = clCreateKernel(program, params_name, &err);
+    param_kernam = kernel_name("params_", name);
+    param_kernel = clCreateKernel(program, param_kernam, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create kernel for parameters", id);
-    err = clSetKernelArg(params_kernel, 0, sizeof(cl_mem), &params_mem);
+    err  = clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem);
+    err |= clSetKernelArg(param_kernel, 1, sizeof(cl_uint), &MAX_PAR_NAME);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for parameters", id);
-    err = clEnqueueTask(queue, params_kernel, 0, NULL, NULL);
+    err = clEnqueueTask(queue, param_kernel, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to run kernel for parameters", id);
     
-    // array for kernel parameters
-    params = malloc(obj->npars*sizeof(struct kernel_param));
-    if(!params)
+    // arrays for kernel parameters
+    param_names = malloc(obj->npars*MAX_PAR_NAME*sizeof(cl_char));
+    if(!param_names)
         errori("object %s", id);
     
     // get kernel parameters from buffer
-    err = clEnqueueReadBuffer(queue, params_mem, CL_TRUE, 0, obj->npars*sizeof(struct kernel_param), params, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(queue, param_names_mem, CL_TRUE, 0, obj->npars*MAX_PAR_NAME*sizeof(cl_char), param_names, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to get parameters", id);
     
@@ -167,18 +164,40 @@ void add_object(input* inp, const char* id, const char* name)
     if(!obj->pars)
         errori("object %s", id);
     
+    // the current parameter name
+    param_cur_name = param_names;
+    
     // set up parameter array
     for(size_t i = 0; i < obj->npars; ++i)
     {
+        // name of parameter
+        char* name;
+        
         // id of parameter
         char* id;
         
-        // copy name into param
-        for(size_t j = 0; j <= sizeof(params[i].name); ++j)
-            obj->pars[i].name[j] = params[i].name[j];
+        // length of parameter name
+        size_t len = 0;
+        
+        // get length of name
+        while(param_cur_name[len] != '\0')
+            ++len;
+        
+        // allocate name
+        name = malloc(len + 1);
+        if(!name)
+            errori(NULL);
+        
+        // copy name and set in param
+        for(size_t i = 0; i <= len; ++i)
+            name[i] = param_cur_name[i];
+        obj->pars[i].name = name;
+        
+        // skip name
+        param_cur_name += len + 1;
         
         // create id
-        id = malloc(strlen(obj->id) + 1 + strlen(obj->pars[i].name) + 1);
+        id = malloc(strlen(obj->id) + 1 + len + 1);
         if(!id)
             errori(NULL);
         sprintf(id, "%s.%s", obj->id, obj->pars[i].name);
@@ -196,10 +215,10 @@ void add_object(input* inp, const char* id, const char* name)
     
     // clean up
     clFinish(queue);
-    free(params);
-    clReleaseKernel(params_kernel);
-    free(params_name);
-    clReleaseMemObject(params_mem);
+    clReleaseMemObject(param_names_mem);
+    free(param_names);
+    clReleaseKernel(param_kernel);
+    free(param_kernam);
     clReleaseKernel(meta_kernel);
     free(meta_name);
     clReleaseMemObject(meta_type_mem);
@@ -255,6 +274,7 @@ param* find_param(object* obj, const char* name)
 
 void free_param(param* par)
 {
+    free((char*)par->name);
     free((char*)par->id);
     free((char*)par->label);
     free_prior(par->pri);

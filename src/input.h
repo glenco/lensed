@@ -44,7 +44,7 @@ typedef struct prior prior;
 typedef struct
 {
     // name of parameter
-    char name[32];
+    const char* name;
     
     // identifier of parameter
     const char* id;
