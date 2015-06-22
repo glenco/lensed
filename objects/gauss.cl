@@ -2,12 +2,12 @@ type = SOURCE;
 
 params
 {
-    { "x" },
-    { "y" },
-    { "sigma" },
-    { "mag" },
-    { "q" },
-    { "pa" },
+    { "x",      POSITION_X  },
+    { "y",      POSITION_Y  },
+    { "sigma",  RADIUS      },
+    { "mag",    MAGNITUDE   },
+    { "q",      AXIS_RATIO  },
+    { "pa",     POS_ANGLE   }
 };
 
 data

@@ -39,27 +39,27 @@ static const size_t NMAINKERNS = sizeof(MAINKERNS)/sizeof(MAINKERNS[0]);
 
 // kernel to get meta-data for object
 static const char METAKERN[] = 
-    "kernel void meta_<name>(global int* type, global ulong* size, global ulong* npar)\n"
+    "kernel void meta_<name>(global int*   type, global ulong* size,\n"
+    "                        global ulong* npar, global ulong* nnam)\n"
     "{\n"
     "    *type = type_<name>;\n"
     "    *size = sizeof(struct data_<name>);\n"
     "    *npar = sizeof(parlst_<name>)/sizeof(struct param);\n"
+    "    *nnam = sizeof(((struct param*)0)->name);\n"
     "}\n"
 ;
 
 // kernel to get parameters for object
 static const char PARSKERN[] = 
-    "kernel void params_<name>(global char* names, uint n)\n"
+    "kernel void params_<name>(global char* names, global int* types)\n"
     "{\n"
-    "    for(size_t i = 0; i < sizeof(parlst_<name>)/sizeof(struct param); ++i)\n"
+    "    const size_t n = sizeof(parlst_<name>)/sizeof(struct param);\n"
+    "    const size_t l = sizeof(((struct param*)0)->name);\n"
+    "    for(size_t i = 0; i < n; ++i)\n"
     "    {\n"
-    "        // copy names\n"
-    "        {\n"
-    "            constant char* src = parlst_<name>[i].name;\n"
-    "            for(size_t j = 0; *src != '\\0' && j < n - 1; ++j)\n"
-    "                *(names++) = *(src++);\n"
-    "            *(names++) = '\\0';\n"
-    "        }\n"
+    "        for(size_t j = 0; j < l; ++j)\n"
+    "            names[i*l + j] = parlst_<name>[i].name[j];\n"
+    "        types[i] = parlst_<name>[i].type;\n"
     "    }\n"
     "}\n"
 ;

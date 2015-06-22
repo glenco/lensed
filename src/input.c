@@ -258,14 +258,50 @@ void print_input(const input* inp)
         {
             for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             {
+                const char* label;
                 char buf[100] = {0};
+                char tag[100] = {0};
+                
+                // set label, or id if no label set
+                label = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].id;
+                
+                // pretty-print prior
                 print_prior(inp->objs[i].pars[j].pri, buf, 99);
                 
-                verbose("  %zu: %s ~ %s%s", p,
-                        inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label
-                                                   : inp->objs[i].pars[j].id,
-                        buf,
-                        inp->objs[i].pars[j].wrap ? " [wrapped]" : "");
+                // collect tags
+                snprintf(tag, 100, " [%s%s%s%s%s%s%s",
+                    inp->objs[i].pars[j].type == PAR_POSITION_X ?
+                        "position x, " : "",
+                    inp->objs[i].pars[j].type == PAR_POSITION_Y ?
+                        "position y, " : "",
+                    inp->objs[i].pars[j].type == PAR_RADIUS ?
+                        "radius, " : "",
+                    inp->objs[i].pars[j].type == PAR_MAGNITUDE ?
+                        "magnitude, " : "",
+                    inp->objs[i].pars[j].type == PAR_AXIS_RATIO ?
+                        "axis ratio, " : "",
+                    inp->objs[i].pars[j].type == PAR_POS_ANGLE ?
+                        "pos. angle, " : "",
+                    inp->objs[i].pars[j].wrap ?
+                        "wrap, " : ""
+                );
+                
+                // check if tags were set
+                if(strcmp(tag, " [") == 0)
+                {
+                    // no tags, empty string
+                    *tag = '\0';
+                }
+                else
+                {
+                    // terminate tags
+                    size_t len = strlen(tag);
+                    tag[len-1] = '\0';
+                    tag[len-2] = ']';
+                }
+                
+                // output line for parameter
+                verbose("  %zu: %s ~ %s%s", p, label, buf, tag);
             }
         }
     }

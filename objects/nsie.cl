@@ -5,12 +5,12 @@ type = LENS;
 
 params
 {
-    { "x" },
-    { "y" },
-    { "r" },
-    { "rc" },
-    { "q" },
-    { "pa" }
+    { "x",  POSITION_X  },
+    { "y",  POSITION_Y  },
+    { "r",  RADIUS      },
+    { "rc", RADIUS      },
+    { "q",  AXIS_RATIO  },
+    { "pa", POS_ANGLE   }
 };
 
 data
