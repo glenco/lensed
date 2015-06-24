@@ -21,7 +21,7 @@ enum
 // structure that holds parameter definition
 struct param
 {
-    char   name[32];
+    char   name[16];
     int    type;
     float2 bounds;
 };

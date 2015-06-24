@@ -40,26 +40,22 @@ static const size_t NMAINKERNS = sizeof(MAINKERNS)/sizeof(MAINKERNS[0]);
 // kernel to get meta-data for object
 static const char METAKERN[] = 
     "kernel void meta_<name>(global int*   type, global ulong* size,\n"
-    "                        global ulong* npar, global ulong* nnam)\n"
+    "                        global ulong* npar)\n"
     "{\n"
     "    *type = type_<name>;\n"
     "    *size = sizeof(struct data_<name>);\n"
     "    *npar = sizeof(parlst_<name>)/sizeof(struct param);\n"
-    "    *nnam = sizeof(((struct param*)0)->name);\n"
     "}\n"
 ;
 
 // kernel to get parameters for object
 static const char PARSKERN[] = 
-    "kernel void params_<name>(global char*   names, global int* types,\n"
+    "kernel void params_<name>(global char16* names, global int* types,\n"
     "                          global float2* bounds)\n"
     "{\n"
-    "    const size_t n = sizeof(parlst_<name>)/sizeof(struct param);\n"
-    "    const size_t l = sizeof(((struct param*)0)->name);\n"
-    "    for(size_t i = 0; i < n; ++i)\n"
+    "    for(size_t i = 0; i < sizeof(parlst_<name>)/sizeof(struct param); ++i)\n"
     "    {\n"
-    "        for(size_t j = 0; j < l; ++j)\n"
-    "            names[i*l + j] = parlst_<name>[i].name[j];\n"
+    "        names[i]  = vload16(0, parlst_<name>[i].name);\n"
     "        types[i]  = parlst_<name>[i].type;\n"
     "        bounds[i] = parlst_<name>[i].bounds;\n"
     "    }\n"
