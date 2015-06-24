@@ -38,6 +38,7 @@ void add_object(input* inp, const char* id, const char* name)
     // parameter info kernel
     char*       param_kernam;
     cl_kernel   param_kernel;
+    size_t      param_gws;
     
     // parameter information
     cl_mem      param_names_mem;
@@ -144,8 +145,11 @@ void add_object(input* inp, const char* id, const char* name)
     param_names_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_char16), NULL, NULL);
     param_types_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_int),    NULL, NULL);
     param_bounds_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float2), NULL, NULL);
-    if(!param_types_mem || !param_names_mem || !param_bounds_mem)
+    if(!param_names_mem || !param_types_mem || !param_bounds_mem)
         error("object %s: failed to create buffer for parameters", id);
+    
+    // the work size of the parameters kernel is the number of parameters
+    param_gws = meta_npar;
     
     // setup and run kernel to get parameters
     param_kernam = kernel_name("params_", name);
@@ -157,7 +161,7 @@ void add_object(input* inp, const char* id, const char* name)
     err |= clSetKernelArg(param_kernel, 2, sizeof(cl_mem), &param_bounds_mem);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for parameters", id);
-    err = clEnqueueTask(queue, param_kernel, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(queue, param_kernel, 1, NULL, &param_gws, NULL, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to run kernel for parameters", id);
     
