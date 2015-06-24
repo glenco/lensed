@@ -18,7 +18,13 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     
     // transform from unit cube to physical
     for(size_t i = 0; i < lensed->npars; ++i)
-        apply_prior(lensed->pris[i], &cube[i]);
+    {
+        double phys;
+        do
+            phys = apply_prior(lensed->pars[i]->pri, cube[i]);
+        while(lensed->pars[i]->bounded && (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
+        cube[i] = phys;
+    }
     
     // error flag
     cl_int err = 0;

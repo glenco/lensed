@@ -92,13 +92,62 @@ int main(int argc, char* argv[])
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             lensed.pars[p] = &inp->objs[i].pars[j];
     
-    // get all priors that will be needed when running
-    lensed.pris = malloc(lensed.npars*sizeof(prior*));
-    if(!lensed.pris)
-        errori(NULL);
-    for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
-        for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
-            lensed.pris[p] = inp->objs[i].pars[j].pri;
+    // process parameters
+    for(size_t i = 0; i < lensed.npars; ++i)
+    {
+        // current parameter
+        param* par = lensed.pars[i];
+        
+        // apply default bounds if none provided
+        if(!par->lower && !par->upper)
+        {
+            switch(par->type)
+            {
+            case PAR_RADIUS:
+                par->lower = 0;
+                par->upper = HUGE_VAL;
+                break;
+                
+            case PAR_AXIS_RATIO:
+                par->lower = 0;
+                par->upper = 1;
+                break;
+                
+            default:
+                break;
+            }
+        }
+        
+        // mark if parameter is bounded
+        par->bounded = (par->lower || par->upper);
+        
+        // check that prior is compatible with bounds
+        if(par->bounded && (prior_lower(par->pri) < par->lower || prior_upper(par->pri) > par->upper))
+        {
+            // check if there is overlap between the bounds
+            if(prior_lower(par->pri) >= par->upper || prior_upper(par->pri) <= par->lower)
+            {
+                // prior falls completely outside of allowed range
+                error("%s: prior does not include parameter bounds [%g, %g]\n"
+                      "The prior does not include the allowed range of values "
+                      "for the parameter. It is impossible to draw a valid "
+                      "parameter value. Please fix the prior to include the "
+                      "range of values indicated above.",
+                      par->id, par->lower, par->upper);
+            }
+            else
+            {
+                // prior overlaps parameter bounds, issue a warning
+                warn("%s: prior partially outside parameter bounds [%g, %g]\n"
+                     "Part of the prior lies outside of the allowed range of "
+                     "parameter values. Values will be drawn from the prior "
+                     "until a valid one is found. If the bounds of prior and "
+                     "parameter do not overlap significantly, this can be "
+                     "slow. You might want to change the prior accordingly.",
+                     par->id, par->lower, par->upper);
+            }
+        }
+    }
     
     
     /*****************

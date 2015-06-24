@@ -5,9 +5,9 @@ type = LENS;
 
 params
 {
-    { "x" },
-    { "y" },
-    { "r" }
+    { "x",  POSITION_X  },
+    { "y",  POSITION_Y  },
+    { "r",  RADIUS      }
 };
 
 data

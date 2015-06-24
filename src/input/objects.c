@@ -11,8 +11,6 @@
 
 static const char* WS = " \t\n\v\f\r";
 
-static const cl_uint MAX_PAR_NAME = 32;
-
 void add_object(input* inp, const char* id, const char* name)
 {
     object* obj;
@@ -24,19 +22,31 @@ void add_object(input* inp, const char* id, const char* name)
     cl_program program;
     size_t nkernels;
     const char** kernels;
-    cl_mem meta_type_mem;
-    cl_mem meta_size_mem;
-    cl_mem meta_npars_mem;
-    char* meta_name;
-    cl_kernel meta_kernel;
-    cl_int meta_type;
-    cl_ulong meta_size;
-    cl_ulong meta_npars;
-    char* param_kernam;
-    cl_kernel param_kernel;
-    cl_mem param_names_mem;
-    cl_char* param_names;
-    cl_char* param_cur_name;
+    
+    // object metadata kernel
+    char*       meta_kernam;
+    cl_kernel   meta_kernel;
+    
+    // object metadata
+    cl_mem      meta_type_mem;
+    cl_int      meta_type;
+    cl_mem      meta_size_mem;
+    cl_ulong    meta_size;
+    cl_mem      meta_npar_mem;
+    cl_ulong    meta_npar;
+    
+    // parameter info kernel
+    char*       param_kernam;
+    cl_kernel   param_kernel;
+    size_t      param_gws;
+    
+    // parameter information
+    cl_mem      param_names_mem;
+    cl_char16*  param_names;
+    cl_mem      param_types_mem;
+    cl_int*     param_types;
+    cl_mem      param_bounds_mem;
+    cl_float2*  param_bounds;
     
     // realloc space for one more object
     inp->nobjs += 1;
@@ -61,7 +71,7 @@ void add_object(input* inp, const char* id, const char* name)
     if(err != CL_SUCCESS)
         error("object %s: failed to create command queue", id);
     
-    // load kernel for object meta-data
+    // load kernel for object metadata
     object_program(name, &nkernels, &kernels);
     
     // create the program from kernel sources
@@ -94,68 +104,78 @@ void add_object(input* inp, const char* id, const char* name)
         free((char*)build_options);
     }
     
-    // buffers for object meta-data
+    // buffers for object metadata
     meta_type_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_int), NULL, NULL);
     meta_size_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
-    meta_npars_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
-    if(!meta_type_mem || !meta_size_mem || !meta_npars_mem)
-        error("object %s: failed to create buffer for meta-data", id);
+    meta_npar_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, sizeof(cl_ulong), NULL, NULL);
+    if(!meta_type_mem || !meta_size_mem || !meta_npar_mem)
+        error("object %s: failed to create buffer for metadata", id);
     
     // setup and run kernel to get meta_data
-    meta_name = kernel_name("meta_", name);
-    meta_kernel = clCreateKernel(program, meta_name, &err);
+    meta_kernam = kernel_name("meta_", name);
+    meta_kernel = clCreateKernel(program, meta_kernam, &err);
     if(err != CL_SUCCESS)
-        error("object %s: failed to create kernel for meta-data", id);
+        error("object %s: failed to create kernel for metadata", id);
     err |= clSetKernelArg(meta_kernel, 0, sizeof(cl_mem), &meta_type_mem);
     err |= clSetKernelArg(meta_kernel, 1, sizeof(cl_mem), &meta_size_mem);
-    err |= clSetKernelArg(meta_kernel, 2, sizeof(cl_mem), &meta_npars_mem);
+    err |= clSetKernelArg(meta_kernel, 2, sizeof(cl_mem), &meta_npar_mem);
     if(err != CL_SUCCESS)
-        error("object %s: failed to set kernel arguments for meta-data", id);
+        error("object %s: failed to set kernel arguments for metadata", id);
     err = clEnqueueTask(queue, meta_kernel, 0, NULL, NULL);
     if(err != CL_SUCCESS)
-        error("object %s: failed to run kernel for meta-data", id);
+        error("object %s: failed to run kernel for metadata", id);
     
-    // get meta-data from buffer
-    err |= clEnqueueReadBuffer(queue, meta_type_mem, CL_TRUE, 0, sizeof(cl_int), &meta_type, 0, NULL, NULL);
+    // get metadata from buffer
+    err |= clEnqueueReadBuffer(queue, meta_type_mem, CL_TRUE, 0, sizeof(cl_int),   &meta_type, 0, NULL, NULL);
     err |= clEnqueueReadBuffer(queue, meta_size_mem, CL_TRUE, 0, sizeof(cl_ulong), &meta_size, 0, NULL, NULL);
-    err |= clEnqueueReadBuffer(queue, meta_npars_mem, CL_TRUE, 0, sizeof(cl_ulong), &meta_npars, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, meta_npar_mem, CL_TRUE, 0, sizeof(cl_ulong), &meta_npar, 0, NULL, NULL);
     if(err != CL_SUCCESS)
-        error("object %s: failed to get meta-data", id);
+        error("object %s: failed to get metadata", id);
     
-    // set meta-data for object
-    obj->type = meta_type;
-    obj->size = meta_size;
-    obj->npars = meta_npars;
+    // set metadata for object
+    obj->type  = meta_type;
+    obj->size  = meta_size;
+    obj->npars = meta_npar;
     
-    // check meta-data
+    // check metadata
     if(obj->type != OBJ_LENS && obj->type != OBJ_SOURCE && obj->type != OBJ_FOREGROUND)
         error("object %s: invalid type (should be LENS, SOURCE or FOREGROUND)", id);
     
     // buffers for kernel parameters
-    param_names_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*MAX_PAR_NAME*sizeof(cl_char), NULL, NULL);
-    if(!param_names_mem)
+    param_names_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_char16), NULL, NULL);
+    param_types_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_int),    NULL, NULL);
+    param_bounds_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float2), NULL, NULL);
+    if(!param_names_mem || !param_types_mem || !param_bounds_mem)
         error("object %s: failed to create buffer for parameters", id);
+    
+    // the work size of the parameters kernel is the number of parameters
+    param_gws = meta_npar;
     
     // setup and run kernel to get parameters
     param_kernam = kernel_name("params_", name);
     param_kernel = clCreateKernel(program, param_kernam, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create kernel for parameters", id);
-    err  = clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem);
-    err |= clSetKernelArg(param_kernel, 1, sizeof(cl_uint), &MAX_PAR_NAME);
+    err |= clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem );
+    err |= clSetKernelArg(param_kernel, 1, sizeof(cl_mem), &param_types_mem );
+    err |= clSetKernelArg(param_kernel, 2, sizeof(cl_mem), &param_bounds_mem);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for parameters", id);
-    err = clEnqueueTask(queue, param_kernel, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(queue, param_kernel, 1, NULL, &param_gws, NULL, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to run kernel for parameters", id);
     
     // arrays for kernel parameters
-    param_names = malloc(obj->npars*MAX_PAR_NAME*sizeof(cl_char));
-    if(!param_names)
+    param_names  = malloc(obj->npars*sizeof(cl_char16));
+    param_types  = malloc(obj->npars*sizeof(cl_int));
+    param_bounds = malloc(obj->npars*sizeof(cl_float2));
+    if(!param_types || !param_names || !param_bounds)
         errori("object %s", id);
     
     // get kernel parameters from buffer
-    err = clEnqueueReadBuffer(queue, param_names_mem, CL_TRUE, 0, obj->npars*MAX_PAR_NAME*sizeof(cl_char), param_names, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_names_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_char16), param_names,  0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_types_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_int),    param_types,  0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_bounds_mem, CL_TRUE, 0, obj->npars*sizeof(cl_float2), param_bounds, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to get parameters", id);
     
@@ -163,9 +183,6 @@ void add_object(input* inp, const char* id, const char* name)
     obj->pars = malloc(obj->npars*sizeof(param));
     if(!obj->pars)
         errori("object %s", id);
-    
-    // the current parameter name
-    param_cur_name = param_names;
     
     // set up parameter array
     for(size_t i = 0; i < obj->npars; ++i)
@@ -176,54 +193,52 @@ void add_object(input* inp, const char* id, const char* name)
         // id of parameter
         char* id;
         
-        // length of parameter name
-        size_t len = 0;
-        
-        // get length of name
-        while(param_cur_name[len] != '\0')
-            ++len;
-        
         // allocate name
-        name = malloc(len + 1);
+        name = malloc(16);
         if(!name)
             errori(NULL);
         
-        // copy name and set in param
-        for(size_t i = 0; i <= len; ++i)
-            name[i] = param_cur_name[i];
-        obj->pars[i].name = name;
-        
-        // skip name
-        param_cur_name += len + 1;
+        // copy name
+        for(size_t j = 0; j < 16; ++j)
+            name[j] = param_names[i].s[j];
         
         // create id
-        id = malloc(strlen(obj->id) + 1 + len + 1);
+        id = malloc(strlen(obj->id) + 1 + strlen(name) + 1);
         if(!id)
             errori(NULL);
-        sprintf(id, "%s.%s", obj->id, obj->pars[i].name);
-        obj->pars[i].id = id;
+        sprintf(id, "%s.%s", obj->id, name);
         
-        // no label is set
-        obj->pars[i].label = NULL;
-        
-        // no prior is set
-        obj->pars[i].pri = NULL;
-        
-        // no wrap-around
-        obj->pars[i].wrap = 0;
+        // set parameter information
+        obj->pars[i].name   = name;
+        obj->pars[i].id     = id;
+        obj->pars[i].type   = param_types[i];
+        obj->pars[i].lower  = param_bounds[i].s[0];
+        obj->pars[i].upper  = param_bounds[i].s[1];
+        obj->pars[i].pri    = NULL;
+        obj->pars[i].wrap   = 0;
+        obj->pars[i].label  = NULL;
     }
     
     // clean up
     clFinish(queue);
+    
     clReleaseMemObject(param_names_mem);
     free(param_names);
-    clReleaseKernel(param_kernel);
+    clReleaseMemObject(param_types_mem);
+    free(param_types);
+    clReleaseMemObject(param_bounds_mem);
+    free(param_bounds);
+    
     free(param_kernam);
+    clReleaseKernel(param_kernel);
+    
+    free(meta_kernam);
     clReleaseKernel(meta_kernel);
-    free(meta_name);
+    
     clReleaseMemObject(meta_type_mem);
     clReleaseMemObject(meta_size_mem);
-    clReleaseMemObject(meta_npars_mem);
+    clReleaseMemObject(meta_npar_mem);
+    
     for(int i = 0; i < nkernels; ++i)
         free((void*)kernels[i]);
     clReleaseProgram(program);

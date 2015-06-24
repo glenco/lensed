@@ -164,9 +164,9 @@ void print_prior(const prior* pri, char* buf, size_t n)
     pri->print(pri->data, buf, n);
 }
 
-void apply_prior(const prior* pri, double* u)
+double apply_prior(const prior* pri, double u)
 {
-    *u = pri->prior(pri->data, *u);
+    return pri->prior(pri->data, u);
 }
 
 double prior_lower(const prior* pri)

@@ -12,7 +12,6 @@ struct lensed
     // parameter space
     size_t npars;
     param** pars;
-    prior** pris;
     
     // results
     const char* fits;

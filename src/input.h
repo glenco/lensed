@@ -1,5 +1,25 @@
 #pragma once
 
+// object types
+enum
+{
+    OBJ_LENS       = 'L',
+    OBJ_SOURCE     = 'S',
+    OBJ_FOREGROUND = 'F'
+};
+
+// parameter types
+enum
+{
+    PAR_PARAMETER = 0,
+    PAR_POSITION_X,
+    PAR_POSITION_Y,
+    PAR_RADIUS,
+    PAR_MAGNITUDE,
+    PAR_AXIS_RATIO,
+    PAR_POS_ANGLE
+};
+
 // options
 typedef struct
 {
@@ -49,23 +69,23 @@ typedef struct
     // identifier of parameter
     const char* id;
     
-    // label, used for output
-    const char* label;
+    // type of parameter
+    int type;
+    
+    // hard parameter bounds
+    double lower;
+    double upper;
+    int bounded;
     
     // prior for parameter
     prior* pri;
     
     // flag for wrap-around parameters
     int wrap;
+    
+    // label, used for output
+    const char* label;
 } param;
-
-// object types
-enum
-{
-    OBJ_LENS       = 'L',
-    OBJ_SOURCE     = 'S',
-    OBJ_FOREGROUND = 'F'
-};
 
 // definition of objects
 typedef struct
