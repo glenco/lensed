@@ -33,29 +33,32 @@ void usage(int help)
     }
     
     printf("Usage:\n");
-    printf("  lensed ([<file>] | [options])...\n");
+    printf("  lensed [flags] ([<file>] | [options])...\n");
     printf("  lensed -h | --help\n");
     
     if(help)
     {
         printf("\n");
+        printf("Flags:\n");
+        printf("  %-20s  %s\n", "-h, --help", "Show this help message.");
+        printf("  %-20s  %s\n", "-v, --verbose", "Verbose output.");
+        printf("  %-20s  %s\n", "--warn", "Show only warnings and errors.");
+        printf("  %-20s  %s\n", "--error", "Show only errors.");
+        printf("  %-20s  %s\n", "-b, --batch", "Batch output.");
+        printf("  %-20s  %s\n", "-q, --quiet", "Suppress all output.");
+        printf("  %-20s  %s\n", "--version", "Show version number.");
+        printf("  %-20s  %s\n", "--devices", "List computation devices.");
+        printf("  %-20s  %s\n", "--profile", "Enable OpenCL profiling.");
+        printf("  %-20s  %s\n", "--batch-header", "Batch output header.");
+        
+        printf("\n");
         printf("Options:\n");
-        printf("  %-16s  %s\n", "-h, --help", "Show this help message.");
-        printf("  %-16s  %s\n", "-v, --verbose", "Verbose output.");
-        printf("  %-16s  %s\n", "--warn", "Show only warnings and errors.");
-        printf("  %-16s  %s\n", "--error", "Show only errors.");
-        printf("  %-16s  %s\n", "-b, --batch", "Batch output.");
-        printf("  %-16s  %s\n", "-q, --quiet", "Suppress all output.");
-        printf("  %-16s  %s\n", "--version", "Show version number.");
-        printf("  %-16s  %s\n", "--devices", "List computation devices.");
-        printf("  %-16s  %s\n", "--profile", "Enable OpenCL profiling.");
-        printf("  %-16s  %s\n", "--batch-header", "Batch output header.");
         for(size_t i = 0, n = noptions(); i < n; ++i)
         {
             char opt[50];
             char def[100];
             sprintf(opt, "--%.20s=<%s>", option_name(i), option_type(i));
-            printf("  %-16s  %s", opt, option_help(i));
+            printf("  %-20s  %s", opt, option_help(i));
             if(!option_required(i))
             {
                 option_default_value(def, sizeof(def), i);
