@@ -4,6 +4,8 @@
 #include <float.h>
 #include <math.h>
 #include <time.h>
+#include <signal.h>
+#include <setjmp.h>
 
 #include "multinest.h"
 
@@ -20,10 +22,19 @@
 #include "path.h"
 #include "version.h"
 
+// jump buffer to exit run
+static jmp_buf jmp;
+
+// signal handler for keyboard interrupts
+static void handler(int sig)
+{
+    longjmp(jmp, sig);
+}
+
 int main(int argc, char* argv[])
 {
     // program data
-    struct lensed lensed;
+    struct lensed* lensed;
     
     // data
     pcsdata* pcs;
@@ -70,8 +81,18 @@ int main(int argc, char* argv[])
     // chi^2/dof value for maximum likelihood result
     double chi2_dof;
     
+    
+    /******************
+     * initialisation *
+     ******************/
+    
     // initialise the path to Lensed
     init_lensed_path();
+    
+    // create the lensed struct
+    lensed = malloc(sizeof(struct lensed));
+    if(!lensed)
+        errori(NULL);
     
     
     /*********
@@ -82,23 +103,23 @@ int main(int argc, char* argv[])
     input* inp = read_input(argc, argv);
     
     // sum number of parameters
-    lensed.npars = 0;
+    lensed->npars = 0;
     for(size_t i = 0; i < inp->nobjs; ++i)
-        lensed.npars += inp->objs[i].npars;
+        lensed->npars += inp->objs[i].npars;
     
     // get all parameters
-    lensed.pars = malloc(lensed.npars*sizeof(param*));
-    if(!lensed.pars)
+    lensed->pars = malloc(lensed->npars*sizeof(param*));
+    if(!lensed->pars)
         errori(NULL);
     for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
-            lensed.pars[p] = &inp->objs[i].pars[j];
+            lensed->pars[p] = &inp->objs[i].pars[j];
     
     // process parameters
-    for(size_t i = 0; i < lensed.npars; ++i)
+    for(size_t i = 0; i < lensed->npars; ++i)
     {
         // current parameter
-        param* par = lensed.pars[i];
+        param* par = lensed->pars[i];
         
         // apply default bounds if none provided
         if(!par->lower && !par->upper)
@@ -218,10 +239,10 @@ int main(int argc, char* argv[])
     {
         // write fields row
         printf("%-60s", "summary");
-        printf("%-*s", (int)(lensed.npars*12), "mean");
-        printf("%-*s", (int)(lensed.npars*12), "sigma");
-        printf("%-*s", (int)(lensed.npars*12), "ML");
-        printf("%-*s", (int)(lensed.npars*12), "MAP");
+        printf("%-*s", (int)(lensed->npars*12), "mean");
+        printf("%-*s", (int)(lensed->npars*12), "sigma");
+        printf("%-*s", (int)(lensed->npars*12), "ML");
+        printf("%-*s", (int)(lensed->npars*12), "MAP");
         printf("\n");
         
         // write summary header
@@ -231,8 +252,8 @@ int main(int argc, char* argv[])
         
         // write parameter headers
         for(size_t j = 0; j < 4; ++j)
-            for(size_t i = 0; i < lensed.npars; ++i)
-                printf("%-10s  ", lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id);
+            for(size_t i = 0; i < lensed->npars; ++i)
+                printf("%-10s  ", lensed->pars[i]->label ? lensed->pars[i]->label : lensed->pars[i]->id);
         
         // batch file header is done
         printf("\n");
@@ -264,14 +285,14 @@ int main(int argc, char* argv[])
     verbose("data");
     
     // read input image
-    read_image(inp->opts->image, &lensed.width, &lensed.height, &lensed.image);
+    read_image(inp->opts->image, &lensed->width, &lensed->height, &lensed->image);
     
-    verbose("  image size: %zu x %zu", lensed.width, lensed.height);
+    verbose("  image size: %zu x %zu", lensed->width, lensed->height);
     
     // total size of image
-    lensed.size = lensed.width*lensed.height;
+    lensed->size = lensed->width*lensed->height;
     
-    verbose("  image pixels: %zu", lensed.size);
+    verbose("  image pixels: %zu", lensed->size);
     
     // read image pixel coordinate system
     pcs = malloc(sizeof(pcsdata));
@@ -286,7 +307,7 @@ int main(int argc, char* argv[])
     if(inp->opts->weight)
     {
         // read weight map from file as it is
-        read_weight(inp->opts->weight, lensed.width, lensed.height, &lensed.weight);
+        read_weight(inp->opts->weight, lensed->width, lensed->height, &lensed->weight);
     }
     else
     {
@@ -294,12 +315,12 @@ int main(int argc, char* argv[])
         
         // read gain if given, else make uniform gain map
         if(inp->opts->gain->file)
-            read_gain(inp->opts->gain->file, lensed.width, lensed.height, &gain);
+            read_gain(inp->opts->gain->file, lensed->width, lensed->height, &gain);
         else
-            make_gain(inp->opts->gain->value, lensed.width, lensed.height, &gain);
+            make_gain(inp->opts->gain->value, lensed->width, lensed->height, &gain);
         
         // make weight map from image, gain and offset
-        make_weight(lensed.image, gain, inp->opts->offset, lensed.width, lensed.height, &lensed.weight);
+        make_weight(lensed->image, gain, inp->opts->offset, lensed->width, lensed->height, &lensed->weight);
         
         free(gain);
     }
@@ -313,14 +334,14 @@ int main(int argc, char* argv[])
         int* mask;
         
         // read mask from file
-        read_mask(inp->opts->mask, lensed.width, lensed.height, &mask);
+        read_mask(inp->opts->mask, lensed->width, lensed->height, &mask);
         
         // mask individual pixels by setting their weight to zero
-        for(size_t i = 0; i < lensed.size; ++i)
+        for(size_t i = 0; i < lensed->size; ++i)
         {
             if(mask[i])
             {
-                lensed.weight[i] = 0;
+                lensed->weight[i] = 0;
                 masked += 1;
             }
         }
@@ -352,7 +373,7 @@ int main(int argc, char* argv[])
         double mode, fwhm;
         
         // get mode of pixel values
-        find_mode(lensed.size, lensed.image, lensed.weight, &mode, &fwhm);
+        find_mode(lensed->size, lensed->image, lensed->weight, &mode, &fwhm);
         
         verbose("  background: %f ± %f", mode, 0.5*fwhm);
         
@@ -407,20 +428,20 @@ int main(int argc, char* argv[])
         strcat(fits, suffix);
         
         // set filename
-        lensed.fits = fits;
+        lensed->fits = fits;
     }
     else
     {
         // no output
-        lensed.fits = NULL;
+        lensed->fits = NULL;
     }
     
     // arrays for parameters
-    lensed.mean = malloc(lensed.npars*sizeof(double));
-    lensed.sigma = malloc(lensed.npars*sizeof(double));
-    lensed.ml = malloc(lensed.npars*sizeof(double));
-    lensed.map = malloc(lensed.npars*sizeof(double));
-    if(!lensed.mean || !lensed.sigma || !lensed.ml || !lensed.map)
+    lensed->mean  = calloc(lensed->npars, sizeof(double));
+    lensed->sigma = calloc(lensed->npars, sizeof(double));
+    lensed->ml    = calloc(lensed->npars, sizeof(double));
+    lensed->map   = calloc(lensed->npars, sizeof(double));
+    if(!lensed->mean || !lensed->sigma || !lensed->ml || !lensed->map)
         errori(NULL);
     
     
@@ -499,8 +520,8 @@ int main(int argc, char* argv[])
         if(inp->opts->profile)
             queue_properties |= CL_QUEUE_PROFILING_ENABLE;
         
-        lensed.queue = clCreateCommandQueue(lcl->context, lcl->device_id, queue_properties, &err);
-        if(!lensed.queue || err != CL_SUCCESS)
+        lensed->queue = clCreateCommandQueue(lcl->context, lcl->device_id, 0, &err);
+        if(!lensed->queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
         // load program
@@ -551,7 +572,7 @@ int main(int argc, char* argv[])
         };
         
         // make build options string
-        const char* build_options = kernel_options(lensed.width, lensed.height, !!psf, psfw, psfh, nq, build_flags);
+        const char* build_options = kernel_options(lensed->width, lensed->height, !!psf, psfw, psfh, nq, build_flags);
         
         // and build program
         verbose("  build program");
@@ -615,8 +636,8 @@ int main(int argc, char* argv[])
     {
         verbose("  create data buffers");
         
-        image_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.image, NULL);
-        weight_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed.size*sizeof(cl_float), lensed.weight, NULL);
+        image_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed->size*sizeof(cl_float), lensed->image, NULL);
+        weight_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, lensed->size*sizeof(cl_float), lensed->weight, NULL);
         if(psf)
             psf_mem = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_NO_ACCESS, psfw*psfh*sizeof(cl_float), psf, &err);
         if(!image_mem || !weight_mem || err)
@@ -654,21 +675,21 @@ int main(int argc, char* argv[])
         verbose("  create parameter buffer");
         
         // create the memory containing physical parameters on the device
-        lensed.params = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed.npars*sizeof(cl_float), NULL, &err);
+        lensed->params = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed->npars*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create buffer for parameters");
         
         verbose("  create parameter kernel");
         
         // create kernel
-        lensed.set_params = clCreateKernel(program, "set_params", &err);
+        lensed->set_params = clCreateKernel(program, "set_params", &err);
         if(err != CL_SUCCESS)
             error("failed to create kernel for parameters");
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.set_params, 0, sizeof(cl_mem), &object_mem);
-        err |= clSetKernelArg(lensed.set_params, 1, sizeof(cl_mem), &lensed.params);
+        err |= clSetKernelArg(lensed->set_params, 0, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed->set_params, 1, sizeof(cl_mem), &lensed->params);
         if(err != CL_SUCCESS)
             error("failed to set kernel arguments for parameters");
     }
@@ -681,9 +702,9 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.value_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
-        lensed.error_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, NULL);
-        if(!lensed.value_mem || !lensed.error_mem)
+        lensed->value_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed->size*sizeof(cl_float), NULL, NULL);
+        lensed->error_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed->size*sizeof(cl_float), NULL, NULL);
+        if(!lensed->value_mem || !lensed->error_mem)
             error("failed to create render buffer");
         
         // pixel coordinate system
@@ -695,7 +716,7 @@ int main(int argc, char* argv[])
         verbose("    kernel");
         
         // render kernel 
-        lensed.render = clCreateKernel(program, "render", &err);
+        lensed->render = clCreateKernel(program, "render", &err);
         if(err != CL_SUCCESS)
             error("failed to create render kernel");
         
@@ -703,26 +724,26 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.render, 0, sizeof(cl_mem), &object_mem);
-        err |= clSetKernelArg(lensed.render, 1, sizeof(cl_float4), &pcs4);
-        err |= clSetKernelArg(lensed.render, 2, sizeof(cl_mem), &qq_mem);
-        err |= clSetKernelArg(lensed.render, 3, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed.render, 4, sizeof(cl_mem), &lensed.value_mem);
-        err |= clSetKernelArg(lensed.render, 5, sizeof(cl_mem), &lensed.error_mem);
+        err |= clSetKernelArg(lensed->render, 0, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed->render, 1, sizeof(cl_float4), &pcs4);
+        err |= clSetKernelArg(lensed->render, 2, sizeof(cl_mem), &qq_mem);
+        err |= clSetKernelArg(lensed->render, 3, sizeof(cl_mem), &ww_mem);
+        err |= clSetKernelArg(lensed->render, 4, sizeof(cl_mem), &lensed->value_mem);
+        err |= clSetKernelArg(lensed->render, 5, sizeof(cl_mem), &lensed->error_mem);
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         
         verbose("    info");
         
         // get work group size for kernel
-        err = clGetKernelWorkGroupInfo(lensed.render, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err = clGetKernelWorkGroupInfo(lensed->render, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
             error("failed to get render kernel work group size");
         
         // get work group size multiple for kernel if OpenCL version > 1.0
         if(opencl_version > 100)
         {
-            err = clGetKernelWorkGroupInfo(lensed.render, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            err = clGetKernelWorkGroupInfo(lensed->render, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get render kernel work group size multiple");
         }
@@ -735,20 +756,20 @@ int main(int argc, char* argv[])
         verbose("    work size");
         
         // local work size
-        lensed.render_lws[0] = wgs;
+        lensed->render_lws[0] = wgs;
         
         // make sure work group size is allowed
-        if(lensed.render_lws[0] > work_item_sizes[0])
-            lensed.render_lws[0] = work_item_sizes[0];
+        if(lensed->render_lws[0] > work_item_sizes[0])
+            lensed->render_lws[0] = work_item_sizes[0];
         
         // make sure work group size is a multiple of the preferred size
-        lensed.render_lws[0] = (lensed.render_lws[0]/wgm)*wgm;
+        lensed->render_lws[0] = (lensed->render_lws[0]/wgm)*wgm;
         
         // global work size
-        lensed.render_gws[0] = lensed.size + (lensed.render_lws[0] - lensed.size%lensed.render_lws[0])%lensed.render_lws[0];
+        lensed->render_gws[0] = lensed->size + (lensed->render_lws[0] - lensed->size%lensed->render_lws[0])%lensed->render_lws[0];
         
-        verbose("      local:  %zu", lensed.render_lws[0]);
-        verbose("      global: %zu", lensed.render_gws[0]);
+        verbose("      local:  %zu", lensed->render_lws[0]);
+        verbose("      global: %zu", lensed->render_gws[0]);
     }
     
     // convolution kernel if there is a PSF
@@ -762,14 +783,14 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.convolve_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        lensed->convolve_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed->size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create convolve buffer");
         
         verbose("    kernel");
         
         // convolve kernel 
-        lensed.convolve = clCreateKernel(program, "convolve", &err);
+        lensed->convolve = clCreateKernel(program, "convolve", &err);
         if(err != CL_SUCCESS)
             error("failed to create convolve kernel");
         
@@ -777,24 +798,24 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.convolve, 0, sizeof(cl_mem), &lensed.value_mem);
-        err |= clSetKernelArg(lensed.convolve, 1, sizeof(cl_mem), &psf_mem);
-        err |= clSetKernelArg(lensed.convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
-        err |= clSetKernelArg(lensed.convolve, 4, sizeof(cl_mem), &lensed.convolve_mem);
+        err |= clSetKernelArg(lensed->convolve, 0, sizeof(cl_mem), &lensed->value_mem);
+        err |= clSetKernelArg(lensed->convolve, 1, sizeof(cl_mem), &psf_mem);
+        err |= clSetKernelArg(lensed->convolve, 3, psfw*psfh*sizeof(cl_float), NULL);
+        err |= clSetKernelArg(lensed->convolve, 4, sizeof(cl_mem), &lensed->convolve_mem);
         if(err != CL_SUCCESS)
             error("failed to set convolve kernel arguments");
         
         verbose("    info");
         
         // get work group size for kernel
-        err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
             error("failed to get convolve kernel work group size");
         
         // get work group size multiple for kernel if OpenCL version > 1.0
         if(opencl_version > 100)
         {
-            err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get convolve kernel work group size multiple");
         }
@@ -805,61 +826,61 @@ int main(int argc, char* argv[])
         }
         
         // get local memory size for kernel
-        err = clGetKernelWorkGroupInfo(lensed.convolve, lcl->device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
+        err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
         if(err != CL_SUCCESS)
             error("failed to get convolve kernel local memory size");
         
         verbose("    work size");
         
         // local work size, start at maximum
-        lensed.convolve_lws[0] = work_item_sizes[0];
-        lensed.convolve_lws[1] = work_item_sizes[1];
+        lensed->convolve_lws[0] = work_item_sizes[0];
+        lensed->convolve_lws[1] = work_item_sizes[1];
         
         // reduce local work size until it fits into work group
-        while(lensed.convolve_lws[0]*lensed.convolve_lws[1] > wgs)
+        while(lensed->convolve_lws[0]*lensed->convolve_lws[1] > wgs)
         {
-            if(lensed.convolve_lws[0] > lensed.convolve_lws[1])
-                lensed.convolve_lws[0] /= 2;
+            if(lensed->convolve_lws[0] > lensed->convolve_lws[1])
+                lensed->convolve_lws[0] /= 2;
             else
-                lensed.convolve_lws[1] /= 2;
+                lensed->convolve_lws[1] /= 2;
         }
         
         // size of local memory that stores part of the model
-        cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+        cache_size = (psfw/2 + lensed->convolve_lws[0] + psfw/2)*(psfh/2 + lensed->convolve_lws[1] + psfh/2)*sizeof(cl_float);
         
         // reduce local work size until cache fits into local memory
         while(2*cache_size > local_mem_size - lm)
         {
-            if(lensed.convolve_lws[0] > lensed.convolve_lws[1])
-                lensed.convolve_lws[0] /= 2;
+            if(lensed->convolve_lws[0] > lensed->convolve_lws[1])
+                lensed->convolve_lws[0] /= 2;
             else
-                lensed.convolve_lws[1] /= 2;
+                lensed->convolve_lws[1] /= 2;
             
             // make sure that PSF fits into local memory at all
-            if(lensed.convolve_lws[0]*lensed.convolve_lws[1] < 1)
+            if(lensed->convolve_lws[0]*lensed->convolve_lws[1] < 1)
                 error("PSF too large for local memory on device (%zukB)", local_mem_size/1024);
             
-            cache_size = (psfw/2 + lensed.convolve_lws[0] + psfw/2)*(psfh/2 + lensed.convolve_lws[1] + psfh/2)*sizeof(cl_float);
+            cache_size = (psfw/2 + lensed->convolve_lws[0] + psfw/2)*(psfh/2 + lensed->convolve_lws[1] + psfh/2)*sizeof(cl_float);
         }
         
         // global work size must be padded to block size
-        lensed.convolve_gws[0] = lensed.width + (lensed.convolve_lws[0] - lensed.width%lensed.convolve_lws[0])%lensed.convolve_lws[0];
-        lensed.convolve_gws[1] = lensed.height + (lensed.convolve_lws[1] - lensed.height%lensed.convolve_lws[1])%lensed.convolve_lws[1];
+        lensed->convolve_gws[0] = lensed->width + (lensed->convolve_lws[0] - lensed->width%lensed->convolve_lws[0])%lensed->convolve_lws[0];
+        lensed->convolve_gws[1] = lensed->height + (lensed->convolve_lws[1] - lensed->height%lensed->convolve_lws[1])%lensed->convolve_lws[1];
         
-        verbose("      local:  %zu x %zu", lensed.convolve_lws[0], lensed.convolve_lws[1]);
-        verbose("      global: %zu x %zu", lensed.convolve_gws[0], lensed.convolve_gws[1]);
+        verbose("      local:  %zu x %zu", lensed->convolve_lws[0], lensed->convolve_lws[1]);
+        verbose("      global: %zu x %zu", lensed->convolve_gws[0], lensed->convolve_gws[1]);
         
         verbose("    cache");
         
         // set cache size
-        err = clSetKernelArg(lensed.convolve, 2, cache_size, NULL);
+        err = clSetKernelArg(lensed->convolve, 2, cache_size, NULL);
         if(err != CL_SUCCESS)
             error("failed to set convolve kernel cache");
     }
     else
     {
         // no kernel: used to determine whether to convolve
-        lensed.convolve = 0;
+        lensed->convolve = 0;
     }
     
     // loglike kernel
@@ -869,14 +890,14 @@ int main(int argc, char* argv[])
         
         verbose("    buffer");
         
-        lensed.loglike_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed.size*sizeof(cl_float), NULL, &err);
+        lensed->loglike_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR | CL_MEM_HOST_READ_ONLY, lensed->size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike buffer");
         
         verbose("    kernel");
         
         // loglike kernel, take care: the buffer it works on depends on PSF
-        lensed.loglike = clCreateKernel(program, "loglike", &err);
+        lensed->loglike = clCreateKernel(program, "loglike", &err);
         if(err != CL_SUCCESS)
             error("failed to create loglike kernel");
         
@@ -884,24 +905,24 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed.loglike, 0, sizeof(cl_mem), &image_mem);
-        err |= clSetKernelArg(lensed.loglike, 1, sizeof(cl_mem), &weight_mem);
-        err |= clSetKernelArg(lensed.loglike, 2, sizeof(cl_mem), psf ? &lensed.convolve_mem : &lensed.value_mem);
-        err |= clSetKernelArg(lensed.loglike, 3, sizeof(cl_mem), &lensed.loglike_mem);
+        err |= clSetKernelArg(lensed->loglike, 0, sizeof(cl_mem), &image_mem);
+        err |= clSetKernelArg(lensed->loglike, 1, sizeof(cl_mem), &weight_mem);
+        err |= clSetKernelArg(lensed->loglike, 2, sizeof(cl_mem), psf ? &lensed->convolve_mem : &lensed->value_mem);
+        err |= clSetKernelArg(lensed->loglike, 3, sizeof(cl_mem), &lensed->loglike_mem);
         if(err != CL_SUCCESS)
             error("failed to set loglike kernel arguments");
         
         verbose("    info");
         
         // get work group size for kernel
-        err = clGetKernelWorkGroupInfo(lensed.loglike, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
+        err = clGetKernelWorkGroupInfo(lensed->loglike, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
             error("failed to get loglike kernel work group information");
         
         // get work group size multiple for kernel if OpenCL version > 1.0
         if(opencl_version > 100)
         {
-            err = clGetKernelWorkGroupInfo(lensed.loglike, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
+            err = clGetKernelWorkGroupInfo(lensed->loglike, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get loglike kernel work group size multiple");
         }
@@ -914,20 +935,20 @@ int main(int argc, char* argv[])
         verbose("    work size");
         
         // local work size
-        lensed.loglike_lws[0] = wgs;
+        lensed->loglike_lws[0] = wgs;
         
         // make sure work group size is allowed
-        if(lensed.loglike_lws[0] > work_item_sizes[0])
-            lensed.loglike_lws[0] = work_item_sizes[0];
+        if(lensed->loglike_lws[0] > work_item_sizes[0])
+            lensed->loglike_lws[0] = work_item_sizes[0];
         
         // make sure work group size is a multiple of the preferred size
-        lensed.loglike_lws[0] = (lensed.loglike_lws[0]/wgm)*wgm;
+        lensed->loglike_lws[0] = (lensed->loglike_lws[0]/wgm)*wgm;
         
         // global work size for kernel
-        lensed.loglike_gws[0] = lensed.size + (lensed.loglike_lws[0] - lensed.size%lensed.loglike_lws[0])%lensed.loglike_lws[0];
+        lensed->loglike_gws[0] = lensed->size + (lensed->loglike_lws[0] - lensed->size%lensed->loglike_lws[0])%lensed->loglike_lws[0];
         
-        verbose("      local:  %zu", lensed.loglike_lws[0]);
-        verbose("      global: %zu", lensed.loglike_gws[0]);
+        verbose("      local:  %zu", lensed->loglike_lws[0]);
+        verbose("      global: %zu", lensed->loglike_gws[0]);
     }
     
     // profiling information
@@ -936,24 +957,24 @@ int main(int argc, char* argv[])
         verbose("  profiler");
         
         // create the struct containing profiles
-        lensed.profile = malloc(sizeof(*lensed.profile));
-        if(!lensed.profile)
+        lensed->profile = malloc(sizeof(*lensed->profile));
+        if(!lensed->profile)
             errori(NULL);
         
         // create the profiles
-        lensed.profile->map_params          = profile_create("+params");
-        lensed.profile->unmap_params        = profile_create("-params");
-        lensed.profile->set_params          = profile_create("set_params");
-        lensed.profile->render              = profile_create("render");
-        lensed.profile->convolve            = profile_create("convolve");
-        lensed.profile->loglike             = profile_create("loglike");
-        lensed.profile->map_loglike_mem     = profile_create("+loglike_mem");
-        lensed.profile->unmap_loglike_mem   = profile_create("-loglike_mem");
+        lensed->profile->map_params        = profile_create("+params");
+        lensed->profile->unmap_params      = profile_create("-params");
+        lensed->profile->set_params        = profile_create("set_params");
+        lensed->profile->render            = profile_create("render");
+        lensed->profile->convolve          = profile_create("convolve");
+        lensed->profile->loglike           = profile_create("loglike");
+        lensed->profile->map_loglike_mem   = profile_create("+loglike_mem");
+        lensed->profile->unmap_loglike_mem = profile_create("-loglike_mem");
     }
     else
     {
         // no profiling
-        lensed.profile = NULL;
+        lensed->profile = NULL;
     }
     
     
@@ -972,7 +993,7 @@ int main(int argc, char* argv[])
     // call MultiNest
     {
         // MultiNest options
-        int ndim = lensed.npars;
+        int ndim = lensed->npars;
         int npar = ndim;
         int nclspar = ndim;
         double ztol = -1E90;
@@ -989,22 +1010,32 @@ int main(int argc, char* argv[])
             strncpy(root, inp->opts->root, 99);
         
         // create array for parameter wrap-around
-        wrap = malloc(lensed.npars*sizeof(int));
+        wrap = malloc(lensed->npars*sizeof(int));
         if(!wrap)
             errori(NULL);
-        for(size_t i = 0; i < lensed.npars; ++i)
-            wrap[i] = lensed.pars[i]->wrap;
+        for(size_t i = 0; i < lensed->npars; ++i)
+            wrap[i] = lensed->pars[i]->wrap;
         
         // mute MultiNest when necessary
         if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
             mute();
         
-        // run MultiNest
-        run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
-            inp->opts->nlive, inp->opts->tol, efr, ndim, npar, nclspar,
-            inp->opts->maxmodes, inp->opts->updint, ztol, root, inp->opts->seed,
-            wrap, inp->opts->feedback, inp->opts->resume, inp->opts->output,
-            initmpi, logzero, inp->opts->maxiter, loglike, dumper, &lensed);
+        // set signal handler for keyboard interrupts
+        signal(SIGINT, handler);
+        
+        // run MultiNest, re-entry point for interrupts
+        if(setjmp(jmp) == 0)
+            run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
+                inp->opts->nlive, inp->opts->tol, efr, ndim, npar, nclspar,
+                inp->opts->maxmodes, inp->opts->updint, ztol, root,
+                inp->opts->seed, wrap, inp->opts->feedback, inp->opts->resume,
+                inp->opts->output, initmpi, logzero, inp->opts->maxiter,
+                loglike, dumper, lensed);
+        else
+            info("\ninterrupted!");
+        
+        // restore signal handling
+        signal(SIGINT, SIG_DFL);
         
         // unmute
         if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
@@ -1026,7 +1057,7 @@ int main(int argc, char* argv[])
      ***********/
     
     // compute chi^2/dof
-    chi2_dof = -2*lensed.max_loglike / (lensed.size - masked - lensed.npars);
+    chi2_dof = -2*lensed->max_loglike / (lensed->size - masked - lensed->npars);
     
     // duration
     dur = difftime(end, start);
@@ -1035,8 +1066,8 @@ int main(int argc, char* argv[])
     // summary statistics
     info("summary");
     info("  ");
-    info(LOG_BOLD "  log-evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed.logev_ins : lensed.logev, lensed.logev_err);
-    info(LOG_BOLD "  max log-like: " LOG_RESET "%.4f", lensed.max_loglike);
+    info(LOG_BOLD "  log-evidence: " LOG_RESET "%.4f ± %.4f", inp->opts->ins ? lensed->logev_ins : lensed->logev, lensed->logev_err);
+    info(LOG_BOLD "  max log-like: " LOG_RESET "%.4f", lensed->max_loglike);
     info(LOG_BOLD "  min chi²/dof: " LOG_RESET "%.4f", chi2_dof);
     info("  ");
     
@@ -1046,25 +1077,25 @@ int main(int argc, char* argv[])
     info(LOG_BOLD "  %-12s  %10s  %10s  %10s  %10s" LOG_RESET,
          "parameter", "mean", "sigma", "ML", "MAP");
     info("  ------------------------------------------------------------");
-    for(size_t i = 0; i < lensed.npars; ++i)
+    for(size_t i = 0; i < lensed->npars; ++i)
         info("  %-12s  %10.4f  %10.4f  %10.4f  %10.4f",
-             lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id,
-             lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
+             lensed->pars[i]->label ? lensed->pars[i]->label : lensed->pars[i]->id,
+             lensed->mean[i], lensed->sigma[i], lensed->ml[i], lensed->map[i]);
     info("  ");
     
     // profiling results
-    if(lensed.profile)
+    if(lensed->profile)
     {
         // the list of profiles
         profile* profv[] = {
-            lensed.profile->map_params,
-            lensed.profile->unmap_params,
-            lensed.profile->set_params,
-            lensed.profile->render,
-            lensed.profile->convolve,
-            lensed.profile->loglike,
-            lensed.profile->map_loglike_mem,
-            lensed.profile->unmap_loglike_mem
+            lensed->profile->map_params,
+            lensed->profile->unmap_params,
+            lensed->profile->set_params,
+            lensed->profile->render,
+            lensed->profile->convolve,
+            lensed->profile->loglike,
+            lensed->profile->map_loglike_mem,
+            lensed->profile->unmap_loglike_mem
         };
         int profc = sizeof(profv)/sizeof(profv[0]);
         
@@ -1133,57 +1164,57 @@ int main(int argc, char* argv[])
     if(LOG_LEVEL == LOG_BATCH)
     {
         // write summary results
-        printf("%-18.4f  ", inp->opts->ins ? lensed.logev_ins : lensed.logev);
-        printf("%-18.4f  ", lensed.max_loglike);
+        printf("%-18.4f  ", inp->opts->ins ? lensed->logev_ins : lensed->logev);
+        printf("%-18.4f  ", lensed->max_loglike);
         printf("%-18.4f  ", chi2_dof);
         
         // write parameter results
-        for(size_t i = 0; i < lensed.npars; ++i)
-            printf("%-10.4f  ", lensed.mean[i]);
-        for(size_t i = 0; i < lensed.npars; ++i)
-            printf("%-10.4f  ", lensed.sigma[i]);
-        for(size_t i = 0; i < lensed.npars; ++i)
-            printf("%-10.4f  ", lensed.ml[i]);
-        for(size_t i = 0; i < lensed.npars; ++i)
-            printf("%-10.4f  ", lensed.map[i]);
+        for(size_t i = 0; i < lensed->npars; ++i)
+            printf("%-10.4f  ", lensed->mean[i]);
+        for(size_t i = 0; i < lensed->npars; ++i)
+            printf("%-10.4f  ", lensed->sigma[i]);
+        for(size_t i = 0; i < lensed->npars; ++i)
+            printf("%-10.4f  ", lensed->ml[i]);
+        for(size_t i = 0; i < lensed->npars; ++i)
+            printf("%-10.4f  ", lensed->map[i]);
         
         // output is done
         printf("\n");
     }
     
     // free profile
-    if(lensed.profile)
+    if(lensed->profile)
     {
-        profile_free(lensed.profile->map_params);
-        profile_free(lensed.profile->unmap_params);
-        profile_free(lensed.profile->set_params);
-        profile_free(lensed.profile->render);
-        profile_free(lensed.profile->convolve);
-        profile_free(lensed.profile->loglike);
-        profile_free(lensed.profile->map_loglike_mem);
-        profile_free(lensed.profile->unmap_loglike_mem);
-        free(lensed.profile);
+        profile_free(lensed->profile->map_params);
+        profile_free(lensed->profile->unmap_params);
+        profile_free(lensed->profile->set_params);
+        profile_free(lensed->profile->render);
+        profile_free(lensed->profile->convolve);
+        profile_free(lensed->profile->loglike);
+        profile_free(lensed->profile->map_loglike_mem);
+        profile_free(lensed->profile->unmap_loglike_mem);
+        free(lensed->profile);
     }
     
     // free render kernel
-    clReleaseKernel(lensed.render);
-    clReleaseMemObject(lensed.value_mem);
-    clReleaseMemObject(lensed.error_mem);
+    clReleaseKernel(lensed->render);
+    clReleaseMemObject(lensed->value_mem);
+    clReleaseMemObject(lensed->error_mem);
     
     // free convolve kernel
     if(psf)
     {
-        clReleaseKernel(lensed.convolve);
-        clReleaseMemObject(lensed.convolve_mem);
+        clReleaseKernel(lensed->convolve);
+        clReleaseMemObject(lensed->convolve_mem);
     }
     
     // free loglike kernel
-    clReleaseKernel(lensed.loglike);
-    clReleaseMemObject(lensed.loglike_mem);
+    clReleaseKernel(lensed->loglike);
+    clReleaseMemObject(lensed->loglike_mem);
     
     // free parameter space
-    clReleaseMemObject(lensed.params);
-    clReleaseKernel(lensed.set_params);
+    clReleaseMemObject(lensed->params);
+    clReleaseKernel(lensed->set_params);
     
     // free object buffer
     clReleaseMemObject(object_mem);
@@ -1203,7 +1234,7 @@ int main(int argc, char* argv[])
     
     // free worker
     clReleaseProgram(program);
-    clReleaseCommandQueue(lensed.queue);
+    clReleaseCommandQueue(lensed->queue);
     free_lensed_cl(lcl);
     
     // free quadrature rule
@@ -1211,20 +1242,23 @@ int main(int argc, char* argv[])
     free(ww);
     
     // free results
-    free((char*)lensed.fits);
-    free(lensed.mean);
-    free(lensed.sigma);
-    free(lensed.ml);
-    free(lensed.map);
+    free((char*)lensed->fits);
+    free(lensed->mean);
+    free(lensed->sigma);
+    free(lensed->ml);
+    free(lensed->map);
     
     // free data
-    free(lensed.image);
+    free(lensed->image);
     free(pcs);
-    free(lensed.weight);
+    free(lensed->weight);
     free(psf);
     
     // free input
     free_input(inp);
+    
+    // free lensed struct
+    free(lensed);
     
     return EXIT_SUCCESS;
 }
