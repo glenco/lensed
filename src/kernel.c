@@ -56,7 +56,7 @@ static const char PARSKERN[] =
     "    size_t i = get_global_id(0);\n"
     "    names[i] = vload16(0, parlst_<name>[i].name);\n"
     "    types[i] = parlst_<name>[i].type;\n"
-    "    bounds[i] = parlst_<name>[i].bounds;\n"
+    "    bounds[i] = vload2(0, parlst_<name>[i].bounds);\n"
     "}\n"
 ;
 
