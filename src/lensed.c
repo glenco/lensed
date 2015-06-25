@@ -520,7 +520,7 @@ int main(int argc, char* argv[])
         if(inp->opts->profile)
             queue_properties |= CL_QUEUE_PROFILING_ENABLE;
         
-        lensed->queue = clCreateCommandQueue(lcl->context, lcl->device_id, 0, &err);
+        lensed->queue = clCreateCommandQueue(lcl->context, lcl->device_id, queue_properties, &err);
         if(!lensed->queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
