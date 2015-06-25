@@ -21,7 +21,7 @@ enum
 // structure that holds parameter definition
 struct param
 {
-    char   name[16];
-    int    type;
-    float2 bounds;
+    char  name[16];
+    int   type;
+    float bounds[2] __attribute__ ((aligned (4)));
 };
