@@ -167,15 +167,17 @@ int main(int argc, char* argv[])
         char platform_name[128];
         cl_uint compute_units;
         
+        printf("\n");
+        
         // go through devices and show info
         for(lensed_device* d = get_lensed_devices(); d->device_id; ++d)
         {
             // show device
-            printf("%s: ", d->name);
+            printf("device: %s\n", d->name);
             
             // query device name
             err = clGetDeviceInfo(d->device_id, CL_DEVICE_NAME, sizeof(device_name), device_name, NULL);
-            printf("%s\n", err == CL_SUCCESS ? device_name : "(unknown)");
+            printf("  name:     %s\n", err == CL_SUCCESS ? device_name : "(unknown)");
             
             // query device vendor
             err = clGetDeviceInfo(d->device_id, CL_DEVICE_VENDOR, sizeof(device_vendor), device_vendor, NULL);
