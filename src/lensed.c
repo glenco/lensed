@@ -10,6 +10,7 @@
 #include "opencl.h"
 #include "input.h"
 #include "data.h"
+#include "profile.h"
 #include "lensed.h"
 #include "kernel.h"
 #include "nested.h"
@@ -41,6 +42,7 @@ int main(int argc, char* argv[])
     
     // OpenCL structures
     lensed_cl* lcl;
+    cl_command_queue_properties queue_properties;
     cl_program program;
     
     // OpenCL device info
@@ -491,7 +493,11 @@ int main(int argc, char* argv[])
             verbose("    units: %u", err == CL_SUCCESS ? compute_units : 0);
         }
         
-        lensed.queue = clCreateCommandQueue(lcl->context, lcl->device_id, 0, &err);
+        queue_properties = 0;
+        if(inp->opts->profile)
+            queue_properties |= CL_QUEUE_PROFILING_ENABLE;
+        
+        lensed.queue = clCreateCommandQueue(lcl->context, lcl->device_id, queue_properties, &err);
         if(!lensed.queue || err != CL_SUCCESS)
             error("failed to create command queue");
         
@@ -922,6 +928,32 @@ int main(int argc, char* argv[])
         verbose("      global: %zu", lensed.loglike_gws[0]);
     }
     
+    // profiling information
+    if(inp->opts->profile)
+    {
+        verbose("  profiler");
+        
+        // create the struct containing profiles
+        lensed.profile = malloc(sizeof(*lensed.profile));
+        if(!lensed.profile)
+            errori(NULL);
+        
+        // create the profiles
+        lensed.profile->map_params          = profile_create("+params");
+        lensed.profile->unmap_params        = profile_create("-params");
+        lensed.profile->set_params          = profile_create("set_params");
+        lensed.profile->render              = profile_create("render");
+        lensed.profile->convolve            = profile_create("convolve");
+        lensed.profile->loglike             = profile_create("loglike");
+        lensed.profile->map_loglike_mem     = profile_create("+loglike_mem");
+        lensed.profile->unmap_loglike_mem   = profile_create("-loglike_mem");
+    }
+    else
+    {
+        // no profiling
+        lensed.profile = NULL;
+    }
+    
     
     /***************
      * ready to go *
@@ -1009,11 +1041,36 @@ int main(int argc, char* argv[])
     // parameter table
     info("parameters");
     info("  ");
-    info(LOG_BOLD "  %-10s  %10s  %10s  %10s  %10s" LOG_RESET, "parameter", "mean", "sigma", "ML", "MAP");
-    info("  ----------------------------------------------------------");
+    info(LOG_BOLD "  %-12s  %10s  %10s  %10s  %10s" LOG_RESET,
+         "parameter", "mean", "sigma", "ML", "MAP");
+    info("  ------------------------------------------------------------");
     for(size_t i = 0; i < lensed.npars; ++i)
-        info("  %-10s  %10.4f  %10.4f  %10.4f  %10.4f", lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id, lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
+        info("  %-12s  %10.4f  %10.4f  %10.4f  %10.4f",
+             lensed.pars[i]->label ? lensed.pars[i]->label : lensed.pars[i]->id,
+             lensed.mean[i], lensed.sigma[i], lensed.ml[i], lensed.map[i]);
     info("  ");
+    
+    // profiling results
+    if(lensed.profile)
+    {
+        // the list of profiles
+        profile* profv[] = {
+            lensed.profile->map_params,
+            lensed.profile->unmap_params,
+            lensed.profile->set_params,
+            lensed.profile->render,
+            lensed.profile->convolve,
+            lensed.profile->loglike,
+            lensed.profile->map_loglike_mem,
+            lensed.profile->unmap_loglike_mem
+        };
+        int profc = sizeof(profv)/sizeof(profv[0]);
+        
+        info("profiler");
+        info("  ");
+        profile_print(profc, profv);
+        info("  ");
+    }
     
     // write parameter names, labels and ranges to file
     if(inp->opts->output)
@@ -1090,6 +1147,20 @@ int main(int argc, char* argv[])
         
         // output is done
         printf("\n");
+    }
+    
+    // free profile
+    if(lensed.profile)
+    {
+        profile_free(lensed.profile->map_params);
+        profile_free(lensed.profile->unmap_params);
+        profile_free(lensed.profile->set_params);
+        profile_free(lensed.profile->render);
+        profile_free(lensed.profile->convolve);
+        profile_free(lensed.profile->loglike);
+        profile_free(lensed.profile->map_loglike_mem);
+        profile_free(lensed.profile->unmap_loglike_mem);
+        free(lensed.profile);
     }
     
     // free render kernel

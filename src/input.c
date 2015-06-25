@@ -48,6 +48,7 @@ void usage(int help)
         printf("  %-16s  %s\n", "-q, --quiet", "Suppress all output.");
         printf("  %-16s  %s\n", "--version", "Show version number.");
         printf("  %-16s  %s\n", "--devices", "List computation devices.");
+        printf("  %-16s  %s\n", "--profile", "Enable OpenCL profiling.");
         printf("  %-16s  %s\n", "--batch-header", "Batch output header.");
         for(size_t i = 0, n = noptions(); i < n; ++i)
         {
@@ -170,6 +171,8 @@ input* read_input(int argc, char* argv[])
                     version();
                 else if(strcmp(argv[i]+2, "devices") == 0)
                     inp->opts->devices = 1;
+                else if(strcmp(argv[i]+2, "profile") == 0)
+                    inp->opts->profile = 1;
                 else if(strcmp(argv[i]+2, "batch-header") == 0)
                     inp->opts->batch_header = 1;
                 else

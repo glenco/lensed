@@ -62,6 +62,7 @@ HEADERS = lensed.h \
           prior.h \
           parse.h \
           path.h \
+          profile.h \
           log.h \
           input/objects.h \
           input/options.h \
@@ -79,6 +80,7 @@ SOURCES = lensed.c \
           prior.c \
           parse.c \
           path.c \
+          profile.c \
           log.c \
           input/objects.c \
           input/options.c \
