@@ -28,6 +28,7 @@ typedef struct
     int output;
     char* root;
     int devices;
+    int profile;
     int batch_header;
     
     // data

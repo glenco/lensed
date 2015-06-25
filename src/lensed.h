@@ -49,4 +49,16 @@ struct lensed
     cl_kernel loglike;
     size_t loglike_lws[1];
     size_t loglike_gws[1];
+    
+    // profiling info
+    struct {
+        profile* map_params;
+        profile* unmap_params;
+        profile* set_params;
+        profile* render;
+        profile* convolve;
+        profile* loglike;
+        profile* map_loglike_mem;
+        profile* unmap_loglike_mem;
+    }* profile;
 };

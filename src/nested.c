@@ -8,6 +8,7 @@
 #include "input.h"
 #include "prior.h"
 #include "data.h"
+#include "profile.h"
 #include "lensed.h"
 #include "nested.h"
 #include "log.h"
@@ -16,13 +17,35 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
 {
     struct lensed* lensed = lensed_;
     
+    cl_event* map_params_ev        = NULL;
+    cl_event* unmap_params_ev      = NULL;
+    cl_event* set_params_ev        = NULL;
+    cl_event* render_ev            = NULL;
+    cl_event* convolve_ev          = NULL;
+    cl_event* loglike_ev           = NULL;
+    cl_event* map_loglike_mem_ev   = NULL;
+    cl_event* unmap_loglike_mem_ev = NULL;
+    
+    if(lensed->profile)
+    {
+        map_params_ev        = profile_event();
+        unmap_params_ev      = profile_event();
+        set_params_ev        = profile_event();
+        render_ev            = profile_event();
+        convolve_ev          = profile_event();
+        loglike_ev           = profile_event();
+        map_loglike_mem_ev   = profile_event();
+        unmap_loglike_mem_ev = profile_event();
+    }
+    
     // transform from unit cube to physical
     for(size_t i = 0; i < lensed->npars; ++i)
     {
         double phys;
         do
             phys = apply_prior(lensed->pars[i]->pri, cube[i]);
-        while(lensed->pars[i]->bounded && (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
+        while(lensed->pars[i]->bounded &&
+              (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
         cube[i] = phys;
     }
     
@@ -30,42 +53,42 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     cl_int err = 0;
     
     // map parameter space on device
-    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, map_params_ev, &err);
     
     // copy parameters to device
     for(size_t i = 0; i < lensed->npars; ++i)
         params[i] = cube[i];
     
     // done with parameter space
-    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, NULL);
+    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, unmap_params_ev);
     
     // set parameters
-    err |= clEnqueueTask(lensed->queue, lensed->set_params, 0, NULL, NULL);
+    err |= clEnqueueTask(lensed->queue, lensed->set_params, 0, NULL, set_params_ev);
     
     // check for errors
     if(err != CL_SUCCESS)
         error("failed to set parameters");
     
     // simulate objects
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 1, NULL, lensed->render_gws, lensed->render_lws, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 1, NULL, lensed->render_gws, lensed->render_lws, 0, NULL, render_ev);
     if(err != CL_SUCCESS)
         error("failed to run render kernel");
     
     // convolve with PSF if given
     if(lensed->convolve)
     {
-        err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->convolve_gws, lensed->convolve_lws, 0, NULL, NULL);
+        err = clEnqueueNDRangeKernel(lensed->queue, lensed->convolve, 2, NULL, lensed->convolve_gws, lensed->convolve_lws, 0, NULL, convolve_ev);
         if(err != CL_SUCCESS)
             error("failed to run convolve kernel");
     }
     
     // compare with observed image
-    err = clEnqueueNDRangeKernel(lensed->queue, lensed->loglike, 1, NULL, lensed->loglike_gws, lensed->loglike_lws, 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(lensed->queue, lensed->loglike, 1, NULL, lensed->loglike_gws, lensed->loglike_lws, 0, NULL, loglike_ev);
     if(err != CL_SUCCESS)
         error("failed to run loglike kernel");
     
     // map chi^2 values from device
-    cl_float* loglike = clEnqueueMapBuffer(lensed->queue, lensed->loglike_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, &err);
+    cl_float* loglike = clEnqueueMapBuffer(lensed->queue, lensed->loglike_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, map_loglike_mem_ev, &err);
     if(err != CL_SUCCESS)
         error("failed to map loglike buffer");
     
@@ -75,10 +98,25 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
         chi2 += loglike[i];
     
     // unmap result
-    clEnqueueUnmapMemObject(lensed->queue, lensed->loglike_mem, loglike, 0, NULL, NULL);
+    clEnqueueUnmapMemObject(lensed->queue, lensed->loglike_mem, loglike, 0, NULL, unmap_loglike_mem_ev);
     
     // set log-likelihood
     *lnew = -0.5*chi2;
+    
+    if(lensed->profile)
+    {
+        clFinish(lensed->queue);
+        
+        profile_read(lensed->profile->map_params, map_params_ev);
+        profile_read(lensed->profile->unmap_params, unmap_params_ev);
+        profile_read(lensed->profile->set_params, set_params_ev);
+        profile_read(lensed->profile->render, render_ev);
+        if(lensed->convolve)
+            profile_read(lensed->profile->convolve, convolve_ev);
+        profile_read(lensed->profile->loglike, loglike_ev);
+        profile_read(lensed->profile->map_loglike_mem, map_loglike_mem_ev);
+        profile_read(lensed->profile->unmap_loglike_mem, unmap_loglike_mem_ev);
+    }
 }
 
 void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
