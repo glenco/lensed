@@ -1,6 +1,18 @@
 Changelog
 =========
 
+v1.0.2 (2015-06-26)
+-------------------
+
+  * catch keyboard interrupts and print results
+  * minor output tweak for help display and device list
+  * simple profiling for OpenCL functions
+  * parameter bounds
+  * parameter types
+  * add Makefile option for debug builds
+  * parameter wrap specification with prior
+  * added parameter file and documentations for analysis with GetDist
+
 v1.0.1 (2015-06-05)
 -------------------
 
