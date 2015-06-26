@@ -657,7 +657,7 @@ int main(int argc, char* argv[])
     
     // create buffer that contains object data
     {
-        // collect total size of object data
+        // collect total size of object data, in units of sizeof(cl_float)
         size_t object_size = 0;
         for(size_t i = 0; i < inp->nobjs; ++i)
             object_size += inp->objs[i].size;
@@ -665,7 +665,7 @@ int main(int argc, char* argv[])
         verbose("  create object buffer");
         
         // allocate buffer for object data
-        object_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE, object_size, NULL, &err);
+        object_mem = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE, object_size*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create object buffer");
     }

@@ -132,6 +132,9 @@ void add_object(input* inp, const char* id, const char* name)
     if(err != CL_SUCCESS)
         error("object %s: failed to get metadata", id);
     
+    // convert size in sizeof(cl_char) to size in sizeof(cl_float), rounding up
+    meta_size = ((meta_size*sizeof(cl_char))/sizeof(cl_float)) + ((meta_size*sizeof(cl_char))%sizeof(cl_float) ? 1 : 0);
+    
     // set metadata for object
     obj->type  = meta_type;
     obj->size  = meta_size;

@@ -19,9 +19,9 @@ enum
 };
 
 // structure that holds parameter definition
-struct param
+struct __attribute__ ((aligned (4))) param
 {
     char  name[16];
     int   type;
-    float bounds[2] __attribute__ ((aligned (4)));
+    float bounds[2];
 };

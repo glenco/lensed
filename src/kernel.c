@@ -62,7 +62,7 @@ static const char PARSKERN[] =
 
 // kernel to compute images
 static const char COMPHEAD[] =
-    "static float compute(constant char* data, float2 x)\n"
+    "static float compute(constant float* data, float2 x)\n"
     "{\n"
     "    // ray position\n"
     "    float2 y = x;\n"
@@ -111,7 +111,7 @@ static const char COMPFOOT[] =
 
 // kernel to set parameters
 static const char SETPHEAD[] =
-    "kernel void set_params(global char* data, constant float* params)\n"
+    "kernel void set_params(global float* data, constant float* params)\n"
     "{\n"
 ;
 static const char SETPLEFT[] = "    set_%s((global void*)(data + %zu)";
@@ -125,7 +125,7 @@ static const char SETPFOOT[] =
 static const char OBJHEAD[] =
     "#define type constant int type_%s\n"
     "#define params constant struct param parlst_%s[] = \n"
-    "#define data struct data_%s\n"
+    "#define data struct __attribute__ ((aligned (4))) data_%s\n"
     "#define deflection deflection_%s\n"
     "#define brightness brightness_%s\n"
     "#define foreground foreground_%s\n"
