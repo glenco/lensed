@@ -13,6 +13,9 @@ struct lensed
     size_t npars;
     param** pars;
     
+    // MultiNest tolerance
+    double tol;
+    
     // results
     const char* fits;
     double logev;

@@ -79,7 +79,7 @@ Option     | Type           | Description                            | Default
 `shf`      | `real`         | Shrinking factor.                      | `0.8`
 `maxmodes` | `int`          | Maximum number of expected modes.      | `100`
 `feedback` | `bool`         | Show feedback from MultiNest.          | `false`
-`updint`   | `int`          | Update interval for output.            | `1000`
+`updint`   | `int`          | Update interval for output.            | `100`
 `seed`     | `int`          | Random number seed for sampling.       | `-1`
 `resume`   | `bool`         | Resume from last checkpoint.           | `false`
 `maxiter`  | `int`          | Maximum number of iterations.          | `0`

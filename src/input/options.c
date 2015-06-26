@@ -172,7 +172,7 @@ struct option OPTIONS[] = {
     {
         "updint",
         "Update interval for output",
-        OPTION_OPTIONAL(int, 1000),
+        OPTION_OPTIONAL(int, 100),
         OPTION_FIELD(updint)
     },
     {
