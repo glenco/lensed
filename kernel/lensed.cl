@@ -6,7 +6,7 @@
 #endif
 
 // compute image
-kernel void render(constant char* data, float4 pcs,
+kernel void render(constant float* data, float4 pcs,
                    constant float2* qq, constant float2* ww,
                    global float* value, global float* error)
 {
