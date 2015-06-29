@@ -3,6 +3,7 @@
 #include <string.h>
 #include <float.h>
 #include <math.h>
+#include <time.h>
 
 #include "opencl.h"
 #include "input.h"
@@ -138,6 +139,8 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
     
     cl_float* output[4] = {0};
     
+    double progress;
+    
     // copy parameters to results
     for(size_t i = 0; i < lensed->npars; ++i)
         lensed->mean[i] = constraints[0][MEAN*lensed->npars+i];
@@ -228,5 +231,29 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         // free arrays
         free(residuals);
         free(relerr);
+    }
+    
+    // calculate progress
+    progress = fmax(0, fmin(1, 1.0*nsamples[0]/nlive[0]/(maxloglike[0] - logz[0] - log(lensed->tol))));
+    
+    // status output
+    if(LOG_LEVEL <= LOG_INFO)
+    {
+        char ts[10];
+        time_t t = time(NULL);
+        
+        int i = 0;
+        int n = round(20*progress) + 0.5;
+        int p = round(100*progress) + 0.5;
+        
+        strftime(ts, 10, "%H:%M:%S", localtime(&t));
+        
+        fprintf(stdout, "  %s [", ts);
+        for(; i < n; ++i)
+            fputc('#', stdout);
+        for(; i < 20; ++i)
+            fputc(' ', stdout);
+        fprintf(stdout, "] %d%% | S: %d\r", p, nsamples[0]);
+        fflush(stdout);
     }
 }

@@ -436,6 +436,9 @@ int main(int argc, char* argv[])
         lensed->fits = NULL;
     }
     
+    // MultiNest tolerance
+    lensed->tol = inp->opts->tol;
+    
     // arrays for parameters
     lensed->mean  = calloc(lensed->npars, sizeof(double));
     lensed->sigma = calloc(lensed->npars, sizeof(double));
@@ -1051,6 +1054,11 @@ int main(int argc, char* argv[])
     // take end time
     end = time(0);
     
+    // show duration
+    dur = difftime(end, start);
+    info("  done in %02d:%02d:%02d", (int)(dur/3600), (int)(fmod(dur, 3600)/60), (int)fmod(dur, 60));
+    info("  ");
+    
     
     /***********
      * results *
@@ -1058,10 +1066,6 @@ int main(int argc, char* argv[])
     
     // compute chi^2/dof
     chi2_dof = -2*lensed->max_loglike / (lensed->size - masked - lensed->npars);
-    
-    // duration
-    dur = difftime(end, start);
-    info("done in %02d:%02d:%02d", (int)(dur/3600), (int)(fmod(dur, 3600)/60), (int)fmod(dur, 60));
     
     // summary statistics
     info("summary");
