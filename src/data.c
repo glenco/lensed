@@ -244,6 +244,19 @@ void make_weight(const cl_float* image, const double* gain, double offset, size_
     *weight = w;
 }
 
+void read_xweight(const char* filename, size_t width, size_t height, double** xweight)
+{
+    // extra weight width and height
+    size_t xwht_w, xwht_h;
+    
+    // read extra weights from FITS file
+    read_fits(filename, TDOUBLE, &xwht_w, &xwht_h, (void**)xweight);
+    
+    // make sure dimensions agree
+    if(xwht_w != width || xwht_h != height)
+        errorf(filename, 0, "wrong dimensions %zu x %zu for extra weights (should be %zu x %zu)", xwht_w, xwht_h, width, height);
+}
+
 void read_mask(const char* filename, size_t width, size_t height, int** mask)
 {
     // mask width and height

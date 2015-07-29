@@ -27,6 +27,9 @@ void read_weight(const char* filename, size_t width, size_t height, cl_float** w
 // generate weights from image, gain and offset
 void make_weight(const cl_float* image, const double* gain, double offset, size_t width, size_t height, cl_float** weight);
 
+// read extra weights from file
+void read_xweight(const char* filename, size_t width, size_t height, double** weight);
+
 // read mask from file
 void read_mask(const char* filename, size_t width, size_t height, int** mask);
 

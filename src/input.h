@@ -34,6 +34,7 @@ typedef struct
     // data
     char* image;
     char* weight;
+    char* xweight;
     char* mask;
     char* psf;
     double offset;

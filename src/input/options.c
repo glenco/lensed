@@ -104,6 +104,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(weight)
     },
     {
+        "xweight",
+        "Extra weight map multiplier",
+        OPTION_OPTIONAL(path, NULL),
+        OPTION_FIELD(xweight)
+    },
+    {
         "mask",
         "Input mask, FITS file",
         OPTION_OPTIONAL(path, NULL),
