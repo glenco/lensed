@@ -325,8 +325,21 @@ int main(int argc, char* argv[])
         free(gain);
     }
     
-    // start without masked pixels
-    masked = 0;
+    // apply extra weights if given
+    if(inp->opts->xweight)
+    {
+        double* xweight;
+        
+        // read extra weight map from file
+        read_xweight(inp->opts->xweight, lensed->width, lensed->height, &xweight);
+        
+        // multiply extra weights
+        for(size_t i = 0; i < lensed->size; ++i)
+            lensed->weight[i] *= xweight[i];
+        
+        // done with extra weights
+        free(xweight);
+    }
     
     // apply mask if given
     if(inp->opts->mask)
@@ -338,19 +351,21 @@ int main(int argc, char* argv[])
         
         // mask individual pixels by setting their weight to zero
         for(size_t i = 0; i < lensed->size; ++i)
-        {
             if(mask[i])
-            {
                 lensed->weight[i] = 0;
-                masked += 1;
-            }
-        }
         
         // done with mask
         free(mask);
-        
-        verbose("  masked pixels: %zu", masked);
     }
+    
+    // count masked pixels
+    masked = 0;
+    for(size_t i = 0; i < lensed->size; ++i)
+        if(lensed->weight[i] == 0)
+            masked += 1;
+    
+    if(masked > 0)
+        verbose("  masked pixels: %zu", masked);
     
     // load PSF if given
     if(inp->opts->psf)

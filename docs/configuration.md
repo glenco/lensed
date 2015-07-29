@@ -68,6 +68,7 @@ Option     | Type           | Description                            | Default
 `gain`     | `real`, `path` | [Conversion factor to counts.](#gain)  | 
 `offset`   | `real`         | Subtracted flat-field offset.          | `0`
 `weight`   | `path`         | Weight map in 1/(counts/sec)^2.        | `none`
+`xweight`  | `path`         | Extra weight map multiplier.           | `none`
 `mask`     | `path`         | Input mask, FITS file.                 | `none`
 `psf`      | `path`         | Point-spread function, FITS file.      | `none`
 `nlive`    | `int`          | Number of live points.                 | `300`
