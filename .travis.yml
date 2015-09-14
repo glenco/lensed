@@ -19,7 +19,7 @@ before_install:
   fi
 - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
     brew update &&
-    brew install gcc cfitsio;
+    brew install cfitsio;
   fi
 - pushd /tmp &&
   git clone git://github.com/JohannesBuchner/MultiNest.git &&
