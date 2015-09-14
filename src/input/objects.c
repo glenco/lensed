@@ -219,6 +219,7 @@ void add_object(input* inp, const char* id, const char* name)
         obj->pars[i].upper  = param_bounds[i].s[1];
         obj->pars[i].pri    = NULL;
         obj->pars[i].wrap   = 0;
+        obj->pars[i].ipp    = 0;
         obj->pars[i].label  = NULL;
     }
     
@@ -316,16 +317,21 @@ void set_param_prior(param* par, const char* str)
     // free existing prior
     free_prior(par->pri);
     
-    // get length of first word
-    len = strcspn(str, WS);
-    
-    // check for wrap keyword
-    if(strncmp(str, "wrap", len) == 0)
+    // parse possible keywords
+    while(1)
     {
-        // set wrap flag
-        par->wrap = 1;
+        // get length of first word
+        len = strcspn(str, WS);
         
-        // skip word
+        // check for keywords or break loop
+        if(strncmp(str, "wrap", len) == 0)
+            par->wrap = 1;
+        else if(strncmp(str, "image", len) == 0)
+            par->ipp = 1;
+        else
+            break;
+        
+        // skip word and whitespace
         str += len;
         str += strspn(str, WS);
     }

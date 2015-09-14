@@ -114,6 +114,12 @@ static const char SETPHEAD[] =
     "kernel void set_params(ulong dsiz, global int* gdata, local int* ldata,\n"
     "                       constant float* params)\n"
     "{\n"
+    "    // image plane priors\n"
+    "    float2 x;\n"
+    "    float2 a;\n"
+    "    x = 0;\n"
+    "    a = 0;\n"
+    "    \n"
     "    // load parameters to local memory\n"
     "    for(size_t i = get_local_id(0); i < dsiz; i += get_local_size(0))\n"
     "        ldata[i] = gdata[i];\n"
@@ -121,6 +127,7 @@ static const char SETPHEAD[] =
 ;
 static const char SETPLEFT[] = "    set_%s((local void*)(ldata + %zu)";
 static const char SETPARGS[] = ", params[%zu]";
+static const char SETPIPPA[] = ", %s";
 static const char SETPRGHT[] = ");\n";
 static const char SETPFOOT[] =
     "    \n"
@@ -129,6 +136,16 @@ static const char SETPFOOT[] =
     "        gdata[i] = ldata[i];\n"
     "    \n"
     "}\n"
+;
+static const char SETPIPP_POSINIT[] =
+    "    x = (float2)(params[%zu], params[%zu]);\n"
+;
+static const char SETPIPP_POSLENS[] =
+    "    a += deflection_%s((local void*)(ldata + %zu), x);\n"
+;
+static const char SETPIPP_POSDEFL[] =
+    "    x -= dot(a, a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
+    "    a = 0;\n"
 ;
 
 // object kernel
@@ -371,8 +388,14 @@ static const char* compute_kernel(size_t nobjs, object objs[])
 
 static const char* set_params_kernel(size_t nobjs, object objs[])
 {
+    // trigger for changing lens planes
+    int trigger;
+    
+    // index of object starting current plane
+    size_t plane;
+    
     // buffer for kernel
-    size_t buf_size;
+    size_t siz, len;
     char* buf;
     
     // current output position
@@ -387,87 +410,234 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
     // parameter offset
     size_t p;
     
-    // calculate buffer size
-    d = p = 0;
-    buf_size = sizeof(FILEHEAD) + strlen("set_params");
-    buf_size += sizeof(SETPHEAD);
-    for(size_t i = 0; i < nobjs; ++i)
+    // start empty and with 0 length to prevent writing
+    buf = NULL;
+    out = NULL;
+    siz = 0;
+    len = 0;
+    
+    // two-pass: calculate buffer size and allocate, then fill
+    for(int pass = 0; pass < 2; ++pass)
     {
-        buf_size += sizeof(SETPLEFT);
-        buf_size += strlen(objs[i].name);
-        buf_size += log10(1+d);
-        for(size_t j = 0; j < objs[i].npars; ++j)
-            buf_size += sizeof(SETPARGS) + log10(1+p+j);
-        buf_size += sizeof(SETPRGHT);
-        d += objs[i].size;
-        p += objs[i].npars;
-    }
-    buf_size += sizeof(SETPFOOT);
-    buf_size += sizeof(FILEFOOT);
-    
-    // allocate buffer
-    buf = malloc(buf_size);
-    if(!buf)
-        errori(NULL);
-    
-    // start at beginning of data and parameters
-    p = d = 0;
-    
-    // output tracks current writing position on buffer
-    out = buf;
-    
-    // write file header
-    wri = sprintf(out, FILEHEAD, "", "set_params");
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write header
-    wri = sprintf(out, SETPHEAD);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write body
-    for(size_t i = 0; i < nobjs; ++i)
-    {
-        // write left side of line
-        wri = sprintf(out, SETPLEFT, objs[i].name, d);
-        if(wri < 0)
-            errori(NULL);
-        out += wri;
-        
-        // write arguments
-        for(size_t j = 0; j < objs[i].npars; ++j)
+        // allocate buffer after first pass
+        if(pass > 0)
         {
-            wri = sprintf(out, SETPARGS, p+j);
-            if(wri < 0)
+            // allocate
+            buf = malloc(siz + 1);
+            if(!buf)
                 errori(NULL);
-            out += wri;
+            
+            // output tracks writing
+            out = buf;
+            
+            // maximum length is now huge
+            len = -1;
         }
         
-        // write left side of line
-        wri = sprintf(out, SETPRGHT);
+        // start with invalid trigger
+        trigger = 0;
+        
+        // keep track of where current plane starts
+        plane = 0;
+        
+        // start at beginning of data and parameters
+        p = d = 0;
+        
+        // write file header
+        wri = snprintf(out, len, FILEHEAD, "", "set_params");
         if(wri < 0)
             errori(NULL);
-        out += wri;
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
         
-        // increase offsets
-        d += objs[i].size;
-        p += objs[i].npars;
+        // write header
+        wri = snprintf(out, len, SETPHEAD);
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
+        
+        // write body
+        for(size_t i = 0; i < nobjs; ++i)
+        {
+            // check if lens plane change is triggered
+            if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
+            {
+                // when triggering from lenses to sources, change planes
+                if(trigger == OBJ_LENS && objs[i].type == OBJ_SOURCE)
+                    plane = i;
+                
+                // new trigger
+                trigger = objs[i].type;
+            }
+            
+            // search for image plane priors in this object
+            for(size_t j = 0; j < objs[i].npars; ++j)
+            {
+                if(objs[i].pars[j].ipp)
+                {
+                    // image plane prior depends on parameter type
+                    switch(objs[i].pars[j].type)
+                    {
+                        // position: lens through all previous planes
+                        case PAR_POSITION_X:
+                        {
+                            // inner trigger for changing lens planes
+                            int trigger2 = 0;
+                            
+                            // inner data offset
+                            size_t d2 = 0;
+                            
+                            // initialise position IPP
+                            wri = snprintf(out, len, SETPIPP_POSINIT, p + j, p + j + 1);
+                            if(wri < 0)
+                                errori(NULL);
+                            if(pass > 0)
+                                out += wri;
+                            else
+                                siz += wri;
+                            
+                            // deflect IPP through previous planes
+                            for(size_t k = 0; k < plane; ++k)
+                            {
+                                if(objs[k].type != trigger2 && objs[k].type != OBJ_FOREGROUND)
+                                {
+                                    // deflect when triggering from lens
+                                    if(trigger2 == OBJ_LENS)
+                                    {
+                                        wri = snprintf(out, len, SETPIPP_POSDEFL);
+                                        if(wri < 0)
+                                            errori(NULL);
+                                        if(pass > 0)
+                                            out += wri;
+                                        else
+                                            siz += wri;
+                                    }
+                                    
+                                    // reset trigger
+                                    trigger2 = objs[k].type;
+                                }
+                                
+                                // compute deflection for lens
+                                if(objs[k].type == OBJ_LENS)
+                                {
+                                    wri = snprintf(out, len, SETPIPP_POSLENS, objs[k].name, d2);
+                                    if(wri < 0)
+                                        errori(NULL);
+                                    if(pass > 0)
+                                        out += wri;
+                                    else
+                                        siz += wri;
+                                }
+                                
+                                // increase data offset
+                                d2 += objs[k].size;
+                            }
+                            
+                            // apply final deflection when stopped with lens
+                            if(trigger2 == OBJ_LENS)
+                            {
+                                wri = snprintf(out, len, SETPIPP_POSDEFL);
+                                if(wri < 0)
+                                    errori(NULL);
+                                if(pass > 0)
+                                    out += wri;
+                                else
+                                    siz += wri;
+                            }
+                        }
+                        
+                        // handled together with X
+                        case PAR_POSITION_Y:
+                            break;
+                        
+                        // should not happen
+                        default:
+                            break;
+                    }
+                }
+            }
+            
+            // write left side of line
+            wri = snprintf(out, len, SETPLEFT, objs[i].name, d);
+            if(wri < 0)
+                errori(NULL);
+            if(pass > 0)
+                out += wri;
+            else
+                siz += wri;
+            
+            // write arguments
+            for(size_t j = 0; j < objs[i].npars; ++j)
+            {
+                // special argument for image plane priors
+                if(objs[i].pars[j].ipp)
+                {
+                    const char* arg;
+                    
+                    switch(objs[i].pars[j].type)
+                    {
+                        case PAR_POSITION_X:    arg = "x.x";    break;
+                        case PAR_POSITION_Y:    arg = "x.y";    break;
+                        default:                arg = "0";      break;
+                    }
+                    
+                    wri = snprintf(out, len, SETPIPPA, arg);
+                    if(wri < 0)
+                        errori(NULL);
+                    if(pass > 0)
+                        out += wri;
+                    else
+                        siz += wri;
+                }
+                else
+                {
+                    wri = snprintf(out, len, SETPARGS, p + j);
+                    if(wri < 0)
+                        errori(NULL);
+                    if(pass > 0)
+                        out += wri;
+                    else
+                        siz += wri;
+                }
+            }
+            
+            // write right side of line
+            wri = snprintf(out, len, SETPRGHT);
+            if(wri < 0)
+                errori(NULL);
+            if(pass > 0)
+                out += wri;
+            else
+                siz += wri;
+            
+            // increase offsets
+            d += objs[i].size;
+            p += objs[i].npars;
+        }
+        
+        // write footer
+        wri = snprintf(out, len, SETPFOOT);
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
+        
+        // write file footer
+        wri = snprintf(out, len, FILEFOOT);
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
     }
-    
-    // write footer
-    wri = sprintf(out, SETPFOOT);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write file footer
-    wri = sprintf(out, FILEFOOT);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
     
     // this is our code
     return buf;
