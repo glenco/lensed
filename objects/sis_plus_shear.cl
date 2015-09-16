@@ -18,7 +18,7 @@ data
     float r;  // Einstein radius
 };
 
-static float2 deflection(constant data* this, float2 x)
+static float2 deflection(local data* this, float2 x)
 {
     // move to central coordinates
     x -= this->x;
@@ -27,7 +27,7 @@ static float2 deflection(constant data* this, float2 x)
     return this->r*normalize(x) + mv22(this->g, x);
 }
 
-static void set(global data* this, float x, float y, float r, float g1, float g2)
+static void set(local data* this, float x, float y, float r, float g1, float g2)
 {
     // lens position
     this->x = (float2)(x, y);

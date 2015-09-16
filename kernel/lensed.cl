@@ -6,12 +6,17 @@
 #endif
 
 // compute image
-kernel void render(constant float* data, float4 pcs,
-                   constant float2* qq, constant float2* ww,
+kernel void render(ulong dsiz, constant uint* gdata, local uint* ldata,
+                   float4 pcs, constant float2* qq, constant float2* ww,
                    global float* value, global float* error)
 {
     // get pixel index
-    int k = get_global_id(0);
+    size_t k = get_global_id(0);
+    
+    // load data from global to local memory
+    for(size_t i = get_local_id(0); i < dsiz; i += get_local_size(0))
+        ldata[i] = gdata[i];
+    barrier(CLK_LOCAL_MEM_FENCE);
     
     // compute pixel flux if pixel is in image
     if(k < IMAGE_SIZE)
@@ -24,7 +29,7 @@ kernel void render(constant float* data, float4 pcs,
         
         // apply quadrature rule to computed surface brightness
         for(size_t n = 0; n < QUAD_POINTS; ++n)
-            f += ww[n]*compute(data, x + qq[n]);
+            f += ww[n]*compute(ldata, x + qq[n]);
         
         // done
         value[k] = f.s0;

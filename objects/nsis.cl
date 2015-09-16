@@ -18,7 +18,7 @@ data
     float rc; // core radius
 };
 
-static float2 deflection(constant data* this, float2 x)
+static float2 deflection(local data* this, float2 x)
 {
     // move to central coordinates
     x -= this->x;
@@ -27,7 +27,7 @@ static float2 deflection(constant data* this, float2 x)
     return this->r/(this->rc + length(x))*x;
 }
 
-static void set(global data* this, float x, float y, float r, float rc)
+static void set(local data* this, float x, float y, float r, float rc)
 {
     // lens position
     this->x = (float2)(x, y);

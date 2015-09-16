@@ -20,13 +20,13 @@ data
     float m;
 };
 
-static float brightness(constant data* this, float2 x)
+static float brightness(local data* this, float2 x)
 {
     float2 y = mv22(this->t, x - this->x);
     return exp(this->log0 - exp(this->log1 + this->m*log(dot(y, y))));
 }
 
-static void set(global data* this, float x, float y, float r, float mag, float n, float q, float a)
+static void set(local data* this, float x, float y, float r, float mag, float n, float q, float a)
 {
     float b = 1.9992f*n - 0.3271f; // approximation valid for 0.5 < n < 8
     

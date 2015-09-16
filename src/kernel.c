@@ -62,7 +62,7 @@ static const char PARSKERN[] =
 
 // kernel to compute images
 static const char COMPHEAD[] =
-    "static float compute(constant float* data, float2 x)\n"
+    "static float compute(local uint* data, float2 x)\n"
     "{\n"
     "    // ray position\n"
     "    float2 y = x;\n"
@@ -80,7 +80,7 @@ static const char COMPLHED[] =
     "        // calculate deflection\n"
 ;
 static const char COMPLENS[] =
-    "        a += deflection_%s((constant void*)(data + %zu), y);\n"
+    "        a += deflection_%s((local void*)(data + %zu), y);\n"
 ;
 static const char COMPDEFL[] =
     "        \n"
@@ -93,14 +93,14 @@ static const char COMPSHED[] =
     "    // calculate surface brightness\n"
 ;
 static const char COMPSRCE[] =
-    "    f += brightness_%s((constant void*)(data + %zu), y);\n"
+    "    f += brightness_%s((local void*)(data + %zu), y);\n"
 ;
 static const char COMPFHED[] =
     "    \n"
     "    // add foreground\n"
 ;
 static const char COMPFGND[] =
-    "    f += foreground_%s((constant void*)(data + %zu), x);\n"
+    "    f += foreground_%s((local void*)(data + %zu), x);\n"
 ;
 static const char COMPFOOT[] =
     "    \n"
@@ -111,13 +111,23 @@ static const char COMPFOOT[] =
 
 // kernel to set parameters
 static const char SETPHEAD[] =
-    "kernel void set_params(global float* data, constant float* params)\n"
+    "kernel void set_params(ulong dsiz, global int* gdata, local int* ldata,\n"
+    "                       constant float* params)\n"
     "{\n"
+    "    // load parameters to local memory\n"
+    "    for(size_t i = get_local_id(0); i < dsiz; i += get_local_size(0))\n"
+    "        ldata[i] = gdata[i];\n"
+    "    \n"
 ;
-static const char SETPLEFT[] = "    set_%s((global void*)(data + %zu)";
+static const char SETPLEFT[] = "    set_%s((local void*)(ldata + %zu)";
 static const char SETPARGS[] = ", params[%zu]";
 static const char SETPRGHT[] = ");\n";
 static const char SETPFOOT[] =
+    "    \n"
+    "    // store parameters to global memory\n"
+    "    for(size_t i = get_local_id(0); i < dsiz; i += get_local_size(0))\n"
+    "        gdata[i] = ldata[i];\n"
+    "    \n"
     "}\n"
 ;
 

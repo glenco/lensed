@@ -26,7 +26,7 @@ data
     float d;
 };
 
-static float2 deflection(constant data* this, float2 x)
+static float2 deflection(local data* this, float2 x)
 {
     float2 y;
     float r;
@@ -45,7 +45,7 @@ static float2 deflection(constant data* this, float2 x)
     return mv22(this->w, y);
 }
 
-static void set(global data* this, float x, float y, float r, float rc, float q, float pa)
+static void set(local data* this, float x, float y, float r, float rc, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);

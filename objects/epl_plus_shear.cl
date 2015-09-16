@@ -26,7 +26,7 @@ data
     float n;  // normalisation
 };
 
-static float2 deflection(constant data* this, float2 x)
+static float2 deflection(local data* this, float2 x)
 {
     float r, phi;
     float2 a, A;
@@ -76,7 +76,7 @@ static float2 deflection(constant data* this, float2 x)
     return y + mv22(this->g, dx);
 }
 
-static void set(global data* this,
+static void set(local data* this,
                 float x1, float x2, float r, float t, float q, float pa, float g1, float g2)
 {
     float c;

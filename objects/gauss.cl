@@ -18,14 +18,14 @@ data
     float norm; // normalisation
 };
 
-static float brightness(constant data* this, float2 x)
+static float brightness(local data* this, float2 x)
 {
     // Gaussian profile for centered and rotated coordinate system
     float2 y = mv22(this->t, x - this->x);
     return this->norm*exp(-0.5f*dot(y, y)/this->s2);
 }
 
-static void set(global data* this, float x, float y, float sigma, float mag, float q, float pa)
+static void set(local data* this, float x, float y, float sigma, float mag, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);

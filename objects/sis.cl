@@ -16,13 +16,13 @@ data
     float r;  // Einstein radius
 };
 
-static float2 deflection(constant data* this, float2 x)
+static float2 deflection(local data* this, float2 x)
 {
     // SIS deflection
     return this->r*normalize(x - this->x);
 }
 
-static void set(global data* this, float x, float y, float r)
+static void set(local data* this, float x, float y, float r)
 {
     // lens position
     this->x = (float2)(x, y);
