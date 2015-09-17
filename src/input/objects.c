@@ -296,7 +296,7 @@ void free_param(param* par)
     free((char*)par->name);
     free((char*)par->id);
     free((char*)par->label);
-    free_prior(par->pri);
+    prior_free(par->pri);
 }
 
 void set_param_label(param* par, const char* label)
@@ -315,7 +315,7 @@ void set_param_prior(param* par, const char* str)
     size_t len;
     
     // free existing prior
-    free_prior(par->pri);
+    prior_free(par->pri);
     
     // parse possible keywords
     while(1)
@@ -337,5 +337,5 @@ void set_param_prior(param* par, const char* str)
     }
     
     // parse prior
-    par->pri = *str ? read_prior(str) : NULL;
+    par->pri = *str ? prior_read(str) : NULL;
 }

@@ -7,27 +7,36 @@
 #include "log.h"
 
 // function pointers for priors
-typedef void* (*read_func)(size_t, const char*[]);
-typedef void (*free_func)(void*);
-typedef double (*prior_func)(const void*, double);
-typedef void (*print_func)(const void*, char*, size_t);
-typedef double (*lower_func)(const void*);
-typedef double (*upper_func)(const void*);
+typedef void*   (*read_func)(size_t, const char*[]);
+typedef void    (*free_func)(void*);
+typedef void    (*print_func)(const void*, char*, size_t);
+typedef double  (*apply_func)(const void*, double);
+typedef double  (*value_func)(const void*);
 
 // item of prior list
 typedef struct
 {
     const char* name;
-    read_func read;
-    free_func free;
-    print_func print;
-    prior_func prior;
-    lower_func lower;
-    upper_func upper;
+    read_func   read;
+    free_func   free;
+    print_func  print;
+    apply_func  apply;
+    value_func  lower;
+    value_func  upper;
+    int         pseudo;
 } prior_list;
 
 // macro to simplify definition of prior list
-#define PRIOR(x) { #x, read_prior_##x, free_prior_##x, print_prior_##x, prior_##x, prior_lower_##x, prior_upper_##x }
+#define PRIOR(x, d) {   \
+    #x,                 \
+    prior_read_##x,     \
+    prior_free_##x,     \
+    prior_print_##x,    \
+    prior_apply_##x,    \
+    prior_lower_##x,    \
+    prior_upper_##x,    \
+    d                   \
+}
 
 // include all prior headers here
 #include "prior/delta.h"
@@ -36,9 +45,9 @@ typedef struct
 
 // define known priors here
 static const prior_list PRIORS[] = {
-    PRIOR(delta),
-    PRIOR(unif),
-    PRIOR(norm)
+    PRIOR(delta, 1),
+    PRIOR(unif, 0),
+    PRIOR(norm, 0)
 };
 
 // number of priors
@@ -47,18 +56,19 @@ static const size_t NPRIORS = sizeof(PRIORS)/sizeof(PRIORS[0]);
 // this is the structure behind the opaque prior type
 struct prior
 {
-    prior_func prior;
-    print_func print;
-    lower_func lower;
-    upper_func upper;
-    free_func free;
-    void* data;
+    free_func   free;
+    print_func  print;
+    apply_func  apply;
+    value_func  lower;
+    value_func  upper;
+    int         pseudo;
+    void*       data;
 };
 
 // whitespace characters
 static const char* WS = " \t\n\v\f\r";
 
-prior* read_prior(const char* str)
+prior* prior_read(const char* str)
 {
     prior* pri;
     
@@ -130,11 +140,12 @@ prior* read_prior(const char* str)
         errori(NULL);
     
     // set up prior functions
-    pri->prior = PRIORS[pos].prior;
-    pri->print = PRIORS[pos].print;
-    pri->lower = PRIORS[pos].lower;
-    pri->upper = PRIORS[pos].upper;
-    pri->free = PRIORS[pos].free;
+    pri->free       = PRIORS[pos].free;
+    pri->print      = PRIORS[pos].print;
+    pri->apply      = PRIORS[pos].apply;
+    pri->lower      = PRIORS[pos].lower;
+    pri->upper      = PRIORS[pos].upper;
+    pri->pseudo     = PRIORS[pos].pseudo;
     
     // try to parse prior data
     pri->data = PRIORS[pos].read(nargs, args);
@@ -150,7 +161,7 @@ prior* read_prior(const char* str)
     return pri;
 }
 
-void free_prior(prior* pri)
+void prior_free(prior* pri)
 {
     if(pri)
     {
@@ -159,14 +170,14 @@ void free_prior(prior* pri)
     }
 }
 
-void print_prior(const prior* pri, char* buf, size_t n)
+void prior_print(const prior* pri, char* buf, size_t n)
 {
     pri->print(pri->data, buf, n);
 }
 
-double apply_prior(const prior* pri, double u)
+double prior_apply(const prior* pri, double u)
 {
-    return pri->prior(pri->data, u);
+    return pri->apply(pri->data, u);
 }
 
 double prior_lower(const prior* pri)
@@ -177,4 +188,9 @@ double prior_lower(const prior* pri)
 double prior_upper(const prior* pri)
 {
     return pri->upper(pri->data);
+}
+
+int prior_pseudo(const prior* pri)
+{
+    return pri->pseudo;
 }

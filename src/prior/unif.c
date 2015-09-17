@@ -11,7 +11,7 @@ struct uniform
     double b;
 };
 
-void* read_prior_unif(size_t nargs, const char* argv[])
+void* prior_read_unif(size_t nargs, const char* argv[])
 {
     struct uniform* unif;
     
@@ -38,12 +38,12 @@ void* read_prior_unif(size_t nargs, const char* argv[])
     return unif;
 }
 
-void free_prior_unif(void* data)
+void prior_free_unif(void* data)
 {
     free(data);
 }
 
-void print_prior_unif(const void* data, char* buf, size_t n)
+void prior_print_unif(const void* data, char* buf, size_t n)
 {
     const struct uniform* unif = data;
     
@@ -65,7 +65,7 @@ void print_prior_unif(const void* data, char* buf, size_t n)
     strcat(buf, ")");
 }
 
-double prior_unif(const void* data, double u)
+double prior_apply_unif(const void* data, double u)
 {
     const struct uniform* unif = data;
     

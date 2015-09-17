@@ -282,7 +282,7 @@ void print_input(const input* inp)
                 label = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].id;
                 
                 // pretty-print prior
-                print_prior(inp->objs[i].pars[j].pri, buf, 99);
+                prior_print(inp->objs[i].pars[j].pri, buf, 99);
                 
                 // collect tags
                 snprintf(tag, 100, " [%s%s%s%s%s%s%s%s%s",

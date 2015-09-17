@@ -43,9 +43,8 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     {
         double phys;
         do
-            phys = apply_prior(lensed->pars[i]->pri, cube[i]);
-        while(lensed->pars[i]->bounded &&
-              (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
+            phys = prior_apply(lensed->pars[i]->pri, cube[i]);
+        while(lensed->pars[i]->bounded && (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
         cube[i] = phys;
     }
     

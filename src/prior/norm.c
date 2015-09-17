@@ -20,7 +20,7 @@ struct norm
     double s;
 };
 
-void* read_prior_norm(size_t nargs, const char* argv[])
+void* prior_read_norm(size_t nargs, const char* argv[])
 {
     struct norm* n;
     
@@ -47,12 +47,12 @@ void* read_prior_norm(size_t nargs, const char* argv[])
     return n;
 }
 
-void free_prior_norm(void* data)
+void prior_free_norm(void* data)
 {
     free(data);
 }
 
-void print_prior_norm(const void* data, char* buf, size_t n)
+void prior_print_norm(const void* data, char* buf, size_t n)
 {
     const struct norm* norm = data;
     
@@ -74,7 +74,7 @@ void print_prior_norm(const void* data, char* buf, size_t n)
     strcat(buf, ")");
 }
 
-double prior_norm(const void* data, double u)
+double prior_apply_norm(const void* data, double u)
 {
     const struct norm* norm = data;
     
