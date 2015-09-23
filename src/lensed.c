@@ -63,6 +63,7 @@ int main(int argc, char* argv[])
     cl_ulong local_mem_size;
     
     // buffer for objects
+    cl_ulong object_size;
     cl_mem object_mem;
     
     // buffers for quadrature rule
@@ -676,7 +677,7 @@ int main(int argc, char* argv[])
     // create buffer that contains object data
     {
         // collect total size of object data, in units of sizeof(cl_float)
-        size_t object_size = 0;
+        object_size = 0;
         for(size_t i = 0; i < inp->nobjs; ++i)
             object_size += inp->objs[i].size;
         
@@ -706,8 +707,10 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed->set_params, 0, sizeof(cl_mem), &object_mem);
-        err |= clSetKernelArg(lensed->set_params, 1, sizeof(cl_mem), &lensed->params);
+        err |= clSetKernelArg(lensed->set_params, 0, sizeof(cl_ulong), &object_size);
+        err |= clSetKernelArg(lensed->set_params, 1, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed->set_params, 2, object_size*sizeof(cl_uint), NULL);
+        err |= clSetKernelArg(lensed->set_params, 3, sizeof(cl_mem), &lensed->params);
         if(err != CL_SUCCESS)
             error("failed to set kernel arguments for parameters");
     }
@@ -742,12 +745,14 @@ int main(int argc, char* argv[])
         
         // set kernel arguments
         err = 0;
-        err |= clSetKernelArg(lensed->render, 0, sizeof(cl_mem), &object_mem);
-        err |= clSetKernelArg(lensed->render, 1, sizeof(cl_float4), &pcs4);
-        err |= clSetKernelArg(lensed->render, 2, sizeof(cl_mem), &qq_mem);
-        err |= clSetKernelArg(lensed->render, 3, sizeof(cl_mem), &ww_mem);
-        err |= clSetKernelArg(lensed->render, 4, sizeof(cl_mem), &lensed->value_mem);
-        err |= clSetKernelArg(lensed->render, 5, sizeof(cl_mem), &lensed->error_mem);
+        err |= clSetKernelArg(lensed->render, 0, sizeof(cl_ulong), &object_size);
+        err |= clSetKernelArg(lensed->render, 1, sizeof(cl_mem), &object_mem);
+        err |= clSetKernelArg(lensed->render, 2, object_size*sizeof(cl_uint), NULL);
+        err |= clSetKernelArg(lensed->render, 3, sizeof(cl_float4), &pcs4);
+        err |= clSetKernelArg(lensed->render, 4, sizeof(cl_mem), &qq_mem);
+        err |= clSetKernelArg(lensed->render, 5, sizeof(cl_mem), &ww_mem);
+        err |= clSetKernelArg(lensed->render, 6, sizeof(cl_mem), &lensed->value_mem);
+        err |= clSetKernelArg(lensed->render, 7, sizeof(cl_mem), &lensed->error_mem);
         if(err != CL_SUCCESS)
             error("failed to set render kernel arguments");
         

@@ -18,13 +18,13 @@ data
     float norm; // normalisation
 };
 
-static float brightness(constant data* this, float2 x)
+static float brightness(local data* this, float2 x)
 {
     // exponential profile for centered and rotated coordinate system
     return this->norm*exp(-length(mv22(this->t, x - this->x))/this->rs);
 }
 
-static void set(global data* this, float x, float y, float rs, float mag, float q, float pa)
+static void set(local data* this, float x, float y, float rs, float mag, float q, float pa)
 {
     float c = cos(pa*DEG2RAD);
     float s = sin(pa*DEG2RAD);
