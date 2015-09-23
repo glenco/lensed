@@ -22,14 +22,14 @@ lens.x      = unif 48 52
 lens.y      = unif 48 52
 lens.r      = unif 15 20
 lens.q      = unif 0 1
-lens.pa     = unif 0 180
-source.x    = unif 45 55
-source.y    = unif 45 55
+lens.pa     = wrap unif 0 180
+source.x    = image unif 80 85
+source.y    = image unif 35 40
 source.r    = unif 1 5
 source.mag  = unif -5 0
 source.n    = unif 0.5 8.0
 source.q    = unif 0 1
-source.pa   = unif 0 180
+source.pa   = wrap unif 0 180
 
 [labels]
 lens.x      = x_L
@@ -148,7 +148,7 @@ file. They are given in the format
 
 ```ini
 [priors]
-obj.param = [wrap] <prior> <arg0> <arg1> ...
+obj.param = [wrap] [image] <prior> <arg0> <arg1> ...
 ```
 
 An exception is the pseudo-prior that fixes the value of a parameter, which is
@@ -162,10 +162,20 @@ of 170 ± 20 degrees falls out of the natural [0, 180] degree bounds.
 The following priors are known:
 
 Prior          | Description
----------------|----------------------------------------------------------------
+---------------|--------------------------------------------------------------
 `<value>`      | pseudo-prior that fixes the parameter to the given *value*
 `unif <a> <b>` | uniform prior on the interval [*a*, *b*]
 `norm <m> <s>` | normal prior with mean *m* and standard deviation *s*
+
+Additionally, the following optional keywords can be specified:
+
+Keyword        | Description
+---------------|--------------------------------------------------------------
+`wrap`         | prior is cyclic and wraps around at the boundaries
+`image`        | prior is specified on the image plane
+
+The `image` keyword can be used to specify a prior on the observed quantities
+on the image plane. This is limited to position parameters.
 
 Example:
 
@@ -183,6 +193,10 @@ lens.r = unif 10 20
 
 ; the orientation angle is between 0 and 180 degrees and wraps around
 lens.pa = wrap unif 0 180
+
+; the source position is given by one of its images
+source.x = image unif 80 85
+source.y = image unif 35 40
 ```
 
 

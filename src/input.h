@@ -85,6 +85,9 @@ typedef struct
     // flag for wrap-around parameters
     int wrap;
     
+    // flag for image plane priors
+    int ipp;
+    
     // label, used for output
     const char* label;
 } param;
