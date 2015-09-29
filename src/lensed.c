@@ -1318,5 +1318,9 @@ int main(int argc, char* argv[])
     // free lensed struct
     free(lensed);
     
+    // there might be unflushed output from Fortran on stdout
+    if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
+        mute();
+    
     return EXIT_SUCCESS;
 }
