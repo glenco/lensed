@@ -69,7 +69,14 @@ HEADERS = lensed.h \
           input/ini.h \
           prior/delta.h \
           prior/unif.h \
-          prior/norm.h
+          prior/norm.h \
+          quad/point.h \
+          quad/sub2.h \
+          quad/sub4.h \
+          quad/g3k7.h \
+          quad/g5k11.h \
+          quad/g7k15.h \
+          quad/gm75.h
 SOURCES = lensed.c \
           input.c \
           kernel.c \
@@ -87,7 +94,14 @@ SOURCES = lensed.c \
           input/ini.c \
           prior/delta.c \
           prior/unif.c \
-          prior/norm.c
+          prior/norm.c \
+          quad/point.c \
+          quad/sub2.c \
+          quad/sub4.c \
+          quad/g3k7.c \
+          quad/g5k11.c \
+          quad/g7k15.c \
+          quad/gm75.c
 
 
 ####

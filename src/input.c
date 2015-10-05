@@ -50,6 +50,7 @@ void usage(int help)
         printf("  %-20s  %s\n", "--devices", "List computation devices.");
         printf("  %-20s  %s\n", "--profile", "Enable OpenCL profiling.");
         printf("  %-20s  %s\n", "--batch-header", "Batch output header.");
+        printf("  %-20s  %s\n", "--rules", "List known quadrature rules.");
         
         printf("\n");
         printf("Options:\n");
@@ -104,6 +105,9 @@ void read_arg(const char* arg, input* inp)
 
 input* read_input(int argc, char* argv[])
 {
+    // flag when lensed runs in a special mode
+    int is_special;
+    
     // print usage if no options are given
     if(argc < 2)
         usage(0);
@@ -178,6 +182,8 @@ input* read_input(int argc, char* argv[])
                     inp->opts->profile = 1;
                 else if(strcmp(argv[i]+2, "batch-header") == 0)
                     inp->opts->batch_header = 1;
+                else if(strcmp(argv[i]+2, "rules") == 0)
+                    inp->opts->show_rules = 1;
                 else
                     read_arg(argv[i]+2, inp);
             }
@@ -218,8 +224,12 @@ input* read_input(int argc, char* argv[])
         }
     }
     
+    // check if lensed runs in a special mode
+    is_special = inp->opts->devices || inp->opts->batch_header ||
+                 inp->opts->show_rules;
+    
     // check input if not in a special mode
-    if(!(inp->opts->devices || inp->opts->batch_header))
+    if(!is_special)
     {
         // make sure all required options are resolved
         for(size_t i = 0, n = noptions(); i < n; ++i)

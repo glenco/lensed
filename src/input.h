@@ -30,6 +30,8 @@ typedef struct
     int devices;
     int profile;
     int batch_header;
+    int show_rules;
+    char* rule;
     
     // data
     char* image;

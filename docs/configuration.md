@@ -71,6 +71,7 @@ Option     | Type           | Description                            | Default
 `xweight`  | `path`         | Extra weight map multiplier.           | `none`
 `mask`     | `path`         | Input mask, FITS file.                 | `none`
 `psf`      | `path`         | Point-spread function, FITS file.      | `none`
+`rule`     | `string`       | Rule for numerical integration.        | `g3k7`
 `nlive`    | `int`          | Number of live points.                 | `300`
 `ins`      | `bool`         | Use importance nested sampling.        | `true`
 `mmodal`   | `bool`         | Mode separation (if ins = false).      | `true`
