@@ -122,6 +122,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(psf)
     },
     {
+        "rule",
+        "Rule for numerical integration",
+        OPTION_OPTIONAL(string, "g3k7"),
+        OPTION_FIELD(rule)
+    },
+    {
         "nlive",
         "Number of live points",
         OPTION_OPTIONAL(int, 300),

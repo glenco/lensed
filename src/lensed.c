@@ -295,6 +295,25 @@ int main(int argc, char* argv[])
         exit(0);
     }
     
+    // list known quadrature rules and exit
+    if(inp->opts->show_rules)
+    {
+        int len = 0;
+        for(int i = 0; QUAD_RULES[i].name; ++i)
+        {
+            int l = strlen(QUAD_RULES[i].name);
+            if(l > len)
+                len = l;
+        }
+        for(int i = 0; QUAD_RULES[i].name; ++i)
+        {
+            int sel = (strcmp(inp->opts->rule, QUAD_RULES[i].name) == 0);
+            printf("%c %-*s  %s\n", sel ? '*' : ' ',
+                   len, QUAD_RULES[i].name, QUAD_RULES[i].info);
+        }
+        exit(0);
+    }
+    
     
     /*****************
      * status output *
@@ -504,20 +523,35 @@ int main(int argc, char* argv[])
     
     verbose("quadrature");
     
-    // get the number of nodes of quadrature rule
-    nq = quad_points();
-    
-    verbose("  number of points: %zu", nq);
-    
-    // allocate space for quadrature points and weights
-    qq = malloc(nq*sizeof(cl_float2));
-    ww = malloc(nq*sizeof(cl_float2));
-    if(!qq || !ww)
-        errori(NULL);
-    
-    // get quadrature rule
-    quad_rule(qq, ww, pcs->sx, pcs->sy);
-    
+    {
+        // chosen quadrature rule
+        int rule;
+        
+        // find quadrature rule from options
+        for(rule = 0; QUAD_RULES[rule].name; ++rule)
+            if(strcmp(inp->opts->rule, QUAD_RULES[rule].name) == 0)
+                break;
+        
+        // make sure rule is valid
+        if(!QUAD_RULES[rule].name)
+            error("invalid quadrature rule: %s (see `lensed --rules` for a list)",
+                  inp->opts->rule);
+        
+        // get the number of nodes of quadrature rule
+        nq = QUAD_RULES[rule].size;
+        
+        verbose("  quadrature rule: %s", QUAD_RULES[rule].name);
+        verbose("  number of points: %zu", nq);
+        
+        // allocate space for quadrature points and weights
+        qq = malloc(nq*sizeof(cl_float2));
+        ww = malloc(nq*sizeof(cl_float2));
+        if(!qq || !ww)
+            errori(NULL);
+        
+        // get quadrature rule
+        quad_rule(rule, qq, ww, pcs->sx, pcs->sy);
+    }
     
     /****************
      * kernel setup *
