@@ -103,108 +103,171 @@ int main(int argc, char* argv[])
     // read input
     input* inp = read_input(argc, argv);
     
-    // sum number of parameters
-    lensed->npars = 0;
-    for(size_t i = 0; i < inp->nobjs; ++i)
-        lensed->npars += inp->objs[i].npars;
-    
-    // list of all parameters
-    lensed->pars = malloc(lensed->npars*sizeof(param*));
-    if(!lensed->pars)
-        errori(NULL);
-    
-    // collect and check all parameters
-    for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
+    // parameter initialisation
     {
-        // current object
-        object* obj = &inp->objs[i];
+        // number of derived parameters
+        size_t nderi;
         
-        for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
+        // temporary list of derived parameters
+        size_t* derived;
+        
+        // sum number of parameters
+        lensed->npars = 0;
+        for(size_t i = 0; i < inp->nobjs; ++i)
+            lensed->npars += inp->objs[i].npars;
+        
+        // list of all parameters
+        lensed->pars = malloc(lensed->npars*sizeof(param*));
+        if(!lensed->pars)
+            errori(NULL);
+        
+        // parameter map; MultiNest keeps derived parameters at the end
+        lensed->pmap = malloc(lensed->npars*sizeof(size_t));
+        if(!lensed->pmap)
+            errori(NULL);
+        
+        // space for list of derived parameters
+        derived = malloc(lensed->npars*sizeof(size_t));
+        if(!derived)
+            errori(NULL);
+        
+        // start with no dimensions and no derived parameters
+        lensed->ndims = 0;
+        nderi = 0;
+        
+        // collect and check all parameters
+        for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         {
-            // current parameter
-            param* par = &obj->pars[j];
+            // current object
+            object* obj = &inp->objs[i];
             
-            // apply default bounds if none provided
-            if(!par->lower && !par->upper)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             {
-                switch(par->type)
+                // current parameter
+                param* par = &obj->pars[j];
+                
+                // apply default bounds if none provided
+                if(!par->lower && !par->upper)
                 {
-                case PAR_RADIUS:
-                    par->lower = 0;
-                    par->upper = HUGE_VAL;
-                    break;
-                
-                case PAR_AXIS_RATIO:
-                    par->lower = 0;
-                    par->upper = 1;
-                    break;
-                
-                default:
-                    break;
+                    switch(par->type)
+                    {
+                    case PAR_RADIUS:
+                        par->lower = 0;
+                        par->upper = HUGE_VAL;
+                        break;
+                    
+                    case PAR_AXIS_RATIO:
+                        par->lower = 0;
+                        par->upper = 1;
+                        break;
+                    
+                    default:
+                        break;
+                    }
                 }
-            }
-            
-            // mark if parameter is bounded
-            par->bounded = (par->lower || par->upper);
-            
-            // check that prior is compatible with bounds
-            if(par->bounded && (prior_lower(par->pri) < par->lower || prior_upper(par->pri) > par->upper))
-            {
-                // check if there is overlap between the bounds
-                if(prior_lower(par->pri) >= par->upper || prior_upper(par->pri) <= par->lower)
+                
+                // mark if parameter is bounded
+                par->bounded = (par->lower || par->upper);
+                
+                // check that prior is compatible with bounds
+                if(par->bounded && (prior_lower(par->pri) < par->lower || prior_upper(par->pri) > par->upper))
                 {
-                    // prior falls completely outside of allowed range
-                    error("%s: prior does not include parameter bounds [%g, %g]\n"
-                          "The prior does not include the allowed range of values "
-                          "for the parameter. It is impossible to draw a valid "
-                          "parameter value. Please fix the prior to include the "
-                          "range of values indicated above.",
-                          par->id, par->lower, par->upper);
+                    // check if there is overlap between the bounds
+                    if(prior_lower(par->pri) >= par->upper || prior_upper(par->pri) <= par->lower)
+                    {
+                        // prior falls completely outside of allowed range
+                        error("%s: prior does not include parameter "
+                              "bounds [%g, %g]\n"
+                              "The prior does not include the allowed range "
+                              "of values for the parameter. It is impossible "
+                              "to draw a valid parameter value. Please fix "
+                              "the prior to include the range of values "
+                              "indicated above.",
+                              par->id, par->lower, par->upper);
+                    }
+                    else
+                    {
+                        // prior overlaps parameter bounds, issue a warning
+                        warn("%s: prior partially outside parameter "
+                             "bounds [%g, %g]\n"
+                             "Part of the prior lies outside of the allowed "
+                             "range of parameter values. Values will be drawn "
+                             "from the prior until a valid one is found. If "
+                             "the bounds of prior and parameter do not "
+                             "overlap significantly, this can be slow. You "
+                             "might want to change the prior accordingly.",
+                             par->id, par->lower, par->upper);
+                    }
+                }
+                
+                // check image plane priors
+                if(par->ipp)
+                {
+                    // not all parameters can have image plane priors
+                    switch(par->type)
+                    {
+                        // check that X is followed by IPP Y
+                        case PAR_POSITION_X:
+                            if(j + 1 == obj->npars || obj->pars[j + 1].type != PAR_POSITION_Y)
+                                error("object `%s`: image plane prior "
+                                      "requires pair (X,Y) of parameters",
+                                      obj->id);
+                            if(!obj->pars[j + 1].ipp)
+                                error("object `%s`: pair (X,Y) must have "
+                                      "image plane priors",
+                                      obj->id);
+                            break;
+                        
+                        // check that Y is preceded by IPP X
+                        case PAR_POSITION_Y:
+                            if(j == 0 || obj->pars[j - 1].type != PAR_POSITION_X)
+                                error("object `%s`: image plane prior "
+                                      "requires pair (X,Y) of parameters",
+                                      obj->id);
+                            if(!obj->pars[j - 1].ipp)
+                                error("object `%s`: pair (X,Y) must have "
+                                      "image plane priors",
+                                      obj->id);
+                            break;
+                        
+                        // all other parameters cannot have image plane priors
+                        default:
+                            error("prior `%s`: cannot give image plane prior "
+                                  "for this parameter",
+                                  par->id);
+                    }
+                }
+                
+                // store parameter
+                lensed->pars[p] = par;
+                
+                // mark parameter as derived if it has a pseudo-prior
+                par->derived = prior_pseudo(par->pri);
+                
+                // collect derived parameters for end of list
+                if(par->derived)
+                {
+                    // add to derived list
+                    derived[nderi] = p;
+                    nderi += 1;
                 }
                 else
                 {
-                    // prior overlaps parameter bounds, issue a warning
-                    warn("%s: prior partially outside parameter bounds [%g, %g]\n"
-                         "Part of the prior lies outside of the allowed range of "
-                         "parameter values. Values will be drawn from the prior "
-                         "until a valid one is found. If the bounds of prior and "
-                         "parameter do not overlap significantly, this can be "
-                         "slow. You might want to change the prior accordingly.",
-                         par->id, par->lower, par->upper);
+                    // add to parameter list
+                    lensed->pmap[lensed->ndims] = p;
+                    
+                    // add dimension
+                    lensed->ndims += 1;
                 }
             }
-            
-            // check image plane priors
-            if(par->ipp)
-            {
-                // not all parameters can have image plane priors
-                switch(par->type)
-                {
-                    // check that X is followed by IPP Y
-                    case PAR_POSITION_X:
-                        if(j + 1 == obj->npars || obj->pars[j + 1].type != PAR_POSITION_Y)
-                            error("object `%s`: image plane prior requires pair (X,Y) of parameters", obj->id);
-                        if(!obj->pars[j + 1].ipp)
-                            error("object `%s`: pair (X,Y) must have image plane priors", obj->id);
-                        break;
-                    
-                    // check that Y is preceded by IPP X
-                    case PAR_POSITION_Y:
-                        if(j == 0 || obj->pars[j - 1].type != PAR_POSITION_X)
-                            error("object `%s`: image plane prior requires pair (X,Y) of parameters", obj->id);
-                        if(!obj->pars[j - 1].ipp)
-                            error("object `%s`: pair (X,Y) must have image plane priors", obj->id);
-                        break;
-                    
-                    // all other parameters cannot have image plane priors
-                    default:
-                        error("prior `%s`: cannot give image plane prior for this parameter", par->id);
-                }
-            }
-            
-            // store parameter
-            lensed->pars[p] = par;
         }
+        
+        // add derived parameters to end of list
+        for(size_t i = 0; i < nderi; ++i)
+            lensed->pmap[lensed->ndims + i] = derived[i];
+        
+        // done with list of derived parameters
+        free(derived);
     }
     
     
@@ -1084,9 +1147,9 @@ int main(int argc, char* argv[])
     // call MultiNest
     {
         // MultiNest options
-        int ndim = lensed->npars;
-        int npar = ndim;
-        int nclspar = ndim;
+        int ndim = lensed->ndims;
+        int npar = lensed->npars;
+        int ncdim = ndim;
         double ztol = -1E90;
         char root[100] = {0};
         int initmpi = 1;
@@ -1117,7 +1180,7 @@ int main(int argc, char* argv[])
         // run MultiNest, re-entry point for interrupts
         if(setjmp(jmp) == 0)
             run(inp->opts->ins, inp->opts->mmodal, inp->opts->ceff,
-                inp->opts->nlive, inp->opts->tol, efr, ndim, npar, nclspar,
+                inp->opts->nlive, inp->opts->tol, efr, ndim, npar, ncdim,
                 inp->opts->maxmodes, inp->opts->updint, ztol, root,
                 inp->opts->seed, wrap, inp->opts->feedback, inp->opts->resume,
                 inp->opts->output, initmpi, logzero, inp->opts->maxiter,
@@ -1222,28 +1285,28 @@ int main(int argc, char* argv[])
         if(!rangefile)
             errori("could not write %s", rangename);
         
-        for(size_t i = 0; i < inp->nobjs; ++i)
+        for(size_t i = 0; i < lensed->npars; ++i)
         {
-            for(size_t j = 0; j < inp->objs[i].npars; ++j)
-            {
-                // parameter range
-                double lower = prior_lower(inp->objs[i].pars[j].pri);
-                double upper = prior_upper(inp->objs[i].pars[j].pri);
-                
-                // output parameter id and, if set, label
-                fprintf(paramfile, "%-20s  %s\n", inp->objs[i].pars[j].id, inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : "");
-                
-                // output parameter range
-                fprintf(rangefile, "%-20s  ", inp->objs[i].pars[j].id);
-                if(isfinite(lower))
-                    fprintf(rangefile, "%10.4f  ", lower);
-                else
-                    fprintf(rangefile, "%10s  ", "N");
-                if(isfinite(upper))
-                    fprintf(rangefile, "%10.4f\n", upper);
-                else
-                    fprintf(rangefile, "%10s\n", "N");
-            }
+            // get parameter using map
+            const param* par = lensed->pars[lensed->pmap[i]];
+            
+            // prior range
+            double lower = prior_lower(par->pri);
+            double upper = prior_upper(par->pri);
+            
+            // output parameter id and, if set, label
+            fprintf(paramfile, "%-20s  %s\n", par->id, par->label ? par->label : "");
+            
+            // output parameter range
+            fprintf(rangefile, "%-20s  ", par->id);
+            if(isfinite(lower))
+                fprintf(rangefile, "%10.4f  ", lower);
+            else
+                fprintf(rangefile, "%10s  ", "N");
+            if(isfinite(upper))
+                fprintf(rangefile, "%10.4f\n", upper);
+            else
+                fprintf(rangefile, "%10s\n", "N");
         }
         
         fclose(paramfile);
@@ -1339,6 +1402,10 @@ int main(int argc, char* argv[])
     free(lensed->sigma);
     free(lensed->ml);
     free(lensed->map);
+    
+    // free parameter space
+    free(lensed->pars);
+    free(lensed->pmap);
     
     // free data
     free(lensed->image);

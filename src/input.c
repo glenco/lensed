@@ -244,7 +244,7 @@ input* read_input(int argc, char* argv[])
         for(size_t i = 0; i < inp->nobjs; ++i)
             for(size_t j = 0; j < inp->objs[i].npars; ++j)
                 if(!inp->objs[i].pars[j].pri)
-                    error("missing prior: %s.%s (check [priors] section)", inp->objs[i].id, inp->objs[i].pars[j].name);
+                    error("missing prior: %s (check [priors] section)", inp->objs[i].pars[j].id);
     }
     
     // everything is fine
@@ -275,17 +275,21 @@ void print_input(const input* inp)
             for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
             {
                 const char* label;
-                char buf[100] = {0};
-                char tag[100] = {0};
+                char rel;
+                char buf[256] = {0};
+                char tag[256] = {0};
                 
                 // set label, or id if no label set
                 label = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].id;
                 
+                // relation between variable and prior
+                rel = inp->objs[i].pars[j].derived ? '=' : '~';
+                
                 // pretty-print prior
-                prior_print(inp->objs[i].pars[j].pri, buf, 99);
+                prior_print(inp->objs[i].pars[j].pri, buf, 255);
                 
                 // collect tags
-                snprintf(tag, 100, " [%s%s%s%s%s%s%s%s%s",
+                snprintf(tag, 255, " [%s%s%s%s%s%s%s%s%s",
                     inp->objs[i].pars[j].type == PAR_POSITION_X ?
                         "position x, " : "",
                     inp->objs[i].pars[j].type == PAR_POSITION_Y ?
@@ -321,7 +325,7 @@ void print_input(const input* inp)
                 }
                 
                 // output line for parameter
-                verbose("  %zu: %s ~ %s%s", p, label, buf, tag);
+                verbose("  %zu: %s %c %s%s", p, label, rel, buf, tag);
             }
         }
     }

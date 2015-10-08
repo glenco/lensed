@@ -90,6 +90,9 @@ typedef struct
     // flag for image plane priors
     int ipp;
     
+    // flag for derived parameters
+    int derived;
+    
     // label, used for output
     const char* label;
 } param;
