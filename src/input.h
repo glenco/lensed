@@ -17,7 +17,8 @@ enum
     PAR_RADIUS,
     PAR_MAGNITUDE,
     PAR_AXIS_RATIO,
-    PAR_POS_ANGLE
+    PAR_POS_ANGLE,
+    PAR_ANGLE
 };
 
 // options

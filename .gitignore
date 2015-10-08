@@ -5,3 +5,4 @@ deps/cfitsio
 deps/multinest
 examples/chains
 examples/plots
+tests/output

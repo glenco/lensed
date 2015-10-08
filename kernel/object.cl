@@ -15,7 +15,8 @@ enum
     RADIUS,
     MAGNITUDE,
     AXIS_RATIO,
-    POS_ANGLE
+    POS_ANGLE,
+    ANGLE
 };
 
 // parameter bounds

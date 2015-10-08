@@ -1,7 +1,7 @@
 TESTS = \
-	foreground/sky.ini \
 	lens/epl.ini \
 	lens/epl_plus_shear.ini \
+	lens/harmonic.ini \
 	lens/nsie.ini \
 	lens/nsis.ini \
 	lens/point_mass.ini \
@@ -9,6 +9,7 @@ TESTS = \
 	lens/sie_plus_shear.ini \
 	lens/sis.ini \
 	lens/sis_plus_shear.ini \
+	foreground/sky.ini \
 	source/devauc.ini \
 	source/exponential.ini \
 	source/gauss.ini \
