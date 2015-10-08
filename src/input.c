@@ -270,44 +270,42 @@ void print_input(const input* inp)
             verbose("  %s = %s", inp->objs[i].id, inp->objs[i].name);
         
         verbose("parameters");
-        for(size_t i = 0, p = 1; i < inp->nobjs; ++i)
+        for(size_t i = 0, p = 0; i < inp->nobjs; ++i)
         {
-            for(size_t j = 0; j < inp->objs[i].npars; ++j, ++p)
+            for(size_t j = 0; j < inp->objs[i].npars; ++j)
             {
                 const char* label;
                 char rel;
                 char buf[256] = {0};
                 char tag[256] = {0};
                 
+                // current parameter
+                const param* par = &inp->objs[i].pars[j];
+                
+                // skip default values
+                if(par->defval)
+                    continue;
+                
                 // set label, or id if no label set
-                label = inp->objs[i].pars[j].label ? inp->objs[i].pars[j].label : inp->objs[i].pars[j].id;
+                label = par->label ? par->label : par->id;
                 
                 // relation between variable and prior
-                rel = inp->objs[i].pars[j].derived ? '=' : '~';
+                rel = par->derived ? '=' : '~';
                 
                 // pretty-print prior
-                prior_print(inp->objs[i].pars[j].pri, buf, 255);
+                prior_print(par->pri, buf, 255);
                 
                 // collect tags
                 snprintf(tag, 255, " [%s%s%s%s%s%s%s%s%s",
-                    inp->objs[i].pars[j].type == PAR_POSITION_X ?
-                        "position x, " : "",
-                    inp->objs[i].pars[j].type == PAR_POSITION_Y ?
-                        "position y, " : "",
-                    inp->objs[i].pars[j].type == PAR_RADIUS ?
-                        "radius, " : "",
-                    inp->objs[i].pars[j].type == PAR_MAGNITUDE ?
-                        "magnitude, " : "",
-                    inp->objs[i].pars[j].type == PAR_AXIS_RATIO ?
-                        "axis ratio, " : "",
-                    inp->objs[i].pars[j].type == PAR_POS_ANGLE ?
-                        "pos. angle, " : "",
-                    inp->objs[i].pars[j].bounded ?
-                        "bounded, " : "",
-                    inp->objs[i].pars[j].wrap ?
-                        "wrap, " : "",
-                    inp->objs[i].pars[j].ipp ?
-                        "IPP, " : ""
+                    par->type == PAR_POSITION_X ? "position x, " : "",
+                    par->type == PAR_POSITION_Y ? "position y, " : "",
+                    par->type == PAR_RADIUS     ? "radius, "     : "",
+                    par->type == PAR_MAGNITUDE  ? "magnitude, "  : "",
+                    par->type == PAR_AXIS_RATIO ? "axis ratio, " : "",
+                    par->type == PAR_POS_ANGLE  ? "pos. angle, " : "",
+                    par->bounded                ? "bounded, "    : "",
+                    par->wrap                   ? "wrap, "       : "",
+                    par->ipp                    ? "IPP, "        : ""
                 );
                 
                 // check if tags were set
@@ -325,7 +323,7 @@ void print_input(const input* inp)
                 }
                 
                 // output line for parameter
-                verbose("  %zu: %s %c %s%s", p, label, rel, buf, tag);
+                verbose("  %zu: %s %c %s%s", ++p, label, rel, buf, tag);
             }
         }
     }

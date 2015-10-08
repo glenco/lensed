@@ -51,12 +51,13 @@ static const char METAKERN[] =
 // kernel to get parameters for object
 static const char PARSKERN[] = 
     "kernel void params_<name>(global char16* names, global int* types,\n"
-    "                          global float2* bounds)\n"
+    "                          global float2* bounds, global float* defvals)\n"
     "{\n"
     "    size_t i = get_global_id(0);\n"
     "    names[i] = vload16(0, parlst_<name>[i].name);\n"
     "    types[i] = parlst_<name>[i].type;\n"
     "    bounds[i] = vload2(0, parlst_<name>[i].bounds);\n"
+    "    defvals[i] = parlst_<name>[i].defval;\n"
     "}\n"
 ;
 

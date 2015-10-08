@@ -3,6 +3,9 @@
 // read a prior from string
 prior* prior_read(const char* str);
 
+// default prior with value
+prior* prior_default(double value);
+
 // free all memory allocated by prior
 void prior_free(prior* pri);
 

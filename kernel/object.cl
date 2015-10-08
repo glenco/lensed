@@ -18,10 +18,16 @@ enum
     POS_ANGLE
 };
 
+// parameter bounds
+#define UNBOUNDED {0, 0}
+#define POS_BOUND {0, INFINITY}
+#define NEG_BOUND {-INFINITY, 0}
+
 // structure that holds parameter definition
 struct __attribute__ ((aligned (4))) param
 {
     char  name[16];
     int   type;
     float bounds[2];
+    float defval;
 };

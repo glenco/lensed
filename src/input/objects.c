@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "../opencl.h"
 #include "../input.h"
@@ -47,6 +48,8 @@ void add_object(input* inp, const char* id, const char* name)
     cl_int*     param_types;
     cl_mem      param_bounds_mem;
     cl_float2*  param_bounds;
+    cl_mem      param_defvals_mem;
+    cl_float*   param_defvals;
     
     // realloc space for one more object
     inp->nobjs += 1;
@@ -145,10 +148,11 @@ void add_object(input* inp, const char* id, const char* name)
         error("object %s: invalid type (should be LENS, SOURCE or FOREGROUND)", id);
     
     // buffers for kernel parameters
-    param_names_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_char16), NULL, NULL);
-    param_types_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_int),    NULL, NULL);
-    param_bounds_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float2), NULL, NULL);
-    if(!param_names_mem || !param_types_mem || !param_bounds_mem)
+    param_names_mem   = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_char16), NULL, NULL);
+    param_types_mem   = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_int),    NULL, NULL);
+    param_bounds_mem  = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float2), NULL, NULL);
+    param_defvals_mem = clCreateBuffer(lcl->context, CL_MEM_WRITE_ONLY, obj->npars*sizeof(cl_float),  NULL, NULL);
+    if(!param_names_mem || !param_types_mem || !param_bounds_mem || !param_defvals_mem)
         error("object %s: failed to create buffer for parameters", id);
     
     // the work size of the parameters kernel is the number of parameters
@@ -159,9 +163,10 @@ void add_object(input* inp, const char* id, const char* name)
     param_kernel = clCreateKernel(program, param_kernam, &err);
     if(err != CL_SUCCESS)
         error("object %s: failed to create kernel for parameters", id);
-    err |= clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem );
-    err |= clSetKernelArg(param_kernel, 1, sizeof(cl_mem), &param_types_mem );
-    err |= clSetKernelArg(param_kernel, 2, sizeof(cl_mem), &param_bounds_mem);
+    err |= clSetKernelArg(param_kernel, 0, sizeof(cl_mem), &param_names_mem  );
+    err |= clSetKernelArg(param_kernel, 1, sizeof(cl_mem), &param_types_mem  );
+    err |= clSetKernelArg(param_kernel, 2, sizeof(cl_mem), &param_bounds_mem );
+    err |= clSetKernelArg(param_kernel, 3, sizeof(cl_mem), &param_defvals_mem);
     if(err != CL_SUCCESS)
         error("object %s: failed to set kernel arguments for parameters", id);
     err = clEnqueueNDRangeKernel(queue, param_kernel, 1, NULL, &param_gws, NULL, 0, NULL, NULL);
@@ -169,16 +174,18 @@ void add_object(input* inp, const char* id, const char* name)
         error("object %s: failed to run kernel for parameters", id);
     
     // arrays for kernel parameters
-    param_names  = malloc(obj->npars*sizeof(cl_char16));
-    param_types  = malloc(obj->npars*sizeof(cl_int));
-    param_bounds = malloc(obj->npars*sizeof(cl_float2));
-    if(!param_types || !param_names || !param_bounds)
+    param_names   = malloc(obj->npars*sizeof(cl_char16));
+    param_types   = malloc(obj->npars*sizeof(cl_int));
+    param_bounds  = malloc(obj->npars*sizeof(cl_float2));
+    param_defvals = malloc(obj->npars*sizeof(cl_float));
+    if(!param_types || !param_names || !param_bounds || !param_defvals)
         errori("object %s", id);
     
     // get kernel parameters from buffer
-    err |= clEnqueueReadBuffer(queue, param_names_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_char16), param_names,  0, NULL, NULL);
-    err |= clEnqueueReadBuffer(queue, param_types_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_int),    param_types,  0, NULL, NULL);
-    err |= clEnqueueReadBuffer(queue, param_bounds_mem, CL_TRUE, 0, obj->npars*sizeof(cl_float2), param_bounds, 0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_names_mem,   CL_TRUE, 0, obj->npars*sizeof(cl_char16), param_names,   0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_types_mem,   CL_TRUE, 0, obj->npars*sizeof(cl_int),    param_types,   0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_bounds_mem,  CL_TRUE, 0, obj->npars*sizeof(cl_float2), param_bounds,  0, NULL, NULL);
+    err |= clEnqueueReadBuffer(queue, param_defvals_mem, CL_TRUE, 0, obj->npars*sizeof(cl_float),  param_defvals, 0, NULL, NULL);
     if(err != CL_SUCCESS)
         error("object %s: failed to get parameters", id);
     
@@ -196,6 +203,9 @@ void add_object(input* inp, const char* id, const char* name)
         // id of parameter
         char* id;
         
+        // prior of parameter
+        prior* pri = NULL;
+        
         // allocate name
         name = malloc(16);
         if(!name)
@@ -211,15 +221,20 @@ void add_object(input* inp, const char* id, const char* name)
             errori(NULL);
         sprintf(id, "%s.%s", obj->id, name);
         
+        // create default value prior
+        if(param_defvals[i] > 0 || signbit(param_defvals[i]))
+            pri = prior_default(param_defvals[i]);
+        
         // set parameter information
         obj->pars[i].name   = name;
         obj->pars[i].id     = id;
         obj->pars[i].type   = param_types[i];
         obj->pars[i].lower  = param_bounds[i].s[0];
         obj->pars[i].upper  = param_bounds[i].s[1];
-        obj->pars[i].pri    = NULL;
+        obj->pars[i].pri    = pri;
         obj->pars[i].wrap   = 0;
         obj->pars[i].ipp    = 0;
+        obj->pars[i].defval = pri ? 1 : 0;
         obj->pars[i].label  = NULL;
     }
     
@@ -338,4 +353,7 @@ void set_param_prior(param* par, const char* str)
     
     // parse prior
     par->pri = *str ? prior_read(str) : NULL;
+    
+    // no longer default value
+    par->defval = 0;
 }

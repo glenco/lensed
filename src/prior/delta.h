@@ -1,5 +1,6 @@
 #pragma once
 
+void*   prior_make_delta(double value);
 void*   prior_read_delta(size_t nargs, const char* args[]);
 void    prior_free_delta(void* data);
 void    prior_print_delta(const void* data, char* buf, size_t n);

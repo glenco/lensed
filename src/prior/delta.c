@@ -5,6 +5,19 @@
 #include "../parse.h"
 #include "../log.h"
 
+void* prior_make_delta(double value)
+{
+    double* x;
+    
+    x = malloc(sizeof(double));
+    if(!x)
+        errori(NULL);
+    
+    *x = value;
+    
+    return x;
+}
+
 void* prior_read_delta(size_t nargs, const char* argv[])
 {
     double* x;
