@@ -39,13 +39,23 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     }
     
     // transform from unit cube to physical
-    for(size_t i = 0; i < lensed->npars; ++i)
+    for(size_t i = 0; i < *npar; ++i)
     {
+        // input parameter value; fixed to 0.5 for pseudo-priors
+        double unit = i < *ndim ? cube[i] : 0.5;
+        
+        // physical parameter value
         double phys;
+        
+        // get parameter using map
+        param* par = lensed->pars[lensed->pmap[i]];
+        
+        // draw parameter until it is within the bounds
         do
-            phys = apply_prior(lensed->pars[i]->pri, cube[i]);
-        while(lensed->pars[i]->bounded &&
-              (phys < lensed->pars[i]->lower || phys > lensed->pars[i]->upper));
+            phys = prior_apply(par->pri, unit);
+        while(par->bounded && (phys < par->lower || phys > par->upper));
+        
+        // store physical parameter
         cube[i] = phys;
     }
     
@@ -55,9 +65,9 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     // map parameter space on device
     cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, map_params_ev, &err);
     
-    // copy parameters to device
+    // copy parameters to device using map
     for(size_t i = 0; i < lensed->npars; ++i)
-        params[i] = cube[i];
+        params[lensed->pmap[i]] = cube[i];
     
     // done with parameter space
     clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, unmap_params_ev);
@@ -140,13 +150,16 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
     
     // copy parameters to results
     for(size_t i = 0; i < lensed->npars; ++i)
-        lensed->mean[i] = constraints[0][MEAN*lensed->npars+i];
-    for(size_t i = 0; i < lensed->npars; ++i)
-        lensed->sigma[i] = constraints[0][SIGMA*lensed->npars+i];
-    for(size_t i = 0; i < lensed->npars; ++i)
-        lensed->ml[i] = constraints[0][ML*lensed->npars+i];
-    for(size_t i = 0; i < lensed->npars; ++i)
-        lensed->map[i] = constraints[0][MAP*lensed->npars+i];
+    {
+        // get parameter index from map
+        size_t p = lensed->pmap[i];
+        
+        // store values
+        lensed->mean[p]     = constraints[0][MEAN*lensed->npars+i];
+        lensed->sigma[p]    = constraints[0][SIGMA*lensed->npars+i];
+        lensed->ml[p]       = constraints[0][ML*lensed->npars+i];
+        lensed->map[p]      = constraints[0][MAP*lensed->npars+i];
+    }
     
     // copy summary statistics
     lensed->logev = *logz;
@@ -160,9 +173,9 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         // map parameter space on device
         cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, NULL, &err);
         
-        // copy ML parameters to device
+        // copy ML parameters to device using map
         for(size_t i = 0; i < lensed->npars; ++i)
-            params[i] = constraints[0][ML*lensed->npars+i];
+            params[lensed->pmap[i]] = constraints[0][ML*lensed->npars+i];
         
         // done with parameter space
         clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, NULL);

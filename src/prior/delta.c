@@ -5,7 +5,7 @@
 #include "../parse.h"
 #include "../log.h"
 
-void* read_prior_delta(size_t nargs, const char* argv[])
+void* prior_read_delta(size_t nargs, const char* argv[])
 {
     double* x;
     
@@ -22,29 +22,27 @@ void* read_prior_delta(size_t nargs, const char* argv[])
     return x;
 }
 
-void free_prior_delta(void* data)
+void prior_free_delta(void* data)
 {
     free(data);
 }
 
-void print_prior_delta(const void* data, char* buf, size_t n)
+void prior_print_delta(const void* data, char* buf, size_t n)
 {
     const double* x = data;
     
     write_real(buf, *x, n);
 }
 
-double prior_delta(const void* data, double u)
+double prior_apply_delta(const void* data, double u)
 {
     return *(double*)data;
 }
-
 
 double prior_lower_delta(const void* data)
 {
     return *(double*)data;
 }
-
 
 double prior_upper_delta(const void* data)
 {

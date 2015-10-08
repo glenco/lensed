@@ -11,7 +11,9 @@ struct lensed
     
     // parameter space
     size_t npars;
+    size_t ndims;
     param** pars;
+    size_t* pmap;
     
     // MultiNest tolerance
     double tol;
