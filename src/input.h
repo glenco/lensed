@@ -93,6 +93,9 @@ typedef struct
     // flag for derived parameters
     int derived;
     
+    // flag for default value
+    int defval;
+    
     // label, used for output
     const char* label;
 } param;

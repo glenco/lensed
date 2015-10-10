@@ -161,6 +161,28 @@ prior* prior_read(const char* str)
     return pri;
 }
 
+prior* prior_default(double value)
+{
+    // create prior
+    prior* pri = malloc(sizeof(prior));
+    if(!pri)
+        errori(NULL);
+    
+    // set up prior functions
+    pri->free       = prior_free_delta;
+    pri->print      = prior_print_delta;
+    pri->apply      = prior_apply_delta;
+    pri->lower      = prior_lower_delta;
+    pri->upper      = prior_upper_delta;
+    pri->pseudo     = 1;
+    
+    // make prior data
+    pri->data       = prior_make_delta(value);
+    
+    // prior is ready
+    return pri;
+}
+
 void prior_free(prior* pri)
 {
     if(pri)

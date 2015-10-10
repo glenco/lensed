@@ -715,8 +715,6 @@ int main(int argc, char* argv[])
         const char* build_flags[] = {
             "-cl-denorms-are-zero",
             "-cl-strict-aliasing",
-            "-cl-mad-enable",
-            "-cl-no-signed-zeros",
             "-cl-fast-relaxed-math",
             NULL
         };
@@ -1233,9 +1231,10 @@ int main(int argc, char* argv[])
          "parameter", "mean", "sigma", "ML", "MAP");
     info("  ------------------------------------------------------------");
     for(size_t i = 0; i < lensed->npars; ++i)
-        info("  %-12s  %10.4f  %10.4f  %10.4f  %10.4f",
-             lensed->pars[i]->label ? lensed->pars[i]->label : lensed->pars[i]->id,
-             lensed->mean[i], lensed->sigma[i], lensed->ml[i], lensed->map[i]);
+        if(!lensed->pars[i]->defval)
+            info("  %-12s  %10.4f  %10.4f  %10.4f  %10.4f",
+                lensed->pars[i]->label ? lensed->pars[i]->label : lensed->pars[i]->id,
+                lensed->mean[i], lensed->sigma[i], lensed->ml[i], lensed->map[i]);
     info("  ");
     
     // profiling results
@@ -1325,13 +1324,17 @@ int main(int argc, char* argv[])
         
         // write parameter results
         for(size_t i = 0; i < lensed->npars; ++i)
-            printf("%-10.4f  ", lensed->mean[i]);
+            if(!lensed->pars[i]->defval)
+                printf("%-10.4f  ", lensed->mean[i]);
         for(size_t i = 0; i < lensed->npars; ++i)
-            printf("%-10.4f  ", lensed->sigma[i]);
+            if(!lensed->pars[i]->defval)
+                printf("%-10.4f  ", lensed->sigma[i]);
         for(size_t i = 0; i < lensed->npars; ++i)
-            printf("%-10.4f  ", lensed->ml[i]);
+            if(!lensed->pars[i]->defval)
+                printf("%-10.4f  ", lensed->ml[i]);
         for(size_t i = 0; i < lensed->npars; ++i)
-            printf("%-10.4f  ", lensed->map[i]);
+            if(!lensed->pars[i]->defval)
+                printf("%-10.4f  ", lensed->map[i]);
         
         // output is done
         printf("\n");
