@@ -1,6 +1,21 @@
 Changelog
 =========
 
+v1.1.0 (2015-10-10)
+-------------------
+
+  * parameters can have default values
+  * pseudo-priors are derived parameters
+  * quadrature rule selection
+  * suppress file output from Fortran in quiet or batch mode
+  * image plane priors for position
+  * object data in local memory
+  * show maxloglike in progress
+  * support for extra weight map
+  * elliptical power law profile lens
+  * show progress in MultiNest feedback
+  * use cl_float instead of cl_char for object memory
+
 v1.0.2 (2015-06-26)
 -------------------
 
