@@ -64,6 +64,7 @@ deploy:
   api_key:
     secure: HtIvDAdeKl44IdOJKKHFLnXfa7EOvjFKraB3gVR2RUMJNi2CBrFVfdkHOHxh2n9c4I9nrx9IP7N24wls8VYVZ3s3RyAAGfjMNHKEMu66vQ9RATur58g2GdabMhAQh69OFWHkwSGXKRzhUSS9qIhxeon4vE+zVvkCbVOHM6qDSRzF7l1ZJdfpDqzdb0ZUltOwXz8hLSXmoM3GCLbCcoPTn0JqwrReHHYKSMshs0Rd1j9F9dYQwVtnAuX6mvsxf/q75dxQGy4QyH0Z25BJxKtrGCHo6sBApoysyOoBxiMRpw8irEQThRjwkixBXTDUC5CA75gqec1hpOaHIwlhsEJMVeFrQ0EI3wcp/taV6ta93aA5othrAWkUYlOmPUAyY3DPzSg35d81+sFMKVkFZeZOgvPJnXg9V6Pc8r59Aa9Pf6c2fOXF36oiGMvh55ZPz0ddYo04BXqIpJ389DGigzrXhEh6yzD7ko/68yo2iIjM+kJE64YBFR2S39Se6z0MvfpDRH/t3/Gh1kA5mmwMLQ5Tute1g3qLRP3SjH9XJH+FhyrY0Fr7XpxuFbCKKcU1hkLDFTQOY81IZsVIQR4D7oYhplib8G17go25XHriWaAtZ5QWeeUjyET2KV22UG1TFL0ttj2qcSfh6/n+gXXloh8vdYri/FCnNunLR6r6F8uQbb0=
   file: ${RELEASE}
+  skip_cleanup: true
   on:
     tags: true
     condition: ($TRAVIS_OS_NAME = linux && $CC = gcc) || ($TRAVIS_OS_NAME = osx && $CC = clang)
