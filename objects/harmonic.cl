@@ -6,7 +6,8 @@ params
 {
     { "x",  POSITION_X },
     { "y",  POSITION_Y },
-    { "r",  RADIUS     },
+    { "b",  RADIUS     },
+    { "k",  PARAMETER, POS_BOUND, -0.0f },
     { "g1", PARAMETER, UNBOUNDED, -0.0f },
     { "g2", PARAMETER, UNBOUNDED, -0.0f },
     { "q2", PARAMETER, POS_BOUND, -0.0f }, { "a2", ANGLE, UNBOUNDED, -0.0f },
@@ -30,7 +31,7 @@ params
 data
 {
     float2 x;     // position
-    float  r;     // Einstein radius
+    float  b;     // scale radius
     float2 Q[10]; // exterior multipoles
     float2 P[10]; // interior multipoles
 };
@@ -56,10 +57,10 @@ static float2 deflection(local data* this, float2 x)
     M = (mat22)(x.x, -x.y, x.y, x.x)/r;
     
     // inverse scale length
-    s = this->r/r;
+    s = this->b/r;
     
     // iteration start
-    R = (this->r*this->r)/r;
+    R = (this->b*this->b)/r;
     T = x/r;
     
     // exterior multipoles
@@ -68,7 +69,7 @@ static float2 deflection(local data* this, float2 x)
                           T.y*this->Q[n].x - T.x*this->Q[n].y);
     
     // scale length
-    s = r/this->r;
+    s = r/this->b;
     
     // iteration restart
     R = r;
@@ -84,7 +85,7 @@ static float2 deflection(local data* this, float2 x)
 }
 
 static void set(local data* this,
-                float x1, float x2, float r,
+                float x1, float x2, float b, float k,
                 float g1, float g2,
                 float q2, float a2,
                 float q3, float a3,
@@ -106,11 +107,11 @@ static void set(local data* this,
     // lens position
     this->x = (float2)(x1, x2);
     
-    // Einstein radius
-    this->r = r;
+    // scale radius
+    this->b = b;
     
     // exterior multipoles
-    this->Q[0] = (float2)(0.5f, 0);
+    this->Q[0] = (float2)(0.5f*k, 0);
     this->Q[1] = 0;
     this->Q[2] = q2*(float2)(cos(2*a2*DEG2RAD), sin(2*a2*DEG2RAD));
     this->Q[3] = q3*(float2)(cos(3*a3*DEG2RAD), sin(3*a3*DEG2RAD));
