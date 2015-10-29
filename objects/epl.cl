@@ -17,7 +17,6 @@ data
     float2 x; // lens position
     mat22 m;  // rotation matrix for position angle
     mat22 w;  // inverse rotation matrix
-    float b;  // scale length
     float t;  // slope
     float f;  // second flattening of ellipse
     float n;  // normalisation
@@ -78,7 +77,7 @@ static void set(local data* this,
     this->x = (float2)(x1, x2);
     
     // rotation matrix with elliptical factor and scaling
-    this->m = (1/r)*(mat22)(q*c, q*s, -s, c);
+    this->m = (1/r/sqrt(q))*(mat22)(q*c, q*s, -s, c);
     
     // inverse rotation matrix
     this->w = (mat22)(c, -s, s, c);
