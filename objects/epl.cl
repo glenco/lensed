@@ -17,7 +17,7 @@ data
     float2 x; // lens position
     mat22 m;  // rotation matrix for position angle
     mat22 w;  // inverse rotation matrix
-    float b;  // scale length
+    float r;  // scale radius
     float t;  // slope
     float f;  // second flattening of ellipse
     float n;  // normalisation
@@ -37,8 +37,8 @@ static float2 deflection(local data* this, float2 x)
     // rotate by position angle and make elliptical
     x = mv22(this->m, x - this->x);
     
-    // elliptical radius and polar angle
-    r = length(x);
+    // scaled elliptical radius and polar angle
+    r = length(x)/this->r;
     phi = atan2(x.y, x.x);
     
     // sines and cosines
@@ -76,6 +76,9 @@ static void set(local data* this,
     
     // lens position
     this->x = (float2)(x1, x2);
+    
+    // scale radius
+    this->r = r;
     
     // rotation matrix with elliptical factor and scaling
     this->m = (1/r)*(mat22)(q*c, q*s, -s, c);
