@@ -1166,7 +1166,7 @@ int main(int argc, char* argv[])
         if(!wrap)
             errori(NULL);
         for(size_t i = 0; i < lensed->npars; ++i)
-            wrap[i] = lensed->pars[i]->wrap;
+            wrap[i] = lensed->pars[lensed->pmap[i]]->wrap;
         
         // mute MultiNest when necessary
         if(LOG_LEVEL == LOG_QUIET || LOG_LEVEL == LOG_BATCH)
