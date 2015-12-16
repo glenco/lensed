@@ -286,6 +286,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         buf_size += log10(1+d);
         d += objs[i].size;
     }
+    if(trigger == OBJ_LENS)
+        buf_size += sizeof(COMPDEFL);
     buf_size += sizeof(COMPFOOT);
     buf_size += sizeof(FILEFOOT);
     
@@ -369,6 +371,15 @@ static const char* compute_kernel(size_t nobjs, object objs[])
         
         // advance data pointer
         d += objs[i].size;
+    }
+    
+    // apply deflection when finishing with lens
+    if(trigger == OBJ_LENS)
+    {
+        wri = sprintf(out, COMPDEFL);
+        if(wri < 0)
+            errori(NULL);
+        out += wri;
     }
     
     // write footer
