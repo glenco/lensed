@@ -9,7 +9,7 @@ GitHub. The main [documentation] contains detailed instructions on how to set
 up, run, configure and extend the code.
 
 This project aims to be a community effort, and we are happy for any and all
-contributions. The easist part to play is to open [issues] whenever something
+contributions. The easiest part to play is to open [issues] whenever something
 does not work, and create [pull requests] whenever you have fixed something
 that was broken. Contributions in the form of new models are most welcome if
 they are generally useful.
