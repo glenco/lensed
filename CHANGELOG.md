@@ -1,6 +1,13 @@
 Changelog
 =========
 
+v1.1.1 / (2016-01-12)
+---------------------
+
+  * bugfix: use parameter map to get correct wraparound flag
+  * fixed bug when last object was a lens
+  * fixed EPL scale
+
 v1.1.0 (2015-10-10)
 -------------------
 
