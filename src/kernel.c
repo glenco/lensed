@@ -241,158 +241,161 @@ static const char* compute_kernel(size_t nobjs, object objs[])
     int trigger;
     
     // buffer for kernel
-    size_t buf_size;
+    size_t siz, len;
     char* buf;
     
     // current output position
     char* out;
     
-    // offset in data block
-    size_t d;
-    
     // number of characters added
     int wri;
     
-    // calculate buffer size
-    d = 0;
-    type = trigger = 0;
-    buf_size = sizeof(FILEHEAD) + strlen("compute");
-    buf_size += sizeof(COMPHEAD);
-    for(size_t i = 0; i < nobjs; ++i)
+    // offset in data block
+    size_t d;
+    
+    // start empty and with 0 length to prevent writing
+    buf = NULL;
+    out = NULL;
+    siz = 0;
+    len = 0;
+    
+    // two-pass: calculate buffer size and allocate, then fill
+    for(int pass = 0; pass < 2; ++pass)
     {
-        if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
+        // allocate buffer after first pass
+        if(pass > 0)
         {
-            if(trigger == OBJ_LENS)
-                buf_size += sizeof(COMPDEFL);
-            trigger = objs[i].type;
-        }
-        if(objs[i].type != type)
-        {
-            if(objs[i].type == OBJ_LENS)
-                buf_size += sizeof(COMPLHED);
-            else if(objs[i].type == OBJ_SOURCE)
-                buf_size += sizeof(COMPSHED);
-            else if(objs[i].type == OBJ_FOREGROUND)
-                buf_size += sizeof(COMPFHED);
-            type = objs[i].type;
-        }
-        if(type == OBJ_LENS)
-            buf_size += sizeof(COMPLENS);
-        else if(type == OBJ_SOURCE)
-            buf_size += sizeof(COMPSRCE);
-        else if(type == OBJ_FOREGROUND)
-            buf_size += sizeof(COMPFGND);
-        buf_size += strlen(objs[i].name);
-        buf_size += log10(1+d);
-        d += objs[i].size;
-    }
-    if(trigger == OBJ_LENS)
-        buf_size += sizeof(COMPDEFL);
-    buf_size += sizeof(COMPFOOT);
-    buf_size += sizeof(FILEFOOT);
-    
-    // allocate buffer
-    buf = malloc(buf_size);
-    if(!buf)
-        errori(NULL);
-    
-    // start at beginning of data block
-    d = 0;
-    
-    // start with invalid type
-    type = trigger = 0;
-    
-    // output tracks current writing position on buffer
-    out = buf;
-    
-    // write file header
-    wri = sprintf(out, FILEHEAD, "", "compute");
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write header
-    wri = sprintf(out, COMPHEAD);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write body
-    for(size_t i = 0; i < nobjs; ++i)
-    {
-        // check if lens plane change is triggered
-        if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
-        {
-            // when triggering from lenses to sources, apply deflection
-            if(trigger == OBJ_LENS)
-            {
-                wri = sprintf(out, COMPDEFL);
-                if(wri < 0)
-                    errori(NULL);
-                out += wri;
-            }
+            // allocate
+            buf = malloc(siz + 1);
+            if(!buf)
+                errori(NULL);
             
-            // new trigger
-            trigger = objs[i].type;
+            // output tracks writing
+            out = buf;
+            
+            // maximum length is now huge
+            len = -1;
         }
         
-        // check if type of object changed
-        if(objs[i].type != type)
+        // start with invalid type
+        type = trigger = 0;
+        
+        // start at beginning of data block
+        d = 0;
+        
+        // write file header
+        wri = snprintf(out, len, FILEHEAD, "", "compute");
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
+        
+        // write header
+        wri = snprintf(out, len, COMPHEAD);
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
+        
+        // write body
+        for(size_t i = 0; i < nobjs; ++i)
         {
-            // write header
-            if(objs[i].type == OBJ_LENS)
-                wri = sprintf(out, COMPLHED);
-            else if(objs[i].type == OBJ_SOURCE)
-                wri = sprintf(out, COMPSHED);
-            else if(objs[i].type == OBJ_FOREGROUND)
-                wri = sprintf(out, COMPFHED);
+            // check if lens plane change is triggered
+            if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
+            {
+                // when triggering from lenses to sources, apply deflection
+                if(trigger == OBJ_LENS)
+                {
+                    wri = snprintf(out, len, COMPDEFL);
+                    if(wri < 0)
+                        errori(NULL);
+                    if(pass > 0)
+                        out += wri;
+                    else
+                        siz += wri;
+                }
+                
+                // new trigger
+                trigger = objs[i].type;
+            }
+            
+            // check if type of object changed
+            if(objs[i].type != type)
+            {
+                // write header
+                if(objs[i].type == OBJ_LENS)
+                    wri = snprintf(out, len, COMPLHED);
+                else if(objs[i].type == OBJ_SOURCE)
+                    wri = snprintf(out, len, COMPSHED);
+                else if(objs[i].type == OBJ_FOREGROUND)
+                    wri = snprintf(out, len, COMPFHED);
+                else
+                    wri = 0;
+                if(wri < 0)
+                    errori(NULL);
+                if(pass > 0)
+                    out += wri;
+                else
+                    siz += wri;
+                
+                // new type
+                type = objs[i].type;
+            }
+            
+            // write line for current object
+            if(type == OBJ_LENS)
+                wri = snprintf(out, len, COMPLENS, objs[i].name, d);
+            else if(type == OBJ_SOURCE)
+                wri = snprintf(out, len, COMPSRCE, objs[i].name, d);
+            else if(type == OBJ_FOREGROUND)
+                wri = snprintf(out, len, COMPFGND, objs[i].name, d);
             else
                 wri = 0;
             if(wri < 0)
                 errori(NULL);
-            out += wri;
+            if(pass > 0)
+                out += wri;
+            else
+                siz += wri;
             
-            // new type
-            type = objs[i].type;
+            // advance data pointer
+            d += objs[i].size;
         }
         
-        // write line for current object
-        if(type == OBJ_LENS)
-            wri = sprintf(out, COMPLENS, objs[i].name, d);
-        else if(type == OBJ_SOURCE)
-            wri = sprintf(out, COMPSRCE, objs[i].name, d);
-        else if(type == OBJ_FOREGROUND)
-            wri = sprintf(out, COMPFGND, objs[i].name, d);
-        else
-            wri = 0;
-        if(wri < 0)
-            errori(NULL);
-        out += wri;
+        // apply deflection when finishing with lens
+        if(trigger == OBJ_LENS)
+        {
+            wri = snprintf(out, len, COMPDEFL);
+            if(wri < 0)
+                errori(NULL);
+            if(pass > 0)
+                out += wri;
+            else
+                siz += wri;
+        }
         
-        // advance data pointer
-        d += objs[i].size;
-    }
-    
-    // apply deflection when finishing with lens
-    if(trigger == OBJ_LENS)
-    {
-        wri = sprintf(out, COMPDEFL);
+        // write footer
+        wri = snprintf(out, len, COMPFOOT);
         if(wri < 0)
             errori(NULL);
-        out += wri;
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
+        
+        // write file footer
+        wri = snprintf(out, len, FILEFOOT);
+        if(wri < 0)
+            errori(NULL);
+        if(pass > 0)
+            out += wri;
+        else
+            siz += wri;
     }
-    
-    // write footer
-    wri = sprintf(out, COMPFOOT);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
-    
-    // write file footer
-    wri = sprintf(out, FILEFOOT);
-    if(wri < 0)
-        errori(NULL);
-    out += wri;
     
     // this is our code
     return buf;
