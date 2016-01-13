@@ -68,26 +68,23 @@ static const char COMPHEAD[] =
     "    // ray position\n"
     "    float2 y = x;\n"
     "    \n"
+    "    // initial deflection is zero\n"
+    "    float2 a = 0;\n"
+    "    \n"
     "    // initial surface brightness is zero\n"
     "    float f = 0;\n"
 ;
 static const char COMPLHED[] =
     "    \n"
-    "    // lens plane\n"
-    "    {\n"
-    "        // initial deflection is zero\n"
-    "        float2 a = 0;\n"
-    "        \n"
-    "        // calculate deflection\n"
+    "    // calculate deflection\n"
 ;
 static const char COMPLENS[] =
-    "        a += deflection_%s((local void*)(data + %zu), y);\n"
+    "    a += deflection_%s((local void*)(data + %zu), y);\n"
 ;
 static const char COMPDEFL[] =
-    "        \n"
-    "        // apply deflection to ray, if finite\n"
-    "        y -= dot(a,a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
-    "    }\n"
+    "    \n"
+    "    // apply deflection to ray, if finite\n"
+    "    y -= dot(a,a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
 ;
 static const char COMPSHED[] =
     "    \n"
@@ -102,6 +99,13 @@ static const char COMPFHED[] =
 ;
 static const char COMPFGND[] =
     "    f += foreground_%s((local void*)(data + %zu), x);\n"
+;
+static const char COMPPHED[] =
+    "    \n"
+    "    // scale plane\n"
+;
+static const char COMPPLNE[] =
+    "    a *= planescale_%s((local void*)(data + %zu));\n"
 ;
 static const char COMPFOOT[] =
     "    \n"
@@ -118,8 +122,6 @@ static const char SETPHEAD[] =
     "    // image plane priors\n"
     "    float2 x;\n"
     "    float2 a;\n"
-    "    x = 0;\n"
-    "    a = 0;\n"
     "    \n"
     "    // load parameters to local memory\n"
     "    for(size_t i = get_local_id(0); i < dsiz; i += get_local_size(0))\n"
@@ -140,13 +142,16 @@ static const char SETPFOOT[] =
 ;
 static const char SETPIPP_POSINIT[] =
     "    x = (float2)(params[%zu], params[%zu]);\n"
+    "    a = 0;\n"
 ;
 static const char SETPIPP_POSLENS[] =
     "    a += deflection_%s((local void*)(ldata + %zu), x);\n"
 ;
+static const char SETPIPP_POSPLNE[] =
+    "    a *= planescale_%s((local void*)(ldata + %zu));\n"
+;
 static const char SETPIPP_POSDEFL[] =
     "    x -= dot(a, a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
-    "    a = 0;\n"
 ;
 
 // object kernel
@@ -157,6 +162,7 @@ static const char OBJHEAD[] =
     "#define deflection deflection_%s\n"
     "#define brightness brightness_%s\n"
     "#define foreground foreground_%s\n"
+    "#define planescale planescale_%s\n"
     "#define set set_%s\n"
     "\n"
 ;
@@ -168,6 +174,7 @@ static const char OBJFOOT[] =
     "#undef deflection\n"
     "#undef brightness\n"
     "#undef foreground\n"
+    "#undef planescale\n"
     "#undef set\n"
 ;
 
@@ -307,8 +314,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             // check if lens plane change is triggered
             if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
             {
-                // when triggering from lenses to sources, apply deflection
-                if(trigger == OBJ_LENS)
+                // apply deflection when triggering to sources
+                if(objs[i].type == OBJ_SOURCE)
                 {
                     wri = snprintf(out, len, COMPDEFL);
                     if(wri < 0)
@@ -333,6 +340,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
                     wri = snprintf(out, len, COMPSHED);
                 else if(objs[i].type == OBJ_FOREGROUND)
                     wri = snprintf(out, len, COMPFHED);
+                else if(objs[i].type == OBJ_PLANE)
+                    wri = snprintf(out, len, COMPPHED);
                 else
                     wri = 0;
                 if(wri < 0)
@@ -353,6 +362,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
                 wri = snprintf(out, len, COMPSRCE, objs[i].name, d);
             else if(type == OBJ_FOREGROUND)
                 wri = snprintf(out, len, COMPFGND, objs[i].name, d);
+            else if(type == OBJ_PLANE)
+                wri = snprintf(out, len, COMPPLNE, objs[i].name, d);
             else
                 wri = 0;
             if(wri < 0)
@@ -364,18 +375,6 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             
             // advance data pointer
             d += objs[i].size;
-        }
-        
-        // apply deflection when finishing with lens
-        if(trigger == OBJ_LENS)
-        {
-            wri = snprintf(out, len, COMPDEFL);
-            if(wri < 0)
-                errori(NULL);
-            if(pass > 0)
-                out += wri;
-            else
-                siz += wri;
         }
         
         // write footer
@@ -482,8 +481,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
             // check if lens plane change is triggered
             if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
             {
-                // when triggering from lenses to sources, change planes
-                if(trigger == OBJ_LENS && objs[i].type == OBJ_SOURCE)
+                // change planes when triggering to sources
+                if(objs[i].type == OBJ_SOURCE)
                     plane = i;
                 
                 // new trigger
@@ -519,10 +518,11 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
                             // deflect IPP through previous planes
                             for(size_t k = 0; k < plane; ++k)
                             {
+                                // check if IPP lens plane change is triggered
                                 if(objs[k].type != trigger2 && objs[k].type != OBJ_FOREGROUND)
                                 {
-                                    // deflect when triggering from lens
-                                    if(trigger2 == OBJ_LENS)
+                                    // deflect IPP when triggering to sources
+                                    if(objs[k].type == OBJ_SOURCE)
                                     {
                                         wri = snprintf(out, len, SETPIPP_POSDEFL);
                                         if(wri < 0)
@@ -533,28 +533,30 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
                                             siz += wri;
                                     }
                                     
-                                    // reset trigger
+                                    // reset IPP trigger
                                     trigger2 = objs[k].type;
                                 }
                                 
-                                // compute deflection for lens
+                                // write IPP line for current object
                                 if(objs[k].type == OBJ_LENS)
-                                {
                                     wri = snprintf(out, len, SETPIPP_POSLENS, objs[k].name, d2);
-                                    if(wri < 0)
-                                        errori(NULL);
-                                    if(pass > 0)
-                                        out += wri;
-                                    else
-                                        siz += wri;
-                                }
+                                else if(objs[k].type == OBJ_PLANE)
+                                    wri = snprintf(out, len, SETPIPP_POSPLNE, objs[k].name, d2);
+                                else
+                                    wri = 0;
+                                if(wri < 0)
+                                    errori(NULL);
+                                if(pass > 0)
+                                    out += wri;
+                                else
+                                    siz += wri;
                                 
                                 // increase data offset
                                 d2 += objs[k].size;
                             }
                             
-                            // apply final deflection when stopped with lens
-                            if(trigger2 == OBJ_LENS)
+                            // apply final deflection when IPP stopped with lens
+                            if(trigger2 == OBJ_LENS || trigger2 == OBJ_PLANE)
                             {
                                 wri = snprintf(out, len, SETPIPP_POSDEFL);
                                 if(wri < 0)
@@ -767,7 +769,7 @@ static const char* load_object(const char* name)
     // calculate size of buffer
     buf_size = file_size
              + snprintf(NULL, 0, FILEHEAD, OBJECT_DIR, name)
-             + snprintf(NULL, 0, OBJHEAD, name, name, name, name, name, name, name)
+             + snprintf(NULL, 0, OBJHEAD, name, name, name, name, name, name, name, name)
              + snprintf(NULL, 0, OBJFOOT)
              + snprintf(NULL, 0, FILEFOOT);
     
@@ -786,7 +788,7 @@ static const char* load_object(const char* name)
     out += wri;
     
     // write object header
-    wri = sprintf(out, OBJHEAD, name, name, name, name, name, name, name);
+    wri = sprintf(out, OBJHEAD, name, name, name, name, name, name, name, name);
     if(wri < 0)
         errori("object %s", name);
     out += wri;

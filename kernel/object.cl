@@ -3,7 +3,8 @@ enum
 {
     LENS       = 'L',
     SOURCE     = 'S',
-    FOREGROUND = 'F'
+    FOREGROUND = 'F',
+    PLANE      = 'P'
 };
 
 // parameter types
@@ -15,7 +16,8 @@ enum
     RADIUS,
     MAGNITUDE,
     AXIS_RATIO,
-    POS_ANGLE
+    POS_ANGLE,
+    SCALE
 };
 
 // parameter bounds

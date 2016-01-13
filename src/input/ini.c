@@ -119,8 +119,6 @@ void read_ini(const char* ini, input* inp)
     object* obj;
     param* par;
     int grp;
-    int typ;
-    size_t nplanes;
     int err;
     
     // no initial object or param
@@ -141,10 +139,6 @@ void read_ini(const char* ini, input* inp)
     
     // initial group is "options"
     grp = GRP_OPTIONS;
-    
-    // no planes, start without type
-    typ = 0;
-    nplanes = 0;
     
     // read file line by line
     while(fgets(buf, sizeof(buf), file))
@@ -245,20 +239,6 @@ void read_ini(const char* ini, input* inp)
             if(obj)
                 errorf(ini, line, "duplicate object name: %s", name);
             add_object(inp, name, value);
-            
-            // TODO take this out once multiple planes work
-            obj = find_object(inp, name);
-            if(obj->type != typ && obj->type != OBJ_FOREGROUND)
-            {
-                if(obj->type == OBJ_LENS)
-                {
-                    nplanes += 1;
-                    if(nplanes > 1)
-                        errorf(ini, line, "multiple lensing planes are not supported");
-                }
-                typ = obj->type;
-            }
-            
             break;
             
         case GRP_PRIORS:

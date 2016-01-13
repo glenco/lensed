@@ -152,6 +152,7 @@ int main(int argc, char* argv[])
                     switch(par->type)
                     {
                     case PAR_RADIUS:
+                    case PAR_SCALE:
                         par->lower = 0;
                         par->upper = HUGE_VAL;
                         break;

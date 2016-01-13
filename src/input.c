@@ -292,13 +292,14 @@ void print_input(const input* inp)
                 prior_print(par->pri, buf, 255);
                 
                 // collect tags
-                snprintf(tag, 255, " [%s%s%s%s%s%s%s%s%s",
+                snprintf(tag, 255, " [%s%s%s%s%s%s%s%s%s%s",
                     par->type == PAR_POSITION_X ? "position x, " : "",
                     par->type == PAR_POSITION_Y ? "position y, " : "",
                     par->type == PAR_RADIUS     ? "radius, "     : "",
                     par->type == PAR_MAGNITUDE  ? "magnitude, "  : "",
                     par->type == PAR_AXIS_RATIO ? "axis ratio, " : "",
                     par->type == PAR_POS_ANGLE  ? "pos. angle, " : "",
+                    par->type == PAR_SCALE      ? "scale, "      : "",
                     par->bounded                ? "bounded, "    : "",
                     par->wrap                   ? "wrap, "       : "",
                     par->ipp                    ? "IPP, "        : ""

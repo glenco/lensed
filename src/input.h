@@ -5,7 +5,8 @@ enum
 {
     OBJ_LENS       = 'L',
     OBJ_SOURCE     = 'S',
-    OBJ_FOREGROUND = 'F'
+    OBJ_FOREGROUND = 'F',
+    OBJ_PLANE      = 'P'
 };
 
 // parameter types
@@ -17,7 +18,8 @@ enum
     PAR_RADIUS,
     PAR_MAGNITUDE,
     PAR_AXIS_RATIO,
-    PAR_POS_ANGLE
+    PAR_POS_ANGLE,
+    PAR_SCALE
 };
 
 // option contains a path or a real
