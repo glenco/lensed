@@ -284,8 +284,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             len = -1;
         }
         
-        // start with invalid type
-        type = trigger = 0;
+        // start with source type
+        type = trigger = OBJ_SOURCE;
         
         // start at beginning of data block
         d = 0;
@@ -448,8 +448,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
             len = -1;
         }
         
-        // start with invalid trigger
-        trigger = 0;
+        // start with source trigger
+        trigger = OBJ_SOURCE;
         
         // keep track of where current plane starts
         plane = 0;
@@ -501,7 +501,7 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
                         case PAR_POSITION_X:
                         {
                             // inner trigger for changing lens planes
-                            int trigger2 = 0;
+                            int trigger2 = OBJ_SOURCE;
                             
                             // inner data offset
                             size_t d2 = 0;
