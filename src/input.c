@@ -28,7 +28,7 @@ void usage(int help)
     {
         printf("Lensed %s%s\n", LENSED_VERSION, LENSED_BUILD_TAG);
         printf("\n");
-        printf("Reconstruct lenses and sources from observations.\n");
+        printf("Reconstruct gravitational lenses and sources from observations.\n");
         printf("\n");
     }
     
