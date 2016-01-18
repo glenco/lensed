@@ -13,6 +13,8 @@ offset      = 2.9633
 output      = true
 root        = chains/double-lens-
 
+ds9         = true
+
 [objects]
 lens        = sie
 source      = sersic
@@ -87,6 +89,14 @@ Option     | Type           | Description                            | Default
 `maxiter`  | `int`          | Maximum number of iterations.          | `0`
 
 Options without a default value are required to be set in the configuration.
+
+If (and only if) XPA support is enabled in the [build options](building.md),
+there are a number of additional settings for integration with SAOImage DS9:
+
+Option     | Type           | Description                            | Default
+-----------|----------------|----------------------------------------|--------
+`ds9`      | `bool`         | Integrate with SAOImage DS9.           | `false`
+`ds9-name` | `string`       | XPA template name for DS9.             | `ds9`
 
 There are a number of caveats regarding the following options.
 

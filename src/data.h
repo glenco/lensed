@@ -39,5 +39,8 @@ void read_psf(const char* filename, size_t* width, size_t* height, cl_float** ps
 // write output to FITS file
 void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[]);
 
+// write output to in-memory FITS
+size_t write_memory(void** mem, size_t width, size_t height, size_t noutput, cl_float* output[]);
+
 // find most common value
 void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm);

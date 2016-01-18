@@ -127,6 +127,20 @@ struct option OPTIONS[] = {
         OPTION_OPTIONAL(string, "g3k7"),
         OPTION_FIELD(rule)
     },
+#ifdef LENSED_XPA
+    {
+        "ds9",
+        "Integrate with SAOImage DS9",
+        OPTION_OPTIONAL(bool, 0),
+        OPTION_FIELD(ds9)
+    },
+    {
+        "ds9-name",
+        "XPA template name for DS9",
+        OPTION_OPTIONAL(string, "ds9"),
+        OPTION_FIELD(ds9_name)
+    },
+#endif
     {
         "nlive",
         "Number of live points",

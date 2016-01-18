@@ -7,6 +7,10 @@
 #include <signal.h>
 #include <setjmp.h>
 
+#ifdef LENSED_XPA
+#include "xpa.h"
+#endif
+
 #include "multinest.h"
 
 #include "opencl.h"
@@ -1130,6 +1134,66 @@ int main(int argc, char* argv[])
     }
     
     
+    /***********
+     * DS9 XPA *
+     ***********/
+    
+#ifdef LENSED_XPA
+    verbose("XPA");
+    
+    // create a persistent XPA handle
+    lensed->xpa = XPAOpen(NULL);
+    
+    if(lensed->xpa)
+        verbose("  handle created");
+    else
+        verbose("  could not create handle!");
+        
+    // set up DS9 for Lensed if successful
+    if(inp->opts->ds9)
+    {
+        int got;
+        
+        // XPA response
+        char* buf = NULL;
+        size_t len = 0;
+        
+        verbose("  DS9 enabled");
+        
+        // store XPA name for DS9
+        lensed->ds9 = inp->opts->ds9_name;
+        
+        verbose("    XPA name: %s", lensed->ds9);
+        
+        // set view to tile
+        XPASet(lensed->xpa, lensed->ds9, "tile yes", NULL, NULL, 0, NULL, NULL, 1);
+        
+        // create frame for images
+        XPASet(lensed->xpa, lensed->ds9, "frame new", NULL, NULL, 0, NULL, NULL, 1);
+        
+        // get newly created frame
+        got = XPAGet(lensed->xpa, lensed->ds9, "frame", NULL, &buf, &len, NULL, NULL, 1);
+        if(got)
+            lensed->ds9_frame = atoi(buf);
+        else
+            lensed->ds9_frame = 999;
+        
+        verbose("    frame no: %d", lensed->ds9_frame);
+        
+        // free response buffer
+        free(buf);
+    }
+    else
+    {
+        verbose("  DS9 disabled");
+    }
+#else
+    // XPA is not supported
+    lensed->xpa = NULL;
+    lensed->ds9 = 0;
+#endif
+    
+    
     /***************
      * ready to go *
      ***************/
@@ -1339,6 +1403,17 @@ int main(int argc, char* argv[])
         // output is done
         printf("\n");
     }
+    
+    
+    /************
+     * cleaning *
+     ************/
+    
+#ifdef LENSED_XPA
+    // close XPA handle
+    if(lensed->xpa)
+        XPAClose(lensed->xpa);
+#endif
     
     // free profile
     if(lensed->profile)
