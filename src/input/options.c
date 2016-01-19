@@ -288,11 +288,21 @@ int read_option_n(input* inp, const char* name, int n, const char* value)
         return 1;
     }
     
-    // error if no value was given
+    // check if no value was given
     if(!value || !*value)
     {
-        snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "option %.*s: no value given", n, name);
-        return 1;
+        // booleans do not need value
+        if(OPTIONS[opt].read == option_read_bool)
+        {
+            // enable boolean flag
+            value = "true";
+        }
+        else
+        {
+            // error, no value given
+            snprintf(ERROR_MSG, sizeof(ERROR_MSG)-1, "option %.*s: no value given", n, name);
+            return 1;
+        }
     }
     
     // try to read option and return eventual errors
