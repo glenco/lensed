@@ -96,6 +96,12 @@ If these dependencies are installed in a system-wide, default-accessible path,
 Lensed should be able to find them without any further intervention. For more
 information, refer to the [dependencies page](dependencies.md).
 
+For XPA support and DS9 integration, the
+
+-   XPA header and library
+
+is additionally required.
+
 
 Build configuration
 -------------------
@@ -120,6 +126,11 @@ The following variables can be passed to Lensed:
 | `MULTINEST_INCLUDE_DIR` | path to `multinest.h`                             |
 | `MULTINEST_LIB_DIR`     | path to the MultiNest library                     |
 | `MULTINEST_LIB`         | MultiNest library (e.g. `-lmultinest`, `-lnest3`) |
+| `XPA`                   | build with XPA support for DS9 integration        |
+| `XPA_DIR`               | path to a local XPA build                         |
+| `XPA_INCLUDE_DIR`       | path to `xpa.h`                                   |
+| `XPA_LIB_DIR`           | path to the XPA library                           |
+| `XPA_LIB`               | XPA library (e.g. `-lxpa`)                        |
 | `OPENCL_DIR`            | path to the OpenCL implementation                 |
 | `OPENCL_INCLUDE_DIR`    | path to the `CL/cl.h` header                      |
 | `OPENCL_LIB_DIR`        | path to the OpenCL library                        |
@@ -157,6 +168,11 @@ be undefined by calling `make DEBUG=` (i.e. with no value). Debug symbols and
 optimisations are set for each individual object file at compile time, hence
 it is necessary to perform a `make clean` in order to fully apply the setting.
 
+The XPA support and DS9 integration is controlled with the `XPA` symbol. Since
+XPA requires an additional [dependency](dependencies.md#xpa), it is by default
+not supported. Calling `make XPA=1` enables XPA support and DS9 integration.
+The XPA library can be [configured](#xpa) like any other dependency.
+
 The following sections contain further details on configuring the individual
 components of Lensed.
 
@@ -181,8 +197,8 @@ $ make CFITSIO_INCLUDE_DIR="$HOME/headers" CFITSIO_LIB_DIR="$HOME/libraries"
 ```
 
 The default CFITSIO library be linked is `-lcfitsio`. This can be overridden
-using the `CFITSIO_LIB` flag, either giving `-l<name>` linker flag or the full
-path to the library.
+using the `CFITSIO_LIB` flag, either a giving `-l<name>` linker flag or the
+full path to the library.
 
 ```sh
 $ make CFITSIO_LIB="$HOME/libraries/my-cfitsio-lib.a"
@@ -223,6 +239,39 @@ $ make MULTINEST_LIB="$HOME/multinest/my-multinest-lib.a"
 $ make MULTINEST_INCLUDE_DIR="/path/to/multinest/example_eggbox_C" \
        MULTINEST_LIB_DIR="/path/to/multinest" \
        MULTINEST_LIB="-lnest3"
+```
+
+
+### XPA
+
+To enable XPA support and DS9 integration, use the `XPA` flag.
+
+```sh
+$ make XPA=1
+```
+
+If XPA has been built from source, the path to the source folder can be given
+to Lensed using the `XPA_DIR` variable.
+
+```sh
+$ make XPA_DIR="$HOME/xpa"
+```
+
+This sets both `XPA_INCLUDE_DIR` and `XPA_LIB_DIR` to `XPA_DIR`, as this is 
+where `xpa.h` and `libxpa` reside by default.
+
+Alternatively, `XPA_INCLUDE_DIR` and `XPA_LIB_DIR` can be explicitly specified.
+
+```sh
+$ make XPA_INCLUDE_DIR="$HOME/headers" XPA_LIB_DIR="$HOME/libraries"
+```
+
+The default XPA library be linked is `-lxpa`. This can be overridden using the
+`XPA_LIB` flag, either giving a `-l<name>` linker flag or the full path to the
+library.
+
+```sh
+$ make XPA_LIB="$HOME/libraries/my-xpa-lib.a"
 ```
 
 

@@ -84,14 +84,9 @@ void read_fits(const char* filename, int datatype, size_t* width, size_t* height
         fits_error(filename, status);
 }
 
-void write_fits(const char* filename, int datatype, size_t width, size_t height,
-                size_t num, void** images)
+void write_fits(fitsfile* fptr, int datatype, size_t width, size_t height,
+                size_t num, void** images, int* status)
 {
-    int status = 0;
-    
-    // the FITS file
-    fitsfile* fptr;
-    
     // total number of pixels
     long npix = width*height;
     
@@ -102,28 +97,14 @@ void write_fits(const char* filename, int datatype, size_t width, size_t height,
     // writing offset
     long fpixel[2] = { 1, 1 };
     
-    // create FITS file
-    fits_create_file(&fptr, filename, &status);
-    if(status)
-        fits_error(filename, status);
-    
     for(size_t n = 0; n < num; ++n)
     {
         // create image extension
-        fits_create_img(fptr, DOUBLE_IMG, naxis, naxes, &status);
-        if(status)
-            fits_error(filename, status);
+        fits_create_img(fptr, FLOAT_IMG, naxis, naxes, status);
         
         // write pixels
-        fits_write_pix(fptr, datatype, fpixel, npix, images[n], &status);
-        if(status)
-            fits_error(filename, status);
+        fits_write_pix(fptr, datatype, fpixel, npix, images[n], status);
     }
-    
-    // close file
-    fits_close_file(fptr, &status);
-    if(status)
-        fits_error(filename, status);
 }
 
 void read_image(const char* filename, size_t* width, size_t* height, cl_float** image)
@@ -294,8 +275,51 @@ void read_psf(const char* filename, size_t* width, size_t* height, cl_float** ps
 
 void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[])
 {
+    int status = 0;
+    
+    // the FITS file
+    fitsfile* fptr;
+    
+    // create FITS file
+    fits_create_file(&fptr, filename, &status);
+    
     // write FITS file
-    write_fits(filename, TFLOAT, width, height, noutput, (void**)output);
+    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, &status);
+               
+    // close FITS file
+    fits_close_file(fptr, &status);
+    
+    // report FITS errors
+    if(status)
+        fits_error(filename, status);
+}
+
+size_t write_memory(void** mem, size_t width, size_t height, size_t noutput, cl_float* output[])
+{
+    int status = 0;
+    
+    // memory block
+    *mem = NULL;
+    size_t siz = 0;
+    
+    // the FITS file
+    fitsfile* fptr;
+    
+    // create in-memory FITS
+    fits_create_memfile(&fptr, mem, &siz, 0, realloc, &status);
+    
+    // write in-memory FITS
+    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, &status);
+    
+    // close in-memory FITS
+    fits_close_file(fptr, &status);
+    
+    // report FITS errors
+    if(status)
+        fits_error(NULL, status);
+    
+    // return the in-memory FITS
+    return siz;
 }
 
 void find_mode(size_t nvalues, const cl_float values[], const cl_float mask[], double* mode, double* fwhm)

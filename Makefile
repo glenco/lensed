@@ -27,6 +27,21 @@
 #   MULTINEST_LIB                                                    #
 #     MultiNest library (e.g. `-lmultinest` or `-lnest3`)            #
 #                                                                    #
+#   XPA                                                              #
+#     build with XPA support for DS9 integration                     #
+#                                                                    #
+#   XPA_DIR                                                          #
+#     path to a local XPA build                                      #
+#                                                                    #
+#   XPA_INCLUDE_DIR                                                  #
+#     path to `xpa.h`                                                #
+#                                                                    #
+#   XPA_LIB_DIR                                                      #
+#     path to the XPA library                                        #
+#                                                                    #
+#   XPA_LIB                                                          #
+#     XPA library (e.g. `-lxpa`)                                     #
+#                                                                    #
 #   OPENCL_DIR                                                       #
 #     path to the OpenCL implementation                              #
 #                                                                    #
@@ -136,7 +151,9 @@ DEBUG_TAG =
 endif
 
 # CFITSIO library
-CFITSIO_LIB ?= -lcfitsio
+ifndef CFITSIO_LIB
+CFITSIO_LIB = -lcfitsio
+endif
 
 ifdef CFITSIO_DIR
 CFITSIO_INCLUDE_DIR = $(CFITSIO_DIR)
@@ -151,7 +168,9 @@ endif
 LDLIBS += $(CFITSIO_LIB)
 
 # MultiNest library
-MULTINEST_LIB ?= -lmultinest
+ifndef MULTINEST_LIB
+MULTINEST_LIB = -lmultinest
+endif
 
 ifdef MULTINEST_DIR
 MULTINEST_INCLUDE_DIR = $(MULTINEST_DIR)/include
@@ -165,10 +184,37 @@ LDFLAGS += -L$(MULTINEST_LIB_DIR) -Wl,-rpath,$(MULTINEST_LIB_DIR)
 endif
 LDLIBS += $(MULTINEST_LIB)
 
+# build with XPA support
+ifdef XPA
+
+CFLAGS += -DLENSED_XPA
+
+# XPA library
+ifndef XPA_LIB
+XPA_LIB = -lxpa
+endif
+
+ifdef XPA_DIR
+XPA_INCLUDE_DIR = $(XPA_DIR)
+XPA_LIB_DIR = $(XPA_DIR)
+endif
+ifdef XPA_INCLUDE_DIR
+CFLAGS += -I$(XPA_INCLUDE_DIR)
+endif
+ifdef XPA_LIB_DIR
+LDFLAGS += -L$(XPA_LIB_DIR) -Wl,-rpath,$(XPA_LIB_DIR)
+endif
+LDLIBS += $(XPA_LIB)
+
+# ifdef XPA
+endif
+
 # system-dependent OpenCL library
 OPENCL_LIB_Linux = -lOpenCL
 OPENCL_LIB_Darwin = -framework OpenCL
-OPENCL_LIB ?= $(OPENCL_LIB_$(OS))
+ifndef OPENCL_LIB
+OPENCL_LIB = $(OPENCL_LIB_$(OS))
+endif
 
 ifdef OPENCL_DIR
 OPENCL_INCLUDE_DIR = $(OPENCL_DIR)/include
@@ -264,6 +310,10 @@ cache:
 	@$(ECHO) "MULTINEST_INCLUDE_DIR = $(MULTINEST_INCLUDE_DIR)" >> $(CACHE)
 	@$(ECHO) "MULTINEST_LIB_DIR = $(MULTINEST_LIB_DIR)" >> $(CACHE)
 	@$(ECHO) "MULTINEST_LIB = $(MULTINEST_LIB)" >> $(CACHE)
+	@$(ECHO) "XPA = $(XPA)" >> $(CACHE)
+	@$(ECHO) "XPA_INCLUDE_DIR = $(XPA_INCLUDE_DIR)" >> $(CACHE)
+	@$(ECHO) "XPA_LIB_DIR = $(XPA_LIB_DIR)" >> $(CACHE)
+	@$(ECHO) "XPA_LIB = $(XPA_LIB)" >> $(CACHE)
 	@$(ECHO) "OPENCL_INCLUDE_DIR = $(OPENCL_INCLUDE_DIR)" >> $(CACHE)
 	@$(ECHO) "OPENCL_LIB_DIR = $(OPENCL_LIB_DIR)" >> $(CACHE)
 	@$(ECHO) "OPENCL_LIB = $(OPENCL_LIB)" >> $(CACHE)

@@ -59,6 +59,10 @@ typedef struct
     int seed;
     int resume;
     int maxiter;
+    
+    // DS9 integration
+    int ds9;
+    char* ds9_name;
 } options;
 
 // opaque type for priors

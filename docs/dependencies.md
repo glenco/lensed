@@ -10,6 +10,13 @@ Lensed has a number of compile-time dependencies, namely
 If these dependencies are installed in a system-wide, default-accessible path,
 Lensed should be able to find them without any further intervention.
 
+For XPA support and integration with SAOImage DS9, there is a further
+dependency on
+
+-   [XPA](#xpa) .
+
+XPA support must be enabled explicitly in the [build options](building.md).
+
 
 CFITSIO
 -------
@@ -187,3 +194,56 @@ Some useful links are
 
 Mac OS X ships with the libraries and headers required to build OpenCL programs
 by default.
+
+
+XPA
+---
+
+For XPA support and DS9 integration, the
+
+- [XPA library](https://github.com/ericmandel/xpa)
+
+is required.
+
+
+### Sources
+
+The XPA library and command line tools can be install quickly from the GitHub
+repository:
+
+```sh
+$ curl -L https://github.com/ericmandel/xpa/archive/master.tar.gz | tar xz
+$ cd xpa-master
+$ ./configure  # --prefix=... and other options as necessary
+$ make
+```
+
+For use with Lensed, it is not necessary to have X11 or Tcl integration.
+
+```sh
+$ ./configure --without-x --without-tcl  # --prefix=...
+$ make
+```
+
+If possible, the XPA libraries and command line tools should be installed into
+the system, using
+
+```sh
+$ sudo make install
+```
+
+or similar, depending on the platform at hand.
+
+
+### Packages
+
+#### Mac OS X (Homebrew)
+
+Under Mac OS X, the library can be installed using Homebrew from the official 
+X11 repository. Please note that this currently requires an installation of
+XQuartz, even though building from source does not (see above).
+
+```sh
+$ brew install homebrew/x11/xpa
+```
+
