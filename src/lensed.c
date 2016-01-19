@@ -1152,8 +1152,6 @@ int main(int argc, char* argv[])
     // set up DS9 for Lensed if successful
     if(inp->opts->ds9)
     {
-        int got;
-        
         // XPA response
         char* buf = NULL;
         size_t len = 0;
@@ -1172,8 +1170,8 @@ int main(int argc, char* argv[])
         XPASet(lensed->xpa, lensed->ds9, "frame new", NULL, NULL, 0, NULL, NULL, 1);
         
         // get newly created frame
-        got = XPAGet(lensed->xpa, lensed->ds9, "frame", NULL, &buf, &len, NULL, NULL, 1);
-        if(got)
+        XPAGet(lensed->xpa, lensed->ds9, "frame", NULL, &buf, &len, NULL, NULL, 1);
+        if(buf)
             lensed->ds9_frame = atoi(buf);
         else
             lensed->ds9_frame = 999;
