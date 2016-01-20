@@ -90,12 +90,8 @@ void read_arg(const char* arg, input* inp)
         if(arg[sep] == '=')
             break;
     
-    // error if no equal sign was found
-    if(sep == end)
-        error("option \"--%s\" should be in the form \"--<name>=<value>\"", arg, arg);
-    
     // get option value
-    val = arg + sep + 1;
+    val = arg + sep + ((sep < end) ? 1 : 0);
     
     // try to parse option
     int err = read_option_n(inp, arg, sep, val);
