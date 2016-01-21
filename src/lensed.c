@@ -543,6 +543,21 @@ int main(int argc, char* argv[])
         }
     }
     
+    // make sure weights are positive
+    for(size_t i = 0; i < lensed->size; ++i)
+    {
+        if(!(lensed->weight[i] > 0))
+        {
+            warn("non-positive values in weights\n"
+                 "Some pixel weights are not positive numbers. This will "
+                 "almost certainly lead to wrong results. If you did not "
+                 "provide the weight map yourself, the reason might be a "
+                 "missing or too small number in the \"offset\" option for "
+                 "the background that was subtracted from the image.");
+            break;
+        }
+    }
+    
     
     /***********
      * results *
