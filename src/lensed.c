@@ -543,12 +543,12 @@ int main(int argc, char* argv[])
         }
     }
     
-    // make sure weights are positive
+    // make sure weights are non-negative
     for(size_t i = 0; i < lensed->size; ++i)
     {
-        if(!(lensed->weight[i] > 0))
+        if(!(lensed->weight[i] >= 0))
         {
-            warn("non-positive values in weights\n"
+            warn("negative values in weights\n"
                  "Some pixel weights are not positive numbers. This will "
                  "almost certainly lead to wrong results. If you did not "
                  "provide the weight map yourself, the reason might be a "
