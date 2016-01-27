@@ -66,12 +66,14 @@ for a quick look at results, one could invoke Lensed in the following way:
 
 As before, the order of the given configuration files and options is important.
 
-If Lensed is [built with XPA support](docs/building.md), direct updating of the
-reconstruction progress in SAOImage DS9 is available.
+If Lensed is [built with XPA support](docs/building.md) or taken from a binary
+release, direct updating of the reconstruction progress in SAOImage DS9 is
+available.
 
-    $ lensed config.ini --ds9=true
+    $ lensed config.ini --ds9
 
-This enables basic DS9 integration in Lensed.
+The `--ds9` option enables basic DS9 integration in Lensed. The flag can be set
+from a [configuration file](docs/configuration.md) as well.
 
 
 License
