@@ -7,6 +7,7 @@
 #include "input.h"
 #include "data.h"
 #include "log.h"
+#include "version.h"
 
 // number of bins for find_mode
 #ifndef MODE_BINS
@@ -85,7 +86,7 @@ void read_fits(const char* filename, int datatype, size_t* width, size_t* height
 }
 
 void write_fits(fitsfile* fptr, int datatype, size_t width, size_t height,
-                size_t num, void** images, int* status)
+                size_t num, void** images, const char* names[], int* status)
 {
     // total number of pixels
     long npix = width*height;
@@ -97,6 +98,17 @@ void write_fits(fitsfile* fptr, int datatype, size_t width, size_t height,
     // writing offset
     long fpixel[2] = { 1, 1 };
     
+    // write primary HDU
+    fits_create_img(fptr, SHORT_IMG, 0, NULL, status);
+    
+    // record file origin
+    fits_write_key(fptr, TSTRING, "ORIGIN", "Lensed " LENSED_VERSION, "FITS file originator", status);
+    fits_write_comment(fptr, "for more information, see http://glenco.github.io/lensed/", status);
+    
+    // record the date of FITS creation
+    fits_write_date(fptr, status);
+    
+    // write images
     for(size_t n = 0; n < num; ++n)
     {
         // create image extension
@@ -104,6 +116,10 @@ void write_fits(fitsfile* fptr, int datatype, size_t width, size_t height,
         
         // write pixels
         fits_write_pix(fptr, datatype, fpixel, npix, images[n], status);
+        
+        // give extension name
+        if(names && names[n])
+            fits_write_key(fptr, TSTRING, "EXTNAME", (void*)names[n], "extension name", status);
     }
 }
 
@@ -273,7 +289,7 @@ void read_psf(const char* filename, size_t* width, size_t* height, cl_float** ps
         (*psf)[i] /= norm;
 }
 
-void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[])
+void write_output(const char* filename, size_t width, size_t height, size_t noutput, cl_float* output[], const char* names[])
 {
     int status = 0;
     
@@ -284,7 +300,7 @@ void write_output(const char* filename, size_t width, size_t height, size_t nout
     fits_create_file(&fptr, filename, &status);
     
     // write FITS file
-    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, &status);
+    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, names, &status);
                
     // close FITS file
     fits_close_file(fptr, &status);
@@ -294,7 +310,7 @@ void write_output(const char* filename, size_t width, size_t height, size_t nout
         fits_error(filename, status);
 }
 
-size_t write_memory(void** mem, size_t width, size_t height, size_t noutput, cl_float* output[])
+size_t write_memory(void** mem, size_t width, size_t height, size_t noutput, cl_float* output[], const char* names[])
 {
     int status = 0;
     
@@ -309,7 +325,7 @@ size_t write_memory(void** mem, size_t width, size_t height, size_t noutput, cl_
     fits_create_memfile(&fptr, mem, &siz, 0, realloc, &status);
     
     // write in-memory FITS
-    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, &status);
+    write_fits(fptr, TFLOAT, width, height, noutput, (void**)output, names, &status);
     
     // close in-memory FITS
     fits_close_file(fptr, &status);

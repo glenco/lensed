@@ -150,7 +150,8 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
     cl_float* residuals;
     cl_float* relerr;
     
-    cl_float* output[4] = {0};
+    cl_float* output[5] = {0};
+    const char* names[5] = {0};
     
     // copy parameters to results
     for(size_t i = 0; i < lensed->npars; ++i)
@@ -233,10 +234,18 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         output[1] = residuals;
         output[2] = value_map;
         output[3] = relerr;
+        output[4] = lensed->weight;
+        
+        // output extension names
+        names[0] = "IMG";
+        names[1] = "RES";
+        names[2] = "RAW";
+        names[3] = "ERR";
+        names[4] = "WHT";
         
         // write output to FITS if asked to
         if(lensed->fits)
-            write_output(lensed->fits, lensed->width, lensed->height, 4, output);
+            write_output(lensed->fits, lensed->width, lensed->height, 5, output, names);
         
 #ifdef LENSED_XPA
         // send output to DS9 if asked to
@@ -256,7 +265,7 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
             snprintf(frame, 64, "frame %d", lensed->ds9_frame);
             
             // write FITS
-            len = write_memory(&fits, lensed->width, lensed->height, 4, output);
+            len = write_memory(&fits, lensed->width, lensed->height, 5, output, names);
             
             // set the image array
             XPASet(lensed->xpa, lensed->ds9, frame, XPA_MODE, NULL, 0, NULL, NULL, 1);
