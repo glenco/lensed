@@ -1199,11 +1199,14 @@ int main(int argc, char* argv[])
     else
     {
         verbose("  DS9 disabled");
+        
+        // don't use ds9
+        lensed->ds9 = NULL;
     }
 #else
     // XPA is not supported
     lensed->xpa = NULL;
-    lensed->ds9 = 0;
+    lensed->ds9 = NULL;
 #endif
     
     
