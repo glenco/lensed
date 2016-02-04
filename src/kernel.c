@@ -314,8 +314,8 @@ static const char* compute_kernel(size_t nobjs, object objs[])
             // check if lens plane change is triggered
             if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
             {
-                // apply deflection when triggering to sources
-                if(objs[i].type == OBJ_SOURCE)
+                // apply deflection when triggering from lenses or to sources
+                if(trigger == OBJ_LENS || objs[i].type == OBJ_SOURCE)
                 {
                     wri = snprintf(out, len, COMPDEFL);
                     if(wri < 0)
@@ -481,8 +481,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
             // check if lens plane change is triggered
             if(objs[i].type != trigger && objs[i].type != OBJ_FOREGROUND)
             {
-                // change planes when triggering to sources
-                if(objs[i].type == OBJ_SOURCE)
+                // change planes when triggering from lenses or to sources
+                if(trigger == OBJ_LENS || objs[i].type == OBJ_SOURCE)
                     plane = i;
                 
                 // new trigger
@@ -521,8 +521,8 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
                                 // check if IPP lens plane change is triggered
                                 if(objs[k].type != trigger2 && objs[k].type != OBJ_FOREGROUND)
                                 {
-                                    // deflect IPP when triggering to sources
-                                    if(objs[k].type == OBJ_SOURCE)
+                                    // deflect IPP when triggering from lenses or to sources
+                                    if(trigger2 == OBJ_LENS || objs[k].type == OBJ_SOURCE)
                                     {
                                         wri = snprintf(out, len, SETPIPP_POSDEFL);
                                         if(wri < 0)
