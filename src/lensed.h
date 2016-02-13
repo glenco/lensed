@@ -67,8 +67,6 @@ struct lensed
         profile* unmap_loglike_mem;
     }* profile;
     
-    // XPA handle and settings
-    void* xpa;
-    char* ds9;
-    int ds9_frame;
+    // DS9 connection
+    void* ds9;
 };

@@ -7,10 +7,6 @@
 #include <signal.h>
 #include <setjmp.h>
 
-#ifdef LENSED_XPA
-#include "xpa.h"
-#endif
-
 #include "multinest.h"
 
 #include "opencl.h"
@@ -25,6 +21,7 @@
 #include "log.h"
 #include "path.h"
 #include "version.h"
+#include "ds9.h"
 
 // jump buffer to exit run
 static jmp_buf jmp;
@@ -1149,65 +1146,31 @@ int main(int argc, char* argv[])
     }
     
     
-    /***********
-     * DS9 XPA *
-     ***********/
+    /******************
+     * DS9 connection *
+     ******************/
     
-#ifdef LENSED_XPA
-    verbose("XPA");
-    
-    // create a persistent XPA handle
-    lensed->xpa = XPAOpen(NULL);
-    
-    if(lensed->xpa)
-        verbose("  handle created");
-    else
-        verbose("  could not create handle!");
-        
-    // set up DS9 for Lensed if successful
+    // set up DS9 connection if enabled
     if(inp->opts->ds9)
     {
-        // XPA response
-        char* buf = NULL;
-        size_t len = 0;
+        verbose("DS9");
         
-        verbose("  DS9 enabled");
+        // create connection
+        lensed->ds9 = ds9_connect(inp->opts->ds9_name);
         
-        // store XPA name for DS9
-        lensed->ds9 = inp->opts->ds9_name;
-        
-        verbose("    XPA name: %s", lensed->ds9);
-        
-        // set view to tile
-        XPASet(lensed->xpa, lensed->ds9, "tile yes", NULL, NULL, 0, NULL, NULL, 1);
-        
-        // create frame for images
-        XPASet(lensed->xpa, lensed->ds9, "frame new", NULL, NULL, 0, NULL, NULL, 1);
-        
-        // get newly created frame
-        XPAGet(lensed->xpa, lensed->ds9, "frame", NULL, &buf, &len, NULL, NULL, 1);
-        if(buf)
-            lensed->ds9_frame = atoi(buf);
-        else
-            lensed->ds9_frame = 999;
-        
-        verbose("    frame no: %d", lensed->ds9_frame);
-        
-        // free response buffer
-        free(buf);
+        // check if connection was successful
+        if(lensed->ds9)
+        {
+            verbose("  XPA connected");
+            verbose("  DS9 template: %s", ds9_template(lensed->ds9));
+            verbose("  frame number: %d", ds9_frame(lensed->ds9));
+        }
     }
     else
     {
-        verbose("  DS9 disabled");
-        
-        // don't use ds9
+        // no DS9 connection
         lensed->ds9 = NULL;
     }
-#else
-    // XPA is not supported
-    lensed->xpa = NULL;
-    lensed->ds9 = NULL;
-#endif
     
     
     /***************
@@ -1425,11 +1388,9 @@ int main(int argc, char* argv[])
      * cleaning *
      ************/
     
-#ifdef LENSED_XPA
-    // close XPA handle
-    if(lensed->xpa)
-        XPAClose(lensed->xpa);
-#endif
+    // disconnect from DS9
+    if(lensed->ds9)
+        ds9_disconnect(lensed->ds9);
     
     // free profile
     if(lensed->profile)
