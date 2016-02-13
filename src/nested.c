@@ -4,10 +4,6 @@
 #include <float.h>
 #include <math.h>
 
-#ifdef LENSED_XPA
-#include "xpa.h"
-#endif
-
 #include "opencl.h"
 #include "input.h"
 #include "prior.h"
@@ -16,6 +12,7 @@
 #include "lensed.h"
 #include "nested.h"
 #include "log.h"
+#include "ds9.h"
 
 void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
 {
@@ -247,34 +244,22 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         if(lensed->fits)
             write_output(lensed->fits, lensed->width, lensed->height, 5, output, names);
         
-#ifdef LENSED_XPA
         // send output to DS9 if asked to
         if(lensed->ds9)
         {
-            // buffer for frame number
-            char frame[64];
-            
-            // the XPA mode
-            char* XPA_MODE = "ack=false,verify=false,doxpa=false";
-            
             // in-memory FITS
             void* fits;
             size_t len;
             
-            // create DS9 frame paramlist
-            snprintf(frame, 64, "frame %d", lensed->ds9_frame);
-            
             // write FITS
             len = write_memory(&fits, lensed->width, lensed->height, 5, output, names);
             
-            // set the image array
-            XPASet(lensed->xpa, lensed->ds9, frame, XPA_MODE, NULL, 0, NULL, NULL, 1);
-            XPASet(lensed->xpa, lensed->ds9, "mecube", XPA_MODE, fits, len, NULL, NULL, 1);
+            // show FITS
+            ds9_mecube(lensed->ds9, fits, len);
             
             // free in-memory FITS
             free(fits);
         }
-#endif
         
         // unmap buffers
         clEnqueueUnmapMemObject(lensed->queue, image_mem, image_map, 0, NULL, NULL);

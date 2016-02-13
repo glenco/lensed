@@ -79,6 +79,7 @@ HEADERS = lensed.h \
           path.h \
           profile.h \
           log.h \
+          ds9.h \
           input/objects.h \
           input/options.h \
           input/ini.h \
@@ -104,6 +105,7 @@ SOURCES = lensed.c \
           path.c \
           profile.c \
           log.c \
+          ds9.c \
           input/objects.c \
           input/options.c \
           input/ini.c \
