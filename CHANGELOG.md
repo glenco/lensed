@@ -1,8 +1,16 @@
 Changelog
 =========
 
-v1.1.1 / (2016-01-12)
----------------------
+v1.2.0 (2016-02-12)
+-------------------
+
+  * FITS extension names and weight map output
+  * check that weights are positive
+  * boolean options can be set as flags
+  * XPA support and basic DS9 integration
+
+v1.1.1 (2016-01-12)
+-------------------
 
   * bugfix: use parameter map to get correct wraparound flag
   * fixed bug when last object was a lens
