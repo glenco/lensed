@@ -37,9 +37,9 @@ static void set(local data* this, float x, float y, float r, float mag, float n,
     this->x = (float2)(x, y);
     
     // transformation matrix: rotate and scale
-    this->t = (mat22)(q*c, q*s, -s, c);
+    this->t = (mat22)(q*c, q*s, -s, c)/sqrt(q);
     
     this->log0 = -0.4f*mag*LOG_10 + 2*n*log(b) - LOG_PI - 2*log(r) - log(tgamma(2*n+1));
-    this->log1 = log(b) - (0.5f*log(q) + log(r))/n;
+    this->log1 = log(b) - log(r)/n;
     this->m = 0.5f/n;
 }
