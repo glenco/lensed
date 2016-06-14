@@ -83,10 +83,14 @@ double prior_apply_norm(const void* data, double u)
 
 double prior_lower_norm(const void* data)
 {
-    return -HUGE_VAL;
+    const struct norm* norm = data;
+    
+    return -7*norm->s;
 }
 
 double prior_upper_norm(const void* data)
 {
-    return +HUGE_VAL;
+    const struct norm* norm = data;
+    
+    return +7*norm->s;
 }
