@@ -1179,6 +1179,61 @@ int main(int argc, char* argv[])
     
     info("find posterior");
     
+    // write parameter names, labels and ranges to file
+    if(inp->opts->output)
+    {
+        FILE* paramfile;
+        FILE* rangefile;
+        char* paramname;
+        char* rangename;
+        
+        paramname = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
+        rangename = malloc(strlen(inp->opts->root) + strlen(".ranges") + 1);
+        if(!paramname || !rangename)
+            errori(NULL);
+        
+        strcpy(paramname, inp->opts->root);
+        strcat(paramname, ".paramnames");
+        strcpy(rangename, inp->opts->root);
+        strcat(rangename, ".ranges");
+        
+        paramfile = fopen(paramname, "w");
+        rangefile = fopen(rangename, "w");
+        if(!paramfile)
+            errori("could not write %s", paramname);
+        if(!rangefile)
+            errori("could not write %s", rangename);
+        
+        for(size_t i = 0; i < lensed->npars; ++i)
+        {
+            // get parameter using map
+            const param* par = lensed->pars[lensed->pmap[i]];
+            
+            // prior range
+            double lower = prior_lower(par->pri);
+            double upper = prior_upper(par->pri);
+            
+            // output parameter id and, if set, label
+            fprintf(paramfile, "%-20s  %s\n", par->id, par->label ? par->label : "");
+            
+            // output parameter range
+            fprintf(rangefile, "%-20s  ", par->id);
+            if(isfinite(lower))
+                fprintf(rangefile, "%10.4f  ", lower);
+            else
+                fprintf(rangefile, "%10s  ", "N");
+            if(isfinite(upper))
+                fprintf(rangefile, "%10.4f\n", upper);
+            else
+                fprintf(rangefile, "%10s\n", "N");
+        }
+        
+        fclose(paramfile);
+        fclose(rangefile);
+        free(paramname);
+        free(rangename);
+    }
+    
     // take start time
     start = time(0);
     
@@ -1300,61 +1355,6 @@ int main(int argc, char* argv[])
         info("  ");
         profile_print(profc, profv);
         info("  ");
-    }
-    
-    // write parameter names, labels and ranges to file
-    if(inp->opts->output)
-    {
-        FILE* paramfile;
-        FILE* rangefile;
-        char* paramname;
-        char* rangename;
-        
-        paramname = malloc(strlen(inp->opts->root) + strlen(".paramnames") + 1);
-        rangename = malloc(strlen(inp->opts->root) + strlen(".ranges") + 1);
-        if(!paramname || !rangename)
-            errori(NULL);
-        
-        strcpy(paramname, inp->opts->root);
-        strcat(paramname, ".paramnames");
-        strcpy(rangename, inp->opts->root);
-        strcat(rangename, ".ranges");
-        
-        paramfile = fopen(paramname, "w");
-        rangefile = fopen(rangename, "w");
-        if(!paramfile)
-            errori("could not write %s", paramname);
-        if(!rangefile)
-            errori("could not write %s", rangename);
-        
-        for(size_t i = 0; i < lensed->npars; ++i)
-        {
-            // get parameter using map
-            const param* par = lensed->pars[lensed->pmap[i]];
-            
-            // prior range
-            double lower = prior_lower(par->pri);
-            double upper = prior_upper(par->pri);
-            
-            // output parameter id and, if set, label
-            fprintf(paramfile, "%-20s  %s\n", par->id, par->label ? par->label : "");
-            
-            // output parameter range
-            fprintf(rangefile, "%-20s  ", par->id);
-            if(isfinite(lower))
-                fprintf(rangefile, "%10.4f  ", lower);
-            else
-                fprintf(rangefile, "%10s  ", "N");
-            if(isfinite(upper))
-                fprintf(rangefile, "%10.4f\n", upper);
-            else
-                fprintf(rangefile, "%10s\n", "N");
-        }
-        
-        fclose(paramfile);
-        fclose(rangefile);
-        free(paramname);
-        free(rangename);
     }
     
     // batch output
