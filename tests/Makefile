@@ -1,7 +1,9 @@
 TESTS = \
 	foreground/sky.ini \
 	lens/epl.ini \
+	lens/epl-isothermal.ini \
 	lens/epl_plus_shear.ini \
+	lens/epl_plus_shear-isothermal.ini \
 	lens/nsie.ini \
 	lens/nsis.ini \
 	lens/point_mass.ini \
