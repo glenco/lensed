@@ -3,8 +3,8 @@ type = FOREGROUND;
 params
 {
     { "bg" },
-    { "dx" },
-    { "dy" }
+    { "dx", PARAMETER, UNBOUNDED, -0.0f },
+    { "dy", PARAMETER, UNBOUNDED, -0.0f }
 };
 
 data
