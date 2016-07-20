@@ -98,6 +98,9 @@ Option     | Type           | Description                            | Default
 `ds9`      | `bool`         | Integrate with SAOImage DS9.           | `false`
 `ds9-name` | `string`       | XPA template name for DS9.             | `ds9`
 
+If region file support is enabled in the [build options](building.md), the
+`mask` option can alternatively contain the path to a supported region file.
+
 There are a number of caveats regarding the following options.
 
 ### device

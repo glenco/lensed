@@ -465,7 +465,7 @@ int main(int argc, char* argv[])
         int* mask;
         
         // read mask from file
-        read_mask(inp->opts->mask, lensed->width, lensed->height, &mask);
+        read_mask(inp->opts->mask, inp->opts->image, pcs, lensed->width, lensed->height, &mask);
         
         // mask individual pixels by setting their weight to zero
         for(size_t i = 0; i < lensed->size; ++i)

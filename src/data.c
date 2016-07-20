@@ -3,6 +3,10 @@
 
 #include "fitsio.h"
 
+#ifdef LENSED_REGIONS
+#include "regions.h"
+#endif
+
 #include "opencl.h"
 #include "input.h"
 #include "data.h"
@@ -122,6 +126,67 @@ void write_fits(fitsfile* fptr, int datatype, size_t width, size_t height,
             fits_write_key(fptr, TSTRING, "EXTNAME", (void*)names[n], "extension name", status);
     }
 }
+
+#ifdef LENSED_REGIONS
+int read_regions_mask(const char* maskfile, const char* imagefile, const pcsdata* pcs, size_t width, size_t height, int** mask)
+{
+    // FITS header of image
+    int status = 0;
+    fitsfile* fptr;
+    char* fitshdr;
+    int nkeys;
+    
+    // regions specifications
+    char* regspec;
+    Regions reg;
+    RegionsMask regmask;
+    int nmask;
+    
+    // read image FITS header to string
+    fits_open_file(&fptr, imagefile, READONLY, &status);
+    fits_convert_hdr2str(fptr, 0, NULL, 0, &fitshdr, &nkeys, &status);
+    fits_close_file(fptr, &status);
+    if(status)
+        fits_error(imagefile, status);
+    
+    // make regions specification
+    regspec = malloc(strlen(maskfile) + 3);
+    if(!regspec)
+        errori(NULL);
+    sprintf(regspec, "@%s\n", maskfile);
+    
+    // load regions from file
+    reg = OpenRegions(fitshdr, regspec, NULL);
+    if(!reg)
+    {
+        // could not read regions
+        free(regspec);
+        free(fitshdr);
+        return 1;
+    }
+    
+    // allocate zero-filled space for mask
+    *mask = calloc(width*height, sizeof(int));
+    if(!*mask)
+        error(NULL, 0);
+    
+    // filter regions for image section
+    nmask = FilterRegions(reg, pcs->rx, pcs->rx + width - 1, pcs->ry, pcs->ry + height - 1, 1, &regmask, NULL);
+    
+    // go through regions and mask pixels
+    for(int i = 0; i < nmask; ++i)
+        for(int x = regmask[i].xstart; x <= regmask[i].xstop; ++x)
+            (*mask)[(regmask[i].y - 1)*width + (x - 1)] = 1;
+    
+    // clean up
+    CloseRegions(reg);
+    free(regspec);
+    free(fitshdr);
+    
+    // mask created
+    return 0;
+}
+#endif
 
 void read_image(const char* filename, size_t* width, size_t* height, cl_float** image)
 {
@@ -254,17 +319,39 @@ void read_xweight(const char* filename, size_t width, size_t height, double** xw
         errorf(filename, 0, "wrong dimensions %zu x %zu for extra weights (should be %zu x %zu)", xwht_w, xwht_h, width, height);
 }
 
-void read_mask(const char* filename, size_t width, size_t height, int** mask)
+void read_mask(const char* maskname, const char* imagename, const pcsdata* pcs, size_t width, size_t height, int** mask)
 {
     // mask width and height
-    size_t msk_w, msk_h;
+    size_t msk_w = width, msk_h = height;
     
-    // read mask from FITS file
-    read_fits(filename, TINT, &msk_w, &msk_h, (void**)mask);
+    // file format detection
+    FILE* maskfile;
+    char magic[10];
+    
+    // get magic bytes from beginning of mask file
+    maskfile = fopen(maskname, "rb");
+    if(!maskfile)
+        errorfi(maskname, 0, "could not read mask");
+    if(!fgets(magic, sizeof(magic), maskfile))
+        errorfi(maskname, 0, "could not read mask");
+    fclose(maskfile);
+    
+    // determine whether mask is FITS using magic bytes
+    if(strncmp(magic, "SIMPLE  =", 9) == 0)
+        read_fits(maskname, TINT, &msk_w, &msk_h, (void**)mask);
+#ifdef LENSED_REGIONS
+    // try to read region file
+    else if(read_regions_mask(maskname, imagename, pcs, width, height, mask) == 0)
+    {
+        // mask was read correctly
+    }
+#endif
+    else
+        errorf(maskname, 0, "file does not contain a recognized mask format");
     
     // make sure dimensions agree
     if(msk_w != width || msk_h != height)
-        errorf(filename, 0, "wrong dimensions %zu x %zu for mask (should be %zu x %zu)", msk_w, msk_h, width, height);
+        errorf(maskname, 0, "wrong dimensions %zu x %zu for mask (should be %zu x %zu)", msk_w, msk_h, width, height);
 }
 
 void read_psf(const char* filename, size_t* width, size_t* height, cl_float** psf)
