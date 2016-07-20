@@ -64,8 +64,15 @@ before_deploy:
   make &&
   sudo make install &&
   popd
+- pushd /tmp &&
+  curl -L https://github.com/ericmandel/regions/archive/master.tar.gz | tar xz &&
+  cd regions-master &&
+  ./configure &&
+  make &&
+  sudo make install &&
+  popd
 - make distclean
-- make XPA=1
+- make XPA=1 REGIONS=1
 - make release
 deploy:
   provider: releases

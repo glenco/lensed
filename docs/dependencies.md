@@ -15,7 +15,12 @@ dependency on
 
 -   [XPA](#xpa) .
 
-XPA support must be enabled explicitly in the [build options](building.md).
+For region file support, there is a further dependency on the
+
+-   [regions library](#regions) .
+
+XPA and region file support must be enabled explicitly in the
+[build options](building.md).
 
 
 CFITSIO
@@ -208,7 +213,7 @@ is required.
 
 ### Sources
 
-The XPA library and command line tools can be install quickly from the GitHub
+The XPA library and command line tools can be installed quickly from the GitHub
 repository:
 
 ```sh
@@ -246,4 +251,36 @@ XQuartz, even though building from source does not (see above).
 ```sh
 $ brew install homebrew/x11/xpa
 ```
+
+
+Regions
+-------
+
+For region file support, the
+
+- [regions library](https://github.com/ericmandel/regions)
+
+is required.
+
+
+### Sources
+
+The regions library and command line tools can be installed quickly from the
+GitHub repository:
+
+```sh
+$ curl -L https://github.com/ericmandel/regions/archive/master.tar.gz | tar xz
+$ cd regions-master
+$ ./configure  # --prefix=... and other options as necessary
+$ make
+```
+
+If possible, the regions library and command line tools should be installed into
+the system, using
+
+```sh
+$ sudo make install
+```
+
+or similar, depending on the platform at hand.
 

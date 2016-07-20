@@ -31,7 +31,7 @@ void make_weight(const cl_float* image, const double* gain, double offset, size_
 void read_xweight(const char* filename, size_t width, size_t height, double** weight);
 
 // read mask from file
-void read_mask(const char* filename, size_t width, size_t height, int** mask);
+void read_mask(const char* maskname, const char* imagename, const pcsdata* pcs, size_t width, size_t height, int** mask);
 
 // read PSF from file
 void read_psf(const char* filename, size_t* width, size_t* height, cl_float** psf);

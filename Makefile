@@ -42,6 +42,21 @@
 #   XPA_LIB                                                          #
 #     XPA library (e.g. `-lxpa`)                                     #
 #                                                                    #
+#   REGIONS                                                          #
+#     build with support for region files                            #
+#                                                                    #
+#   REGIONS_DIR                                                      #
+#     path to a local regions library build                          #
+#                                                                    #
+#   REGIONS_INCLUDE_DIR                                              #
+#     path to `regions.h`                                            #
+#                                                                    #
+#   REGIONS_LIB_DIR                                                  #
+#     path to the regions library                                    #
+#                                                                    #
+#   REGIONS_LIB                                                      #
+#     regions library (e.g. `-lregions`)                             #
+#                                                                    #
 #   OPENCL_DIR                                                       #
 #     path to the OpenCL implementation                              #
 #                                                                    #
@@ -211,6 +226,31 @@ LDLIBS += $(XPA_LIB)
 # ifdef XPA
 endif
 
+# build with regions support
+ifdef REGIONS
+
+CFLAGS += -DLENSED_REGIONS
+
+# regions library
+ifndef REGIONS_LIB
+REGIONS_LIB = -lregions
+endif
+
+ifdef REGIONS_DIR
+REGIONS_INCLUDE_DIR = $(REGIONS_DIR)
+REGIONS_LIB_DIR = $(REGIONS_DIR)
+endif
+ifdef REGIONS_INCLUDE_DIR
+CFLAGS += -I$(REGIONS_INCLUDE_DIR)
+endif
+ifdef REGIONS_LIB_DIR
+LDFLAGS += -L$(REGIONS_LIB_DIR) -Wl,-rpath,$(REGIONS_LIB_DIR)
+endif
+LDLIBS += $(REGIONS_LIB)
+
+# ifdef REGIONS
+endif
+
 # system-dependent OpenCL library
 OPENCL_LIB_Linux = -lOpenCL
 OPENCL_LIB_Darwin = -framework OpenCL
@@ -316,6 +356,10 @@ cache:
 	@$(ECHO) "XPA_INCLUDE_DIR = $(XPA_INCLUDE_DIR)" >> $(CACHE)
 	@$(ECHO) "XPA_LIB_DIR = $(XPA_LIB_DIR)" >> $(CACHE)
 	@$(ECHO) "XPA_LIB = $(XPA_LIB)" >> $(CACHE)
+	@$(ECHO) "REGIONS = $(REGIONS)" >> $(CACHE)
+	@$(ECHO) "REGIONS_INCLUDE_DIR = $(REGIONS_INCLUDE_DIR)" >> $(CACHE)
+	@$(ECHO) "REGIONS_LIB_DIR = $(REGIONS_LIB_DIR)" >> $(CACHE)
+	@$(ECHO) "REGIONS_LIB = $(REGIONS_LIB)" >> $(CACHE)
 	@$(ECHO) "OPENCL_INCLUDE_DIR = $(OPENCL_INCLUDE_DIR)" >> $(CACHE)
 	@$(ECHO) "OPENCL_LIB_DIR = $(OPENCL_LIB_DIR)" >> $(CACHE)
 	@$(ECHO) "OPENCL_LIB = $(OPENCL_LIB)" >> $(CACHE)

@@ -102,6 +102,12 @@ For XPA support and DS9 integration, the
 
 is additionally required.
 
+For region file support, the
+
+-   regions library
+
+is additionally required.
+
 
 Build configuration
 -------------------
@@ -131,6 +137,11 @@ The following variables can be passed to Lensed:
 | `XPA_INCLUDE_DIR`       | path to `xpa.h`                                   |
 | `XPA_LIB_DIR`           | path to the XPA library                           |
 | `XPA_LIB`               | XPA library (e.g. `-lxpa`)                        |
+| `REGIONS`               | build with support for region files               |
+| `REGIONS_DIR`           | path to a local regions library build             |
+| `REGIONS_INCLUDE_DIR`   | path to `regions.h`                               |
+| `REGIONS_LIB_DIR`       | path to the regions library                       |
+| `REGIONS_LIB`           | regions library (e.g. `-lregions`)                |
 | `OPENCL_DIR`            | path to the OpenCL implementation                 |
 | `OPENCL_INCLUDE_DIR`    | path to the `CL/cl.h` header                      |
 | `OPENCL_LIB_DIR`        | path to the OpenCL library                        |
@@ -151,6 +162,14 @@ CFITSIO_LIB = -lcfitsio
 MULTINEST_INCLUDE_DIR = 
 MULTINEST_LIB_DIR = 
 MULTINEST_LIB = -lmultinest
+XPA = 
+XPA_INCLUDE_DIR = 
+XPA_LIB_DIR = 
+XPA_LIB = 
+REGIONS = 
+REGIONS_INCLUDE_DIR = 
+REGIONS_LIB_DIR = 
+REGIONS_LIB = 
 OPENCL_INCLUDE_DIR = 
 OPENCL_LIB_DIR = 
 OPENCL_LIB = -framework OpenCL
@@ -172,6 +191,11 @@ The XPA support and DS9 integration is controlled with the `XPA` symbol. Since
 XPA requires an additional [dependency](dependencies.md#xpa), it is by default
 not supported. Calling `make XPA=1` enables XPA support and DS9 integration.
 The XPA library can be [configured](#xpa) like any other dependency.
+
+The region file support is controlled with the `REGIONS` symbol. Since regions
+require an additional [dependency](dependencies.md#regions), they are by default
+not supported. Calling `make REGIONS=1` enables region file support. The regions
+library can be [configured](#regions) like any other dependency.
 
 The following sections contain further details on configuring the individual
 components of Lensed.
@@ -266,12 +290,46 @@ Alternatively, `XPA_INCLUDE_DIR` and `XPA_LIB_DIR` can be explicitly specified.
 $ make XPA_INCLUDE_DIR="$HOME/headers" XPA_LIB_DIR="$HOME/libraries"
 ```
 
-The default XPA library be linked is `-lxpa`. This can be overridden using the
-`XPA_LIB` flag, either giving a `-l<name>` linker flag or the full path to the
-library.
+The default XPA library to be linked is `-lxpa`. This can be overridden using
+the `XPA_LIB` flag, either giving a `-l<name>` linker flag or the full path to
+the library.
 
 ```sh
 $ make XPA_LIB="$HOME/libraries/my-xpa-lib.a"
+```
+
+
+### Regions
+
+To enable region file support, use the `REGIONS` flag.
+
+```sh
+$ make REGIONS=1
+```
+
+If the regions library has been built from source, the path to the source folder
+can be given to Lensed using the `REGIONS_DIR` variable.
+
+```sh
+$ make REGIONS_DIR="$HOME/regions"
+```
+
+This sets both `REGIONS_INCLUDE_DIR` and `REGIONS_LIB_DIR` to `REGIONS_DIR`, as
+this is where `regions.h` and `libregions` reside by default.
+
+Alternatively, `REGIONS_INCLUDE_DIR` and `REGIONS_LIB_DIR` can be explicitly
+specified.
+
+```sh
+$ make REGIONS_INCLUDE_DIR="$HOME/headers" REGIONS_LIB_DIR="$HOME/libraries"
+```
+
+The default regions library to be linked is `-lregions`. This can be overridden
+using the `REGIONS_LIB` flag, either giving a `-l<name>` linker flag or the full
+path to the library.
+
+```sh
+$ make REGIONS_LIB="$HOME/libraries/my-regions-lib.a"
 ```
 
 
