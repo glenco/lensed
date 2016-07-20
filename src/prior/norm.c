@@ -85,12 +85,12 @@ double prior_lower_norm(const void* data)
 {
     const struct norm* norm = data;
     
-    return -7*norm->s;
+    return norm->m - 7*norm->s;
 }
 
 double prior_upper_norm(const void* data)
 {
     const struct norm* norm = data;
     
-    return +7*norm->s;
+    return norm->m + 7*norm->s;
 }
