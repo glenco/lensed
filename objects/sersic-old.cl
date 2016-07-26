@@ -6,7 +6,7 @@ params
     { "y",   POSITION_Y },
     { "r",   RADIUS     },
     { "mag", MAGNITUDE  },
-    { "n",   PARAMETER, POS_BOUND },
+    { "n",   PARAMETER, { 0.5f, 8.0f } },
     { "q",   AXIS_RATIO },
     { "pa",  POS_ANGLE  }
 };
@@ -28,9 +28,7 @@ static float brightness(local data* this, float2 x)
 
 static void set(local data* this, float x, float y, float r, float mag, float n, float q, float a)
 {
-    // for approximations see MacArthur, Courteau, Holtzman (2003)
-    float b = n > 0.36 ? 2.*n - 1./3. + 4./(405.*n) + 46./(25515.*(n*n)) + 131./(1148175.*(n*n*n)) - 2194697./(30690717750.*(n*n*n*n))
-                       : 0.01945 - 0.8902*n + 10.95*(n*n) - 19.67*(n*n*n) + 13.43*(n*n*n*n);
+    float b = 1.9992f*n - 0.3271f; // approximation valid for 0.5 < n < 8
     
     float c = cos(a*DEG2RAD);
     float s = sin(a*DEG2RAD);
