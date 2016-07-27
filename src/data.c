@@ -36,6 +36,21 @@ void fits_error(const char* filename, int status)
     errorf(filename, 0, "%s", err_text);
 }
 
+int is_fits(const char* filename)
+{
+    int status = 0;
+    
+    // the FITS file
+    fitsfile* fptr;
+    
+    // open and close FITS file
+    fits_open_file(&fptr, filename, READONLY, &status);
+    fits_close_file(fptr, &status);
+    
+    // all ok means file is FITS
+    return status == 0;
+}
+
 void read_fits(const char* filename, int datatype, size_t* width, size_t* height, void** image)
 {
     int status = 0;
@@ -324,30 +339,17 @@ void read_mask(const char* maskname, const char* imagename, const pcsdata* pcs, 
     // mask width and height
     size_t msk_w = width, msk_h = height;
     
-    // file format detection
-    FILE* maskfile;
-    char magic[10];
-    
-    // get magic bytes from beginning of mask file
-    maskfile = fopen(maskname, "rb");
-    if(!maskfile)
-        errorfi(maskname, 0, "could not read mask");
-    if(!fgets(magic, sizeof(magic), maskfile))
-        errorfi(maskname, 0, "could not read mask");
-    fclose(maskfile);
-    
-    // determine whether mask is FITS using magic bytes
-    if(strncmp(magic, "SIMPLE  =", 9) == 0)
-        read_fits(maskname, TINT, &msk_w, &msk_h, (void**)mask);
 #ifdef LENSED_REGIONS
-    // try to read region file
-    else if(read_regions_mask(maskname, imagename, pcs, width, height, mask) == 0)
-    {
-        // mask was read correctly
-    }
-#endif
-    else
+    // check if file is FITS
+    if(is_fits(maskname))
+        read_fits(maskname, TINT, &msk_w, &msk_h, (void**)mask);
+    // else try to read region file
+    else if(read_regions_mask(maskname, imagename, pcs, width, height, mask))
         errorf(maskname, 0, "file does not contain a recognized mask format");
+#else
+    // read mask from FITS file
+    read_fits(maskname, TINT, &msk_w, &msk_h, (void**)mask);
+#endif
     
     // make sure dimensions agree
     if(msk_w != width || msk_h != height)
