@@ -144,11 +144,13 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
     cl_float* value_map;
     cl_float* error_map;
     cl_float* image_map;
+    cl_float* loglike_map;
     cl_float* residuals;
     cl_float* relerr;
+    cl_float* chi;
     
-    cl_float* output[5] = {0};
-    const char* names[5] = {0};
+    cl_float* output[6] = {0};
+    const char* names[6] = {0};
     
     // copy parameters to results
     for(size_t i = 0; i < lensed->npars; ++i)
@@ -209,7 +211,8 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         image_map = clEnqueueMapBuffer(lensed->queue, image_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
         value_map = clEnqueueMapBuffer(lensed->queue, lensed->value_mem, CL_FALSE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
         error_map = clEnqueueMapBuffer(lensed->queue, lensed->error_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
-        if(!value_map || !error_map || !image_map)
+        loglike_map = clEnqueueMapBuffer(lensed->queue, lensed->loglike_mem, CL_TRUE, CL_MAP_READ, 0, lensed->size*sizeof(cl_float), 0, NULL, NULL, NULL);
+        if(!image_map || !value_map || !error_map || !loglike_map)
             error("failed to map output buffer");
         
         // calculate residuals
@@ -226,12 +229,20 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         for(size_t i = 0; i < lensed->size; ++i)
             relerr[i] = error_map[i]/value_map[i];
         
+        // calculate chi values (sqrt of loglike)
+        chi = malloc(lensed->size*sizeof(cl_float));
+        if(!chi)
+            errori(NULL);
+        for(size_t i = 0; i < lensed->size; ++i)
+            chi[i] = sqrt(loglike_map[i]);
+        
         // output layers
         output[0] = image_map;
         output[1] = residuals;
         output[2] = value_map;
         output[3] = relerr;
         output[4] = lensed->weight;
+        output[5] = chi;
         
         // output extension names
         names[0] = "IMG";
@@ -239,10 +250,11 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         names[2] = "RAW";
         names[3] = "ERR";
         names[4] = "WHT";
+        names[5] = "CHI";
         
         // write output to FITS if asked to
         if(lensed->fits)
-            write_output(lensed->fits, lensed->width, lensed->height, 5, output, names);
+            write_output(lensed->fits, lensed->width, lensed->height, 6, output, names);
         
         // send output to DS9 if asked to
         if(lensed->ds9)
@@ -252,7 +264,7 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
             size_t len;
             
             // write FITS
-            len = write_memory(&fits, lensed->width, lensed->height, 5, output, names);
+            len = write_memory(&fits, lensed->width, lensed->height, 6, output, names);
             
             // show FITS
             ds9_mecube(lensed->ds9, fits, len);
@@ -265,10 +277,12 @@ void dumper(int* nsamples, int* nlive, int* npar, double** physlive,
         clEnqueueUnmapMemObject(lensed->queue, image_mem, image_map, 0, NULL, NULL);
         clEnqueueUnmapMemObject(lensed->queue, lensed->value_mem, value_map, 0, NULL, NULL);
         clEnqueueUnmapMemObject(lensed->queue, lensed->error_mem, error_map, 0, NULL, NULL);
+        clEnqueueUnmapMemObject(lensed->queue, lensed->loglike_mem, loglike_map, 0, NULL, NULL);
         
         // free arrays
         free(residuals);
         free(relerr);
+        free(chi);
     }
     
     // status output
