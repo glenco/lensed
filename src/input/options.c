@@ -528,6 +528,11 @@ int option_read_gain(void* out, const char* in)
 int option_write_gain(char* out, const void* in, size_t n)
 {
     struct gain* const* g = in;
+    if(!*g)
+    {
+        snprintf(out, n, "%s", "none");
+        return 0;
+    }
     if((*g)->file)
         return option_write_string(out, &(*g)->file, n);
     else
@@ -537,9 +542,12 @@ int option_write_gain(char* out, const void* in, size_t n)
 void option_free_gain(void* p)
 {
     struct gain** g = p;
-    if((*g)->file)
-        option_free_path(&(*g)->file);
-    else
-        option_free_real(&(*g)->value);
-    free(*g);
+    if(*g)
+    {
+        if((*g)->file)
+            option_free_path(&(*g)->file);
+        else
+            option_free_real(&(*g)->value);
+        free(*g);
+    }
 }
