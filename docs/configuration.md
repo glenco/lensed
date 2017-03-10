@@ -69,8 +69,8 @@ Option     | Type           | Description                            | Default
 `image`    | `path`         | Input image, FITS file in counts/sec.  | 
 `gain`     | `real`, `path` | [Conversion factor to counts.](#gain)  | 
 `offset`   | `real`         | Subtracted flat-field offset.          | `0`
-`weight`   | `path`         | Weight map in 1/(counts/sec)^2.        | `none`
-`xweight`  | `path`         | Extra weight map multiplier.           | `none`
+`weight`   | `real`, `path` | Pixel weights in 1/(counts/sec)^2.     | `none`
+`xweight`  | `real`, `path` | Extra weight map multiplier.           | `none`
 `mask`     | `path`         | Input mask, FITS file.                 | `none`
 `psf`      | `path`         | Point-spread function, FITS file.      | `none`
 `rule`     | `string`       | Rule for numerical integration.        | `g3k7`

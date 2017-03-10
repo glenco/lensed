@@ -424,18 +424,15 @@ int main(int argc, char* argv[])
     // check if weight map is given
     if(inp->opts->weight)
     {
-        // read weight map from file as it is
-        read_weight(inp->opts->weight, lensed->width, lensed->height, &lensed->weight);
+        // read weight map from file or generate from value
+        read_or_make_image(inp->opts->weight->file, inp->opts->weight->value, lensed->width, lensed->height, &lensed->weight);
     }
     else
     {
-        double* gain;
+        cl_float* gain;
         
         // read gain if given, else make uniform gain map
-        if(inp->opts->gain->file)
-            read_gain(inp->opts->gain->file, lensed->width, lensed->height, &gain);
-        else
-            make_gain(inp->opts->gain->value, lensed->width, lensed->height, &gain);
+        read_or_make_image(inp->opts->gain->file, inp->opts->gain->value, lensed->width, lensed->height, &gain);
         
         // make weight map from image, gain and offset
         make_weight(lensed->image, gain, inp->opts->offset, lensed->width, lensed->height, &lensed->weight);
@@ -446,10 +443,10 @@ int main(int argc, char* argv[])
     // apply extra weights if given
     if(inp->opts->xweight)
     {
-        double* xweight;
+        cl_float* xweight;
         
-        // read extra weight map from file
-        read_xweight(inp->opts->xweight, lensed->width, lensed->height, &xweight);
+        // read extra weight map from file or generate from value
+        read_or_make_image(inp->opts->xweight->file, inp->opts->xweight->value, lensed->width, lensed->height, &xweight);
         
         // multiply extra weights
         for(size_t i = 0; i < lensed->size; ++i)
