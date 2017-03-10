@@ -20,6 +20,12 @@ enum
     PAR_POS_ANGLE
 };
 
+// option contains a path or a real
+struct path_or_real {
+    char* file;
+    double value;
+};
+
 // options
 typedef struct
 {
@@ -35,15 +41,12 @@ typedef struct
     
     // data
     char* image;
-    char* weight;
-    char* xweight;
+    struct path_or_real* weight;
+    struct path_or_real* xweight;
     char* mask;
     char* psf;
     double offset;
-    struct gain {
-        char* file;
-        double value;
-    }* gain;
+    struct path_or_real* gain;
     
     // MultiNest
     int nlive;

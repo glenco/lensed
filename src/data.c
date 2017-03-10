@@ -255,55 +255,41 @@ void read_pcs(const char* filename, pcsdata* pcs)
     free(url);
 }
 
-void read_gain(const char* filename, size_t width, size_t height, double** gain)
+void read_or_make_image(const char* filename, double value, size_t width, size_t height, cl_float** image)
 {
-    // gain width and height
-    size_t gw, gh;
-    
-    // read gain from FITS file
-    read_fits(filename, TDOUBLE, &gw, &gh, (void**)gain);
-    
-    // make sure dimensions agree
-    if(gw != width || gh != height)
-        errorf(filename, 0, "wrong dimensions %zu x %zu for gain (should be %zu x %zu)", gw, gh, width, height);
-    
-    // TODO process depending on format
+    // if file is given
+    if(filename)
+    {
+        // file width and height
+        size_t w, h;
+        
+        // read FITS file
+        read_fits(filename, TDOUBLE, &w, &h, (void**)image);
+        
+        // make sure dimensions agree
+        if(w != width || h != height)
+            errorf(filename, 0, "wrong dimensions: %zu x %zu (should be %zu x %zu)", w, h, width, height);
+    }
+    else
+    {
+        // total size of image
+        size_t size = width*height;
+        
+        // make array for image
+        cl_float* x = malloc(size*sizeof(cl_float));
+        if(!x)
+            errori(NULL);
+        
+        // set value for each pixel
+        for(size_t i = 0; i < size; ++i)
+            x[i] = value;
+        
+        // output image
+        *image = x;
+    }
 }
 
-void make_gain(double value, size_t width, size_t height, double** gain)
-{
-    // total size of gain
-    size_t size = width*height;
-    
-    // make array for gain
-    double* g = malloc(size*sizeof(double));
-    if(!g)
-        errori(NULL);
-    
-    // set uniform gain for each pixel
-    for(size_t i = 0; i < size; ++i)
-        g[i] = value;
-    
-    // output gain
-    *gain = g;
-}
-
-void read_weight(const char* filename, size_t width, size_t height, cl_float** weight)
-{
-    // weight width and height
-    size_t wht_w, wht_h;
-    
-    // read weights from FITS file
-    read_fits(filename, TFLOAT, &wht_w, &wht_h, (void**)weight);
-    
-    // make sure dimensions agree
-    if(wht_w != width || wht_h != height)
-        errorf(filename, 0, "wrong dimensions %zu x %zu for weights (should be %zu x %zu)", wht_w, wht_h, width, height);
-    
-    // TODO process depending on format
-}
-
-void make_weight(const cl_float* image, const double* gain, double offset, size_t width, size_t height, cl_float** weight)
+void make_weight(const cl_float* image, const cl_float* gain, double offset, size_t width, size_t height, cl_float** weight)
 {
     // total size of weights
     size_t size = width*height;

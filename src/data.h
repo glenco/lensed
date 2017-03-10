@@ -15,20 +15,11 @@ void read_image(const char* filename, size_t* width, size_t* height, cl_float** 
 // read pixel coordinate system from image file
 void read_pcs(const char* filename, pcsdata* pcs);
 
-// read gain from file
-void read_gain(const char* filename, size_t width, size_t height, double** gain);
-
-// uniform gain
-void make_gain(double value, size_t width, size_t height, double** gain);
-
-// read weights from file
-void read_weight(const char* filename, size_t width, size_t height, cl_float** weight);
+// read image from file or set to value
+void read_or_make_image(const char* filename, double value, size_t width, size_t height, cl_float** image);
 
 // generate weights from image, gain and offset
-void make_weight(const cl_float* image, const double* gain, double offset, size_t width, size_t height, cl_float** weight);
-
-// read extra weights from file
-void read_xweight(const char* filename, size_t width, size_t height, double** weight);
+void make_weight(const cl_float* image, const cl_float* gain, double offset, size_t width, size_t height, cl_float** weight);
 
 // read mask from file
 void read_mask(const char* maskname, const char* imagename, const pcsdata* pcs, size_t width, size_t height, int** mask);

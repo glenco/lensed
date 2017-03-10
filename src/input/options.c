@@ -26,7 +26,7 @@ struct option
         int default_int;
         double default_real;
         const char* default_path;
-        struct gain* default_gain;
+        struct path_or_real* default_path_or_real;
     } default_value;
     size_t offset;
     size_t size;
@@ -57,7 +57,7 @@ OPTION_TYPE(bool)
 OPTION_TYPE(int)
 OPTION_TYPE(real)
 OPTION_TYPE(path)
-OPTION_TYPE(gain)
+OPTION_TYPE(path_or_real)
 
 // list of known options
 struct option OPTIONS[] = {
@@ -88,7 +88,7 @@ struct option OPTIONS[] = {
     {
         "gain",
         "Conversion factor to counts",
-        OPTION_REQIFNOT(gain, NULL, weight),
+        OPTION_REQIFNOT(path_or_real, NULL, weight),
         OPTION_FIELD(gain)
     },
     {
@@ -100,13 +100,13 @@ struct option OPTIONS[] = {
     {
         "weight",
         "Weight map in 1/(counts/sec)^2",
-        OPTION_OPTIONAL(path, NULL),
+        OPTION_OPTIONAL(path_or_real, NULL),
         OPTION_FIELD(weight)
     },
     {
         "xweight",
         "Extra weight map multiplier",
-        OPTION_OPTIONAL(path, NULL),
+        OPTION_OPTIONAL(path_or_real, NULL),
         OPTION_FIELD(xweight)
     },
     {
@@ -497,57 +497,57 @@ void option_free_path(void* p)
     free(*str);
 }
 
-int option_read_gain(void* out, const char* in)
+int option_read_path_or_real(void* out, const char* in)
 {
     int err;
-    struct gain** g = out;
+    struct path_or_real** por = out;
     
     // allocate space for struct
-    *g = malloc(sizeof(struct gain));
-    if(!*g)
+    *por = malloc(sizeof(struct path_or_real));
+    if(!*por)
         errori(NULL);
     
     // try to read real
-    err = option_read_real(&(*g)->value, in);
+    err = option_read_real(&(*por)->value, in);
     
     // check if there was a number
     if(!err)
     {
         // no file was given
-        (*g)->file = NULL;
+        (*por)->file = NULL;
         return 0;
     }
     
     // no number was given
-    (*g)->value = 0;
+    (*por)->value = 0;
     
     // read path
-    return option_read_path(&(*g)->file, in);
+    return option_read_path(&(*por)->file, in);
 }
 
-int option_write_gain(char* out, const void* in, size_t n)
+int option_write_path_or_real(char* out, const void* in, size_t n)
 {
-    struct gain* const* g = in;
-    if(!*g)
+    struct path_or_real* const* por = in;
+    if(!*por)
     {
         snprintf(out, n, "%s", "none");
         return 0;
     }
-    if((*g)->file)
-        return option_write_string(out, &(*g)->file, n);
+    if((*por)->file)
+        return option_write_string(out, &(*por)->file, n);
     else
-        return option_write_real(out, &(*g)->value, n);
+        return option_write_real(out, &(*por)->value, n);
 }
 
-void option_free_gain(void* p)
+void option_free_path_or_real(void* p)
 {
-    struct gain** g = p;
-    if(*g)
+    struct path_or_real** por = p;
+    if(*por)
     {
-        if((*g)->file)
-            option_free_path(&(*g)->file);
+        if((*por)->file)
+            option_free_path(&(*por)->file);
         else
-            option_free_real(&(*g)->value);
-        free(*g);
+            option_free_real(&(*por)->value);
+        free(*por);
     }
 }
