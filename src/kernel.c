@@ -153,7 +153,7 @@ static const char SETPIPP_POSDEFL[] =
 static const char OBJHEAD[] =
     "#define type constant int type_%s\n"
     "#define params constant struct param parlst_%s[] = \n"
-    "#define data struct __attribute__ ((aligned (4))) data_%s\n"
+    "#define data struct data_%s\n"
     "#define deflection deflection_%s\n"
     "#define brightness brightness_%s\n"
     "#define foreground foreground_%s\n"

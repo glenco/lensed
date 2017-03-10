@@ -730,7 +730,6 @@ int main(int argc, char* argv[])
         // flags for building, zero-terminated
         const char* build_flags[] = {
             "-cl-denorms-are-zero",
-            "-cl-strict-aliasing",
             "-cl-fast-relaxed-math",
             NULL
         };

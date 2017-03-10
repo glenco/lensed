@@ -14,9 +14,14 @@ branches:
     - /travis-.*/
 before_install:
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc)-updates main restricted" &&
     sudo apt-get update -qq -y &&
-    sudo apt-get install -qq -y gfortran fglrx opencl-headers libcfitsio3-dev;
+    sudo apt-get install -qq -y gfortran opencl-headers libcfitsio3-dev &&
+    pushd /tmp &&
+    curl http://registrationcenter-download.intel.com/akdlm/irc_nas/9019/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar xz &&
+    cd opencl_runtime_* &&
+    sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g" silent.cfg &&
+    sudo ./install.sh --silent silent.cfg &&
+    popd;
   fi
 - if [ "$TRAVIS_OS_NAME" = "osx" ]; then
     brew update &&
