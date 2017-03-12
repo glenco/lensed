@@ -47,6 +47,7 @@ typedef struct
     char* psf;
     double offset;
     struct path_or_real* gain;
+    double bscale;
     
     // MultiNest
     int nlive;
