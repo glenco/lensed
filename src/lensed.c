@@ -421,6 +421,15 @@ int main(int argc, char* argv[])
     verbose("  pixel origin: ( %ld, %ld )", pcs->rx, pcs->ry);
     verbose("  pixel scale: ( %f, %f )", pcs->sx, pcs->sy);
     
+    // apply scale to input pixels if given
+    if(inp->opts->bscale)
+    {
+        for(size_t i = 0; i < lensed->size; ++i)
+            lensed->image[i] *= inp->opts->bscale;
+        
+        verbose("  pixel bscale: %f", inp->opts->bscale);
+    }
+    
     // check if weight map is given
     if(inp->opts->weight)
     {

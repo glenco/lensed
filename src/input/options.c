@@ -98,6 +98,12 @@ struct option OPTIONS[] = {
         OPTION_FIELD(offset)
     },
     {
+        "bscale",
+        "Scale input pixel values",
+        OPTION_OPTIONAL(real, 0),
+        OPTION_FIELD(bscale)
+    },
+    {
         "weight",
         "Weight map in 1/(counts/sec)^2",
         OPTION_OPTIONAL(path_or_real, NULL),
