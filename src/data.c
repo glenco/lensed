@@ -351,10 +351,6 @@ void read_psf(const char* filename, size_t* width, size_t* height, cl_float** ps
     // read PSF from FITS file
     read_fits(filename, TFLOAT, width, height, (void**)psf);
     
-    // make PSF has odd number of pixels
-    if(!(*width % 2) || !(*height % 2))
-        errorf(filename, 0, "wrong dimensions %zu x %zu for PSF (should be odd numbers)", *width, *height);
-    
     // normalise PSF
     norm = 0;
     size = (*width)*(*height);
