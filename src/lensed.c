@@ -875,6 +875,15 @@ int main(int argc, char* argv[])
         pcs4.s[2] = pcs->sx;
         pcs4.s[3] = pcs->sy;
         
+        // fix coordinate system to account for half-pixel offset of even PSF
+        if(psf)
+        {
+            if(psfw%2 == 0)
+                pcs4.s[0] += 0.5;
+            if(psfh%2 == 0)
+                pcs4.s[1] += 0.5;
+        }
+        
         verbose("    kernel");
         
         // render kernel 
