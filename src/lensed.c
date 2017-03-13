@@ -58,7 +58,6 @@ int main(int argc, char* argv[])
     cl_program program;
     
     // OpenCL device info
-    unsigned opencl_version;
     cl_uint work_item_dims;
     size_t* work_item_sizes;
     cl_ulong local_mem_size;
@@ -282,7 +281,9 @@ int main(int argc, char* argv[])
         char device_name[128];
         char device_vendor[128];
         char device_version[128];
+#ifdef CL_VERSION_1_1
         char device_compiler[128];
+#endif
         char driver_version[128];
         char platform_name[128];
         cl_uint compute_units;
@@ -307,9 +308,11 @@ int main(int argc, char* argv[])
             err = clGetDeviceInfo(d->device_id, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
             printf("  version:  %s\n", err == CL_SUCCESS ? device_version : "(unknown)");
             
+#ifdef CL_VERSION_1_1
             // query device compiler
             err = clGetDeviceInfo(d->device_id, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
             printf("  compiler: %s\n", err == CL_SUCCESS ? device_compiler : "(unknown)");
+#endif
             
             // query driver version
             err = clGetDeviceInfo(d->device_id, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
@@ -655,7 +658,9 @@ int main(int argc, char* argv[])
             char device_name[128];
             char device_vendor[128];
             char device_version[128];
+#ifdef CL_VERSION_1_1
             char device_compiler[128];
+#endif
             char driver_version[128];
             cl_uint compute_units;
             
@@ -675,9 +680,11 @@ int main(int argc, char* argv[])
             err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_VERSION, sizeof(device_version), device_version, NULL);
             verbose("    version: %s", err == CL_SUCCESS ? device_version : "(unknown)");
             
+#ifdef CL_VERSION_1_1
             // query device compiler
             err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_OPENCL_C_VERSION, sizeof(device_compiler), device_compiler, NULL);
             verbose("    compiler: %s", err == CL_SUCCESS ? device_compiler : "(unknown)");
+#endif
             
             // query driver version
             err = clGetDeviceInfo(lcl->device_id, CL_DRIVER_VERSION, sizeof(driver_version), driver_version, NULL);
@@ -770,16 +777,6 @@ int main(int argc, char* argv[])
     
     // gather device info
     {
-        char version_string[128];
-        unsigned major, minor;
-        
-        // get version string
-        err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_VERSION, sizeof(version_string), version_string, NULL);
-        if(err != CL_SUCCESS || sscanf(version_string, "OpenCL %u.%u", &major, &minor) != 2)
-            opencl_version = 100;
-        else
-            opencl_version = 100*major + 10*minor;
-        
         // get number of work item dimensions for device
         err = clGetDeviceInfo(lcl->device_id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(work_item_dims), &work_item_dims, NULL);
         if(err != CL_SUCCESS)
@@ -923,17 +920,14 @@ int main(int argc, char* argv[])
             error("failed to get render kernel work group size");
         
         // get work group size multiple for kernel if OpenCL version > 1.0
-        if(opencl_version > 100)
-        {
+#ifdef CL_VERSION_1_1
             err = clGetKernelWorkGroupInfo(lensed->render, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get render kernel work group size multiple");
-        }
-        else
-        {
+#else
             // fixed work group size multiple of 16 for OpenCL 1.0
             wgm = 16;
-        }
+#endif
         
         verbose("    work size");
         
@@ -957,7 +951,7 @@ int main(int argc, char* argv[])
     // convolution kernel if there is a PSF
     if(psf)
     {
-        size_t wgs, wgm;
+        size_t wgs;
         cl_ulong lm;
         size_t cache_size;
         
@@ -993,19 +987,6 @@ int main(int argc, char* argv[])
         err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(wgs), &wgs, NULL);
         if(err != CL_SUCCESS)
             error("failed to get convolve kernel work group size");
-        
-        // get work group size multiple for kernel if OpenCL version > 1.0
-        if(opencl_version > 100)
-        {
-            err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
-            if(err != CL_SUCCESS)
-                error("failed to get convolve kernel work group size multiple");
-        }
-        else
-        {
-            // fixed work group size multiple of 16 for OpenCL 1.0
-            wgm = 16;
-        }
         
         // get local memory size for kernel
         err = clGetKernelWorkGroupInfo(lensed->convolve, lcl->device_id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(lm), &lm, NULL);
@@ -1102,17 +1083,14 @@ int main(int argc, char* argv[])
             error("failed to get loglike kernel work group information");
         
         // get work group size multiple for kernel if OpenCL version > 1.0
-        if(opencl_version > 100)
-        {
+#ifdef CL_VERSION_1_1
             err = clGetKernelWorkGroupInfo(lensed->loglike, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
             if(err != CL_SUCCESS)
                 error("failed to get loglike kernel work group size multiple");
-        }
-        else
-        {
+#else
             // fixed work group size multiple of 16 for OpenCL 1.0
             wgm = 16;
-        }
+#endif
         
         verbose("    work size");
         

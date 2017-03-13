@@ -1,5 +1,8 @@
 #pragma once
 
+// use OpenCL 1.2 API
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+
 // OpenCL headers
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>

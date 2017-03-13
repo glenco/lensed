@@ -33,11 +33,11 @@ before_install:
     sudo apt-get update -qq -y
     sudo apt-get install -qq -y gfortran libcfitsio3-dev
     pushd /tmp
-    mkdir CL
+    sudo install -d /usr/include/CL
     for header in cl cl_platform; do
-      curl -Lo CL/${header}.h https://github.com/KhronosGroup/OpenCL-Headers/raw/${OPENCL}/${header}.h
+      curl -LO https://github.com/KhronosGroup/OpenCL-Headers/raw/${OPENCL}/${header}.h
+      sudo install ${header}.h /usr/include/CL
     done
-    sudo cp -r CL /usr/include
     curl http://registrationcenter-download.intel.com/akdlm/irc_nas/9019/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar xz
     cd opencl_runtime_*
     sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g" silent.cfg
