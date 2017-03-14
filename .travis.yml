@@ -1,32 +1,33 @@
 language: c
 matrix:
   include:
-    - os: linux
-      compiler: gcc
-      env: OPENCL=opencl10
-    - os: linux
-      compiler: gcc
-      env: OPENCL=opencl11
-    - os: linux
-      compiler: gcc
-      env: OPENCL=opencl12
-    - os: linux
-      compiler: gcc
-      env: OPENCL=opencl20
-    - os: linux
-      compiler: gcc
-      env: OPENCL=opencl21
-    - os: osx
-      compiler: clang
-    - os: osx
-      compiler: gcc
+  - os: linux
+    compiler: gcc
+    env: OPENCL=opencl10
+  - os: linux
+    compiler: gcc
+    env: OPENCL=opencl11
+  - os: linux
+    compiler: gcc
+    env: OPENCL=opencl12 DEPLOY=true
+  - os: linux
+    compiler: gcc
+    env: OPENCL=opencl20
+  - os: linux
+    compiler: gcc
+    env: OPENCL=opencl21
+  - os: osx
+    compiler: clang
+    env: DEPLOY=true
+  - os: osx
+    compiler: gcc
 notifications:
   email: false
 branches:
   only:
-    - master
-    - /^v.*$/
-    - /travis-.*/
+  - master
+  - "/^v.*$/"
+  - "/travis-.*/"
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" = "linux" ]; then
@@ -115,9 +116,10 @@ before_deploy:
 deploy:
   provider: releases
   api_key:
-    secure: HtIvDAdeKl44IdOJKKHFLnXfa7EOvjFKraB3gVR2RUMJNi2CBrFVfdkHOHxh2n9c4I9nrx9IP7N24wls8VYVZ3s3RyAAGfjMNHKEMu66vQ9RATur58g2GdabMhAQh69OFWHkwSGXKRzhUSS9qIhxeon4vE+zVvkCbVOHM6qDSRzF7l1ZJdfpDqzdb0ZUltOwXz8hLSXmoM3GCLbCcoPTn0JqwrReHHYKSMshs0Rd1j9F9dYQwVtnAuX6mvsxf/q75dxQGy4QyH0Z25BJxKtrGCHo6sBApoysyOoBxiMRpw8irEQThRjwkixBXTDUC5CA75gqec1hpOaHIwlhsEJMVeFrQ0EI3wcp/taV6ta93aA5othrAWkUYlOmPUAyY3DPzSg35d81+sFMKVkFZeZOgvPJnXg9V6Pc8r59Aa9Pf6c2fOXF36oiGMvh55ZPz0ddYo04BXqIpJ389DGigzrXhEh6yzD7ko/68yo2iIjM+kJE64YBFR2S39Se6z0MvfpDRH/t3/Gh1kA5mmwMLQ5Tute1g3qLRP3SjH9XJH+FhyrY0Fr7XpxuFbCKKcU1hkLDFTQOY81IZsVIQR4D7oYhplib8G17go25XHriWaAtZ5QWeeUjyET2KV22UG1TFL0ttj2qcSfh6/n+gXXloh8vdYri/FCnNunLR6r6F8uQbb0=
+    secure: e8usjykFyRhRPd6cqt5x4VdIGi3j4mBwYfpUvvoKvlASQrBvoxodGyT7jHTlno2WN7aJuzUko5TaUWhbSj/MzZnltISbf/cRqd5qoeasUkQhNhIFUWFmH8nmUEP53Zk0dOEDUzjOEjVrUJ+s8+qboci6sgibdofvod5RqPPttagq26g26zWCj8GBZy1T8tppwXhprdzNCko4AwTehjCjqoUV64aMoP121o7F8yzrHnjCnnIZ6fzfpwuSVmg7XlDMHHnI43MvCCKzlCVQyLvpWWNigs5X9tJ7FVNOHiuTDwgaTCcEwUwTJKvE7wu8ficOC6j/mRohzdJG7zHTmFCZYDsUigs2UvH+Bph49/d6cJZaUO6yo0F38MDnXYnskxUUncO/4Fg+3a4ELYmtQGFGqjgobocWlK+GvH7zlNpFgl8h+3KLn9N3CzkwkF2SRQkqlm/tUnvjEO4fcMCbR4QxFwM9H1mj99SVp9AYBoyyYN2zJ2kb9QsYHHMMkRAMC4la99+JxvPVein/gYDz0kfhxipS78qUhJ0sjTq6Xs3sJhy2eshMCgufWDkeBsMde3uV0O3dA7RC5QkTVyIaG33QAEf9lzjtHJTJ+BOgPfZRYpmU+OmiO1TKxJI9xoDtl1ggnFzDSCkbwCTQyPQk1L/GobF+hOMyD8BgZ3WVKyJgqjE=
   file: ${RELEASE}
   skip_cleanup: true
   on:
+    repo: glenco/lensed
     tags: true
-    condition: ($TRAVIS_OS_NAME = linux && $CC = gcc && $OPENCL = opencl12) || ($TRAVIS_OS_NAME = osx && $CC = clang)
+    condition: $DEPLOY = true
