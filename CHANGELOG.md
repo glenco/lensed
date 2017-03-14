@@ -1,6 +1,24 @@
 Changelog
 =========
 
+v1.3.0 (2017-03-14)
+-------------------
+
+  * fix OpenCL compatibility issues when building
+  * new `bscale` option for config file
+  * support for even PSF size
+  * weight, xweight, gain options take file or number
+  * Sersic approximations for full parameter range
+  * fix crash when no gain option is given
+  * output p-value map
+  * use CFITSIO to check whether file is FITS
+  * use region files for mask
+  * default values of zero for sky gradient
+  * fixed existing EPL tests and added isothermal test
+  * write paramnames and ranges at start of reconstruction
+  * 7-sigma bounds instead of INF for normal prior
+  * simplified Sersic source coefficients
+
 v1.2.0 (2016-02-12)
 -------------------
 

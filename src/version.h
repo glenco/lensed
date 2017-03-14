@@ -1,3 +1,3 @@
 #pragma once
 
-#define LENSED_VERSION "1.2.0"
+#define LENSED_VERSION "1.3.0"
