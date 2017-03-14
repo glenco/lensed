@@ -20,8 +20,8 @@ enum
 
 // parameter bounds
 #define UNBOUNDED {0, 0}
-#define POS_BOUND {0, INFINITY}
-#define NEG_BOUND {-INFINITY, 0}
+#define POS_BOUND {0, +FLT_MAX}
+#define NEG_BOUND {-FLT_MAX, 0}
 
 // structure that holds parameter definition
 struct __attribute__ ((aligned (4))) param
