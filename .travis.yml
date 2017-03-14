@@ -1,10 +1,25 @@
 language: c
-compiler:
-- gcc
-- clang
-os:
-- linux
-- osx
+matrix:
+  include:
+    - os: linux
+      compiler: gcc
+      env: OPENCL=opencl10
+    - os: linux
+      compiler: gcc
+      env: OPENCL=opencl11
+    - os: linux
+      compiler: gcc
+      env: OPENCL=opencl12
+    - os: linux
+      compiler: gcc
+      env: OPENCL=opencl20
+    - os: linux
+      compiler: gcc
+      env: OPENCL=opencl21
+    - os: osx
+      compiler: clang
+    - os: osx
+      compiler: gcc
 notifications:
   email: false
 branches:
@@ -13,28 +28,38 @@ branches:
     - /^v.*$/
     - /travis-.*/
 before_install:
-- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    sudo apt-get update -qq -y &&
-    sudo apt-get install -qq -y gfortran opencl-headers libcfitsio3-dev &&
-    pushd /tmp &&
-    curl http://registrationcenter-download.intel.com/akdlm/irc_nas/9019/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar xz &&
-    cd opencl_runtime_* &&
-    sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g" silent.cfg &&
-    sudo ./install.sh --silent silent.cfg &&
-    popd;
+- |
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo apt-get update -qq -y
+    sudo apt-get install -qq -y gfortran libcfitsio3-dev
+    pushd /tmp
+    sudo install -d /usr/include/CL
+    for header in cl cl_platform; do
+      curl -LO https://github.com/KhronosGroup/OpenCL-Headers/raw/${OPENCL}/${header}.h
+      sudo install ${header}.h /usr/include/CL
+    done
+    curl http://registrationcenter-download.intel.com/akdlm/irc_nas/9019/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar xz
+    cd opencl_runtime_*
+    sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g" silent.cfg
+    sudo ./install.sh --silent silent.cfg
+    popd
   fi
-- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-    brew update &&
-    brew tap homebrew/science &&
-    brew install gcc cfitsio;
+- |
+  if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    brew update
+    brew tap homebrew/science
+    brew install gcc cfitsio
   fi
-- pushd /tmp &&
-  git clone git://github.com/JohannesBuchner/MultiNest.git &&
-  cd MultiNest/build &&
-  cmake .. -G "Unix Makefiles" &&
-  make &&
-  sudo make install &&
-  if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo ldconfig; fi &&
+- |
+  pushd /tmp
+  git clone git://github.com/JohannesBuchner/MultiNest.git
+  cd MultiNest/build
+  cmake .. -G "Unix Makefiles"
+  make
+  sudo make install
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo ldconfig
+  fi
   popd
 install:
 - make
@@ -46,36 +71,43 @@ before_deploy:
 - export RELEASE_VERSION=$(git describe --tags)
 - export RELEASE_TAG=$TRAVIS_OS_NAME
 - export RELEASE=build/lensed-$RELEASE_VERSION.$RELEASE_TAG.tar.gz
-- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    export CFITSIO_LIB="-l:libcfitsio.a";
-    export EXTRA_LIBS="-lz -Wl,-rpath='$ORIGIN'";
+- |
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    export CFITSIO_LIB="-l:libcfitsio.a"
+    export EXTRA_LIBS="-lz -Wl,-rpath='$ORIGIN'"
   fi
-- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-    export CFITSIO_LIB="/usr/local/lib/libcfitsio.a";
-    export EXTRA_LIBS="-Wl,-rpath,@executable_path";
+- |
+  if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    export CFITSIO_LIB="/usr/local/lib/libcfitsio.a"
+    export EXTRA_LIBS="-Wl,-rpath,@executable_path"
   fi
-- pushd /tmp &&
-  cd MultiNest &&
-  curl -L http://git.io/vkACf | patch -p1 &&
-  cd build &&
-  cmake .. -DCMAKE_MACOSX_RPATH=ON &&
-  make &&
-  sudo make install &&
-  if [ "$TRAVIS_OS_NAME" = "linux" ]; then sudo ldconfig; fi &&
+- |
+  pushd /tmp
+  cd MultiNest
+  curl -L http://git.io/vkACf | patch -p1
+  cd build
+  cmake .. -DCMAKE_MACOSX_RPATH=ON
+  make
+  sudo make install
+  if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    sudo ldconfig
+  fi
   popd
-- pushd /tmp &&
-  curl -L https://github.com/ericmandel/xpa/archive/master.tar.gz | tar xz &&
-  cd xpa-master &&
-  ./configure --without-x --without-tcl &&
-  make &&
-  sudo make install &&
+- |
+  pushd /tmp
+  curl -L https://github.com/ericmandel/xpa/archive/master.tar.gz | tar xz
+  cd xpa-master
+  ./configure --without-x --without-tcl
+  make
+  sudo make install
   popd
-- pushd /tmp &&
-  curl -L https://github.com/ericmandel/regions/archive/master.tar.gz | tar xz &&
-  cd regions-master &&
-  ./configure &&
-  make &&
-  sudo make install &&
+- |
+  pushd /tmp
+  curl -L https://github.com/ericmandel/regions/archive/master.tar.gz | tar xz
+  cd regions-master
+  ./configure
+  make
+  sudo make install
   popd
 - make distclean
 - make XPA=1 REGIONS=1
@@ -88,4 +120,4 @@ deploy:
   skip_cleanup: true
   on:
     tags: true
-    condition: ($TRAVIS_OS_NAME = linux && $CC = gcc) || ($TRAVIS_OS_NAME = osx && $CC = clang)
+    condition: ($TRAVIS_OS_NAME = linux && $CC = gcc && $OPENCL = opencl12) || ($TRAVIS_OS_NAME = osx && $CC = clang)
