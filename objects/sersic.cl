@@ -29,8 +29,8 @@ static float brightness(local data* this, float2 x)
 static void set(local data* this, float x, float y, float r, float mag, float n, float q, float a)
 {
     // for approximations see MacArthur, Courteau, Holtzman (2003)
-    float b = n > 0.36 ? 2.*n - 1./3. + 4./(405.*n) + 46./(25515.*(n*n)) + 131./(1148175.*(n*n*n)) - 2194697./(30690717750.*(n*n*n*n))
-                       : 0.01945 - 0.8902*n + 10.95*(n*n) - 19.67*(n*n*n) + 13.43*(n*n*n*n);
+    float b = n > 0.36f ? 2.0f*n - 1.0f/3 + 4.0f/(405*n) + 46.0f/(25515*(n*n)) + 131.0f/(1148175*(n*n*n)) - 2194697.0f/(30690717750*(n*n*n*n))
+                        : 0.01945f - 0.8902f*n + 10.95f*(n*n) - 19.67f*(n*n*n) + 13.43f*(n*n*n*n);
     
     float c = cos(a*DEG2RAD);
     float s = sin(a*DEG2RAD);
