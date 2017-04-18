@@ -69,6 +69,9 @@ void read_fits(const char* filename, int datatype, size_t* width, size_t* height
     // reading offset
     long fpixel[2] = { 1, 1 };
     
+    // size of output image pixels
+    size_t spix = 0;
+    
     // open FITS file
     fits_open_image(&fptr, filename, READONLY, &status);
     if(status)
@@ -87,9 +90,28 @@ void read_fits(const char* filename, int datatype, size_t* width, size_t* height
     *width = naxes[0];
     *height = naxes[1];
     
+    // size of output pixels
+    switch(datatype)
+    {
+        case TINT:
+            spix = sizeof(int);
+            break;
+            
+        case TFLOAT:
+            spix = sizeof(float);
+            break;
+            
+        case TDOUBLE:
+            spix = sizeof(double);
+            break;
+            
+        default:
+            error("read_fits(): datatype %d not implemented", datatype);
+    }
+    
     // create array for pixels
     npix = naxes[0]*naxes[1];
-    *image = malloc(npix*sizeof(double));
+    *image = malloc(npix*spix);
     if(!*image)
         errori(NULL);
     
@@ -264,7 +286,7 @@ void read_or_make_image(const char* filename, double value, size_t width, size_t
         size_t w, h;
         
         // read FITS file
-        read_fits(filename, TDOUBLE, &w, &h, (void**)image);
+        read_fits(filename, TFLOAT, &w, &h, (void**)image);
         
         // make sure dimensions agree
         if(w != width || h != height)
@@ -305,19 +327,6 @@ void make_weight(const cl_float* image, const cl_float* gain, double offset, siz
     
     // output weights
     *weight = w;
-}
-
-void read_xweight(const char* filename, size_t width, size_t height, double** xweight)
-{
-    // extra weight width and height
-    size_t xwht_w, xwht_h;
-    
-    // read extra weights from FITS file
-    read_fits(filename, TDOUBLE, &xwht_w, &xwht_h, (void**)xweight);
-    
-    // make sure dimensions agree
-    if(xwht_w != width || xwht_h != height)
-        errorf(filename, 0, "wrong dimensions %zu x %zu for extra weights (should be %zu x %zu)", xwht_w, xwht_h, width, height);
 }
 
 void read_mask(const char* maskname, const char* imagename, const pcsdata* pcs, size_t width, size_t height, int** mask)
