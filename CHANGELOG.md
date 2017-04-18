@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v1.3.2 (2017-04-18)
+-------------------
+
+  * bugfix: invalid datatype when reading weight etc.
+
 v1.3.1 (2017-03-15)
 -------------------
 
