@@ -3,19 +3,7 @@ matrix:
   include:
   - os: linux
     compiler: gcc
-    env: OPENCL=opencl10
-  - os: linux
-    compiler: gcc
-    env: OPENCL=opencl11
-  - os: linux
-    compiler: gcc
-    env: OPENCL=opencl12 DEPLOY=true
-  - os: linux
-    compiler: gcc
-    env: OPENCL=opencl20
-  - os: linux
-    compiler: gcc
-    env: OPENCL=opencl21
+    env: DEPLOY=true
   - os: osx
     compiler: clang
     env: DEPLOY=true
@@ -28,28 +16,27 @@ branches:
   - master
   - "/^v.*$/"
   - "/travis-.*/"
+addons:
+  apt:
+    packages:
+    - gfortran
+    - libcfitsio3-dev
+    - libopenblas-dev
+    - liblapack-dev
+    - opencl-headers
+  homebrew:
+    packages:
+    - gcc
+    - cfitsio
 before_install:
 - |
   if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    sudo apt-get update -qq -y
-    sudo apt-get install -qq -y gfortran libcfitsio3-dev
     pushd /tmp
-    sudo install -d /usr/include/CL
-    for header in cl cl_platform; do
-      curl -LO https://github.com/KhronosGroup/OpenCL-Headers/raw/${OPENCL}/${header}.h
-      sudo install ${header}.h /usr/include/CL
-    done
     curl http://registrationcenter-download.intel.com/akdlm/irc_nas/9019/opencl_runtime_16.1.1_x64_ubuntu_6.4.0.25.tgz | tar xz
     cd opencl_runtime_*
     sed -i "s/ACCEPT_EULA=decline/ACCEPT_EULA=accept/g" silent.cfg
     sudo ./install.sh --silent silent.cfg
     popd
-  fi
-- |
-  if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-    brew update
-    brew tap homebrew/science
-    brew install gcc cfitsio
   fi
 - |
   pushd /tmp
