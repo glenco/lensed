@@ -919,6 +919,9 @@ int main(int argc, char* argv[])
         if(err != CL_SUCCESS)
             error("failed to get render kernel work group size");
         
+        // fix wgs
+        wgs = 16;
+        
         // get work group size multiple for kernel if OpenCL version > 1.0
 #ifdef CL_VERSION_1_1
             err = clGetKernelWorkGroupInfo(lensed->render, lcl->device_id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(wgm), &wgm, NULL);
@@ -931,15 +934,16 @@ int main(int argc, char* argv[])
         
         verbose("    work size");
         
+        // make sure work group size is allowed
+        if(wgs > work_item_sizes[0])
+            wgs = work_item_sizes[0];
+        
+        // set work group size to a multiple of the preferred size
+        if(wgs > wgm)
+            wgs = (wgs/wgm)*wgm;
+        
         // local work size
         lensed->render_lws[0] = wgs;
-        
-        // make sure work group size is allowed
-        if(lensed->render_lws[0] > work_item_sizes[0])
-            lensed->render_lws[0] = work_item_sizes[0];
-        
-        // make sure work group size is a multiple of the preferred size
-        lensed->render_lws[0] = (lensed->render_lws[0]/wgm)*wgm;
         
         // global work size
         lensed->render_gws[0] = lensed->size + (lensed->render_lws[0] - lensed->size%lensed->render_lws[0])%lensed->render_lws[0];
