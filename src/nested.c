@@ -18,9 +18,11 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
 {
     struct lensed* lensed = lensed_;
     
-    cl_event* map_params_ev        = NULL;
-    cl_event* unmap_params_ev      = NULL;
+    cl_event* map_params_w_ev      = NULL;
+    cl_event* unmap_params_w_ev    = NULL;
     cl_event* set_params_ev        = NULL;
+    cl_event* map_params_r_ev      = NULL;
+    cl_event* unmap_params_r_ev    = NULL;
     cl_event* render_ev            = NULL;
     cl_event* convolve_ev          = NULL;
     cl_event* loglike_ev           = NULL;
@@ -29,9 +31,11 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     
     if(lensed->profile)
     {
-        map_params_ev        = profile_event();
-        unmap_params_ev      = profile_event();
+        map_params_w_ev      = profile_event();
+        unmap_params_w_ev    = profile_event();
         set_params_ev        = profile_event();
+        map_params_r_ev      = profile_event();
+        unmap_params_r_ev    = profile_event();
         render_ev            = profile_event();
         convolve_ev          = profile_event();
         loglike_ev           = profile_event();
@@ -63,22 +67,28 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     // error flag
     cl_int err = 0;
     
-    // map parameter space on device
-    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, map_params_ev, &err);
-    
     // copy parameters to device using map
+    cl_float* params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_WRITE, 0, lensed->npars*sizeof(cl_float), 0, NULL, map_params_w_ev, &err);
     for(size_t i = 0; i < lensed->npars; ++i)
         params[lensed->pmap[i]] = cube[i];
+    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, unmap_params_w_ev);
     
-    // done with parameter space
-    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, unmap_params_ev);
-    
-    // set parameters
+    // set parameters; also does transformations (image plane priors)
     err |= clEnqueueTask(lensed->queue, lensed->set_params, 0, NULL, set_params_ev);
     
     // check for errors
     if(err != CL_SUCCESS)
         error("failed to set parameters");
+    
+    // copy parameters from device using map
+    params = clEnqueueMapBuffer(lensed->queue, lensed->params, CL_TRUE, CL_MAP_READ, 0, lensed->npars*sizeof(cl_float), 0, NULL, map_params_r_ev, &err);
+    for(size_t i = 0; i < lensed->npars; ++i)
+        cube[i] = params[lensed->pmap[i]];
+    clEnqueueUnmapMemObject(lensed->queue, lensed->params, params, 0, NULL, unmap_params_r_ev);
+    
+    // check for errors
+    if(err != CL_SUCCESS)
+        error("failed to read back parameters");
     
     // simulate objects
     err = clEnqueueNDRangeKernel(lensed->queue, lensed->render, 1, NULL, lensed->render_gws, lensed->render_lws, 0, NULL, render_ev);
@@ -118,9 +128,11 @@ void loglike(double cube[], int* ndim, int* npar, double* lnew, void* lensed_)
     {
         clFinish(lensed->queue);
         
-        profile_read(lensed->profile->map_params, map_params_ev);
-        profile_read(lensed->profile->unmap_params, unmap_params_ev);
+        profile_read(lensed->profile->map_params_w, map_params_w_ev);
+        profile_read(lensed->profile->unmap_params_w, unmap_params_w_ev);
         profile_read(lensed->profile->set_params, set_params_ev);
+        profile_read(lensed->profile->map_params_r, map_params_r_ev);
+        profile_read(lensed->profile->unmap_params_r, unmap_params_r_ev);
         profile_read(lensed->profile->render, render_ev);
         if(lensed->convolve)
             profile_read(lensed->profile->convolve, convolve_ev);

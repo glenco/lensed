@@ -841,7 +841,7 @@ int main(int argc, char* argv[])
         verbose("  create parameter buffer");
         
         // create the memory containing physical parameters on the device
-        lensed->params = clCreateBuffer(lcl->context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, lensed->npars*sizeof(cl_float), NULL, &err);
+        lensed->params = clCreateBuffer(lcl->context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, lensed->npars*sizeof(cl_float), NULL, &err);
         if(err != CL_SUCCESS)
             error("failed to create buffer for parameters");
         
@@ -1122,9 +1122,11 @@ int main(int argc, char* argv[])
             errori(NULL);
         
         // create the profiles
-        lensed->profile->map_params        = profile_create("+params");
-        lensed->profile->unmap_params      = profile_create("-params");
+        lensed->profile->map_params_w      = profile_create("+set params");
+        lensed->profile->unmap_params_w    = profile_create("-set params");
         lensed->profile->set_params        = profile_create("set_params");
+        lensed->profile->map_params_r      = profile_create("+get params");
+        lensed->profile->unmap_params_r    = profile_create("-get params");
         lensed->profile->render            = profile_create("render");
         lensed->profile->convolve          = profile_create("convolve");
         lensed->profile->loglike           = profile_create("loglike");
@@ -1332,9 +1334,11 @@ int main(int argc, char* argv[])
     {
         // the list of profiles
         profile* profv[] = {
-            lensed->profile->map_params,
-            lensed->profile->unmap_params,
+            lensed->profile->map_params_w,
+            lensed->profile->unmap_params_w,
             lensed->profile->set_params,
+            lensed->profile->map_params_r,
+            lensed->profile->unmap_params_r,
             lensed->profile->render,
             lensed->profile->convolve,
             lensed->profile->loglike,
@@ -1387,9 +1391,11 @@ int main(int argc, char* argv[])
     // free profile
     if(lensed->profile)
     {
-        profile_free(lensed->profile->map_params);
-        profile_free(lensed->profile->unmap_params);
+        profile_free(lensed->profile->map_params_w);
+        profile_free(lensed->profile->unmap_params_w);
         profile_free(lensed->profile->set_params);
+        profile_free(lensed->profile->map_params_r);
+        profile_free(lensed->profile->unmap_params_r);
         profile_free(lensed->profile->render);
         profile_free(lensed->profile->convolve);
         profile_free(lensed->profile->loglike);

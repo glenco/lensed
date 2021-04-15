@@ -113,12 +113,11 @@ static const char COMPFOOT[] =
 // kernel to set parameters
 static const char SETPHEAD[] =
     "kernel void set_params(ulong dsiz, global int* gdata, local int* ldata,\n"
-    "                       constant float* params)\n"
+    "                       global float* params)\n"
     "{\n"
     "    // image plane priors\n"
     "    float2 x;\n"
     "    float2 a;\n"
-    "    x = 0;\n"
     "    a = 0;\n"
     "    \n"
     "    // load parameters to local memory\n"
@@ -128,7 +127,6 @@ static const char SETPHEAD[] =
 ;
 static const char SETPLEFT[] = "    set_%s((local void*)(ldata + %zu)";
 static const char SETPARGS[] = ", params[%zu]";
-static const char SETPIPPA[] = ", %s";
 static const char SETPRGHT[] = ");\n";
 static const char SETPFOOT[] =
     "    \n"
@@ -139,6 +137,8 @@ static const char SETPFOOT[] =
     "}\n"
 ;
 static const char SETPIPP_POSINIT[] =
+    "    \n"
+    "    // image plane prior\n"
     "    x = (float2)(params[%zu], params[%zu]);\n"
 ;
 static const char SETPIPP_POSLENS[] =
@@ -147,6 +147,11 @@ static const char SETPIPP_POSLENS[] =
 static const char SETPIPP_POSDEFL[] =
     "    x -= dot(a, a) < HUGE_VALF ? a : (float2)(1E10f, 1E10f);\n"
     "    a = 0;\n"
+;
+static const char SETPIPP_POSFINL[] =
+    "    params[%zu] = x.x;\n"
+    "    params[%zu] = x.y;\n"
+    "    \n"
 ;
 
 // object kernel
@@ -561,6 +566,15 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
                                 else
                                     siz += wri;
                             }
+                            
+                            // finalise position IPP
+                            wri = snprintf(out, len, SETPIPP_POSFINL, p + j, p + j + 1);
+                            if(wri < 0)
+                                errori(NULL);
+                            if(pass > 0)
+                                out += wri;
+                            else
+                                siz += wri;
                         }
                         
                         // handled together with X
@@ -586,36 +600,13 @@ static const char* set_params_kernel(size_t nobjs, object objs[])
             // write arguments
             for(size_t j = 0; j < objs[i].npars; ++j)
             {
-                // special argument for image plane priors
-                if(objs[i].pars[j].ipp)
-                {
-                    const char* arg;
-                    
-                    switch(objs[i].pars[j].type)
-                    {
-                        case PAR_POSITION_X:    arg = "x.x";    break;
-                        case PAR_POSITION_Y:    arg = "x.y";    break;
-                        default:                arg = "0";      break;
-                    }
-                    
-                    wri = snprintf(out, len, SETPIPPA, arg);
-                    if(wri < 0)
-                        errori(NULL);
-                    if(pass > 0)
-                        out += wri;
-                    else
-                        siz += wri;
-                }
+                wri = snprintf(out, len, SETPARGS, p + j);
+                if(wri < 0)
+                    errori(NULL);
+                if(pass > 0)
+                    out += wri;
                 else
-                {
-                    wri = snprintf(out, len, SETPARGS, p + j);
-                    if(wri < 0)
-                        errori(NULL);
-                    if(pass > 0)
-                        out += wri;
-                    else
-                        siz += wri;
-                }
+                    siz += wri;
             }
             
             // write right side of line

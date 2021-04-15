@@ -57,9 +57,11 @@ struct lensed
     
     // profiling info
     struct {
-        profile* map_params;
-        profile* unmap_params;
+        profile* map_params_w;
+        profile* unmap_params_w;
         profile* set_params;
+        profile* map_params_r;
+        profile* unmap_params_r;
         profile* render;
         profile* convolve;
         profile* loglike;
